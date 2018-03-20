@@ -226,6 +226,7 @@ def post_response(message, response_list, *args):
     asyncio.get_event_loop().create_task(client.send_message(message.channel, response))
 
 
+@client.event
 async def react_to_message(message, amount):
     if amount > 0:
         await client.add_reaction(message, '\U00002611')   # check mark
