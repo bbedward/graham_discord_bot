@@ -191,7 +191,7 @@ async def handle_message(message):
 			else:
 				response = random.choice(feat.response_templates["header"]) + "\n"
 				for top_user in top_users:
-					response += '\n %d: %.6f nano tipped by %s' % (top_user['index'],
+					response += '\n %d: %.6f NANO tipped by %s' % (top_user['index'],
 							     top_user['amount'], top_user['name'])
 				post_response(message, [response])
 

@@ -1,18 +1,34 @@
-# NANO Tip Bot for Discord
+# NANO Tip Bot
 
-Open source nano tip bot for discord
+NANO Tip Bot is an open source, free to use nano tip bot for discord.
 
-more doc coming soon i'm in a rush atm
+Intended to operate in a similar manner to the old tip bot on nano's discord server, with some enhancements.
 
-Simply run bot.py with python 3 basically
+## Usage
 
-and configure settings.py
+To run the bot, update `settings.py` with nano wallet ID and discord bot ID+Token, then simply use:
 
-requirements:
+```
+python3 bot.py
+```
 
-wheel
-setuptools
-discord
-peewee
-asyncio
-pycurl
+or to run in background
+
+```
+nohup python3 bot.py &
+```
+
+## Dependencies (install using pip)
+
+- Python 3.4+
+- `setuptools`
+- `discord`
+- `peewee`
+- `asyncio`
+- `pycurl`
+
+## Credits
+
+Mainly ZTipBot for ZCoin, which is what much of the user-facing part of this bot is based on:
+
+https://github.com/tehranifar/ZTipBot
