@@ -103,5 +103,6 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-# settings
+# NANO tip bot stuff
+nanotipbot.db
 settings.py
