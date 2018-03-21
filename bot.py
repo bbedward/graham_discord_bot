@@ -122,81 +122,78 @@ def setup_bot():
 
 bot_features = setup_bot()
 
-async def handle_message(features, message):
-	feat = features[0]
+async def handle_message(message):
+	features = [f for f in bot_features for c in f.command_keywords if c in message.content]
+	if len(features) == 1:
+		feat = features[0]
 
-	# Ignore messages from users that are < 1 second apart (prevent spam)
-	if db.last_msg_check(message.author.id) == False:
-		return
+		# Ignore messages from users that are < 1 second apart (prevent spam)
+		if db.last_msg_check(message.author.id) == False:
+			return
 
-	if feat.command == "HELP" and message.channel.is_private:
-		post_response(message, feat.response_templates["success"], BOT_VERSION)
-
-	elif feat.command == "BALANCE" and message.channel.is_private:
-		balance = wallet.get_balance(message.author.id)
-		post_response(message, feat.response_templates["success"], balance)
-
-	elif feat.command == "DEPOSIT" and message.channel.is_private:
-		user_deposit_address = wallet.create_or_fetch_user(message.author.id, message.author.name).wallet_address
-		post_response(message, feat.response_templates["success"], user_deposit_address,
-			      get_qr_url(user_deposit_address))
-
-	elif feat.command == "WITHDRAW" and message.channel.is_private:
-		try:
-			withdraw_address = find_address(message.content)
-			source_address = wallet.get_address(message.author.id)
-			amount = wallet.get_balance(message.author.id)
-			if amount == 0:
-				post_response(message, feat.response_templates["invalid_amt"]);
-			else:
-				txid = wallet.make_transaction_to_address(source_address, amount, withdraw_address)
-				post_response(message, feat.response_templates["success"], txid)
-		except util.TipBotException as e:
-			if e.error_type == "address_not_found":
-				post_response(message, feat.response_templates["address_not_found"])
-				if e.error_type == "invalid_address":
-				    post_response(message, feat.response_templates["invalid_address"])
-			if e.error_type == "error":
-				post_response(message, feat.response_templates["error"])
-
-	elif feat.command == "TIP":
-		try:
-			amount = find_amount(message.content)
-			# Make sure user has specified at least 1 recipient
-			if len(message.mentions) < 1:
-				return
-			# Make sure this user has enough in their balance to complete this tip
-			required_amt = amount * len(message.mentions)
-			user_balance = wallet.get_balance(message.author.id)
-			if user_balance < required_amt:
-				asyncio.get_event_loop().create_task(post_dm(message.author.id, feat.response_templates["insufficient_funds"]))
-				return
-			# Distribute tips
-			for member in message.mentions:
-				# Do not send tips to exempt parties (such as bots), subtract these from totals for reactions
-				if member.id in settings.exempt_users:
-					required_amt-=amount
+		if feat.command == "HELP" and message.channel.is_private:
+			post_response(message, feat.response_templates["success"], BOT_VERSION)
+		elif feat.command == "BALANCE" and message.channel.is_private:
+			balance = wallet.get_balance(message.author.id)
+			post_response(message, feat.response_templates["success"], balance)
+		elif feat.command == "DEPOSIT" and message.channel.is_private:
+			user_deposit_address = wallet.create_or_fetch_user(message.author.id, message.author.name).wallet_address
+			post_response(message, feat.response_templates["success"], user_deposit_address,
+				      get_qr_url(user_deposit_address))
+		elif feat.command == "WITHDRAW" and message.channel.is_private:
+			try:
+				withdraw_address = find_address(message.content)
+				source_address = wallet.get_address(message.author.id)
+				amount = wallet.get_balance(message.author.id)
+				if amount == 0:
+					post_response(message, feat.response_templates["invalid_amt"]);
 				else:
-					wallet.make_transaction_to_user(message.author.id, amount, member.id, member.name)
-					asyncio.get_event_loop().create_task(
-						post_dm(member.id, feat.response_templates["tip_received"], amount, message.author.id))
-			asyncio.get_event_loop().create_task(react_to_message(message, required_amt))
-		except util.TipBotException as e:
-			if e.error_type == "amount_not_found":
-				asyncio.get_event_loop().create_task(post_dm(message.author.id, feat.response_templates["amount_not_found"]))
-			if e.error_type == "error":
-				post_response(message, feat.response_templates["error"])
-
-	elif feat.command == "TOP":
-		top_users = wallet.get_top_users()
-		if len(top_users) == 0:
-			post_response(message, feat.response_templates["empty"])
-		else:
-			response = random.choice(feat.response_templates["header"]) + "\n"
-			for top_user in top_users:
-				response += '\n %d: %.6f nano tipped by %s' % (top_user['index'],
+					txid = wallet.make_transaction_to_address(source_address, amount, withdraw_address)
+					post_response(message, feat.response_templates["success"], txid)
+			except util.TipBotException as e:
+				if e.error_type == "address_not_found":
+					post_response(message, feat.response_templates["address_not_found"])
+					if e.error_type == "invalid_address":
+					    post_response(message, feat.response_templates["invalid_address"])
+				if e.error_type == "error":
+					post_response(message, feat.response_templates["error"])
+		elif feat.command == "TIP":
+			try:
+				amount = find_amount(message.content)
+				# Make sure user has specified at least 1 recipient
+				if len(message.mentions) < 1:
+					return
+				# Make sure this user has enough in their balance to complete this tip
+				required_amt = amount * len(message.mentions)
+				user_balance = wallet.get_balance(message.author.id)
+				if user_balance < required_amt:
+					asyncio.get_event_loop().create_task(post_dm(message.author.id, feat.response_templates["insufficient_funds"]))
+					return
+				# Distribute tips
+				for member in message.mentions:
+					# Do not send tips to exempt parties (such as bots), subtract these from totals for reactions
+					if member.id in settings.exempt_users:
+						required_amt-=amount
+					else:
+						wallet.make_transaction_to_user(message.author.id, amount, member.id, member.name)
+						asyncio.get_event_loop().create_task(
+							post_dm(member.id, feat.response_templates["tip_received"], amount, message.author.id))
+				asyncio.get_event_loop().create_task(react_to_message(message, required_amt))
+			except util.TipBotException as e:
+				if e.error_type == "amount_not_found":
+					asyncio.get_event_loop().create_task(post_dm(message.author.id, feat.response_templates["amount_not_found"]))
+				if e.error_type == "error":
+					post_response(message, feat.response_templates["error"])
+		elif feat.command == "TOP":
+			top_users = wallet.get_top_users()
+			if len(top_users) == 0:
+				post_response(message, feat.response_templates["empty"])
+			else:
+				response = random.choice(feat.response_templates["header"]) + "\n"
+				for top_user in top_users:
+					response += '\n %d: %.6f nano tipped by %s' % (top_user['index'],
 							     top_user['amount'], top_user['name'])
-			post_response(message, [response])
+				post_response(message, [response])
 
 def get_qr_url(text):
 	return 'https://chart.googleapis.com/chart?cht=qr&chl=%s&chs=180x180&choe=UTF-8&chld=L|2' % text
@@ -274,9 +271,7 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-	features = [f for f in bot_features for c in f.command_keywords if c in message.content]
-	if len(features) == 1:
-		await handle_message(features, message)
+	await handle_message(message)
 
 
 client.run(settings.discord_bot_token)
