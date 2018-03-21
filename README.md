@@ -27,8 +27,3 @@ nohup python3 bot.py &
 - `asyncio`
 - `pycurl`
 
-## Credits
-
-Mainly ZTipBot for ZCoin, which is what much of the user-facing part of this bot is based on:
-
-https://github.com/tehranifar/ZTipBot

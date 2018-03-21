@@ -1,10 +1,12 @@
+import discord
+from discord.ext import commands
+from discord.ext.commands import Bot
 import collections
 import random
 import re
 import errno
-from socket import error as socket_error
-import discord
 import asyncio
+import uuid
 
 import wallet
 import util
@@ -13,196 +15,176 @@ import db
 
 logger = util.get_logger("main")
 
-AT_BOT = "<@" + settings.discord_bot_id + ">"
+BOT_VERSION = "0.2"
 
-BOT_VERSION = "0.1"
+# Change command prefix to whatever you want to begin commands with
+client = Bot(command_prefix='!')
+# Use custom help command
+client.remove_command('help')
 
-logger.info("started.")
-client = discord.Client()
+### Response Templates ###
+COMMAND_NOT_FOUND_TEXT="I didn't understand that, try !help"
+HELP_TEXT=	"""NanoTipBot v%s - An open source NANO tip bot for Discord\n
+		Developed by <@303599885800964097> - feel free to contribute and provide feedback \n
+		\n
+		Supported commands are: 
+		\n
+		:small_blue_diamond: !help or !man \n\n
+		    Show this message.\n 
+		\n
+		:small_blue_diamond: !balance \n\n
+		    Check the balance of your tip account \n
+		\n
+		:small_blue_diamond: !deposit or !register \n\n
+		    Gives you your tip bot address (with QR code) \n
+		    If you do not already have an account, one will be created \n
+		\n
+		:small_blue_diamond: !tip \n
+		:small_blue_diamond: needs: amount who \n
+		:small_blue_diamond: ex: !tip 1000 @bbedward\n\n
+		    Tip other users. You have to mention who you want to tip and tell me the amount. 
+		    If the operation is successful, the other users will be informed of your action. \n
+		    Note that tip units are in 1/1000000th of a nano. \n
+		    e.g. 1nano = 0.000001 NANO. \n
+		\n
+		:small_blue_diamond: !withdraw \n
+		:small_blue_diamond: needs: address \n\n
+		    Withdraw all of your coins to your wallet. You have to supply an 
+		address for this. \n
+		\n
+		:small_blue_diamond: !bigtippers or !leaderboard \n\n
+		    Show who has tipped the most. \n\n\n
+		NANO Tip Bot is open source: https://github.com/bbedward/NANO-Tip-Bot"""
+BALANCE_TEXT="Balance: %d nano"
+DEPOSIT_TEXT="Your wallet address is %s. \n QR: %s"
+AMOUNT_NOT_FOUND_TEXT="I couldn't find the amount in your message!"
+INSUFFICIENT_FUNDS_TEXT="You don't have enough nano to tip that much!"
+TIP_ERROR_TEXT="Something went wrong with the tip. I wrote to logs."
+TIP_RECEIVED_TEXT="You were tipped %d nano by <@%s>"
+WITHDRAW_SUCCESS_TEXT="Success!\nTXID: %s"
+WITHDRAW_NO_BALANCE_TEXT="You have no nano to withdraw"
+WITHDRAW_ADDRESS_NOT_FOUND_TEXT="Withdraw address is required, try !help"
+WITHDRAW_INVALID_ADDRESS_TEXT="Withdraw address is not valid"
+WITHDRAW_ERROR_TEXT="Something went wrong ! :thermometer_face: "
+TOP_HEADER_TEXT="Big Tippers"
+TOP_HEADER_EMPTY_TEXT="The leaderboard is empty!"
+### END Response Templates ###
 
-BotFeature = collections.namedtuple('BotFeature', ['command', 'command_keywords', 'response_templates'])
+# Start bot, print info
+@client.event
+async def on_ready():
+	logger.info("NANO Tip Bot v%s started", BOT_VERSION)
+	logger.info("Discord.py API version %s", discord.__version__)
+	logger.info("Name: %s", client.user.name)
+	logger.info("ID: %s", client.user.id)
 
-general_responses = {
-    "command_not_found":
-	[
-	    "I didn't understand that, try !help"
-	]
-}
+# Override on_message and do our spam check here
+@client.event
+async def on_message(message):
+	if db.last_msg_check(message.author.id) == False:
+		return
+	await client.process_commands(message)
 
+### Commands
+@client.command(pass_context=True, aliases=['man'])
+async def help(ctx):
+	if ctx.message.channel.is_private:
+		await post_response(ctx.message, HELP_TEXT, BOT_VERSION)
 
-def setup_bot():
-    help_feature = BotFeature(command="HELP",
-			      command_keywords=["!help", "!man"],
-			      response_templates=
-			      {"success": [
-				  "NanoTipBot v%s - An open source NANO tip bot for Discord \n" +
-						  "Developed by <@303599885800964097> - feel free to contribute and provide feedback \n" +
-						  "\n" +
-						  "Supported commands are:" + 
-				  "\n" +
-				  ":small_blue_diamond: !help !man \n\n" +
-				  "    Show this message. \n"
-				  "\n" +
-				  ":small_blue_diamond: !balance \n\n" +
-				  "    Check the balance of your tip account \n" +
-				  "\n" +
-				  ":small_blue_diamond: !deposit !register \n\n" +
-				  "    Gives you your tip bot address (with QR code) \n" +
-				  "\n" +
-				  ":small_blue_diamond: !tip \n" +
-				  ":small_blue_diamond: needs: amount who \n" +
-				  ":small_blue_diamond: ex: !tip 1000 @bbedward\n\n" +
-				  "    Tip other users. You have to mention who you want to tip and tell me the amount. " +
-				  "    If the operation is successful, the other users will be informed of your action. \n" +
-				  "    Note that tip units are in 1/1000000th of a nano. \n" +
-				  "    e.g. 1xrb = 0.000001 NANO. \n" + 
-				  "\n" +
-				  ":small_blue_diamond: !withdraw \n" +
-				  ":small_blue_diamond: needs: address \n\n" +
-				  "    Withdraw all of your coins to your wallet. You have to supply an " +
-				  "address for this. \n" +
-				  "\n" +
-				  ":small_blue_diamond: !toptips \n\n" +
-				  "    Show who has tipped the most. \n\n\n" +
-				  "NANO Tip Bot is open source: https://github.com/bbedward/NANO-Tip-Bot"
-			      ]})
+@client.command(pass_context=True)
+async def balance(ctx):
+	if ctx.message.channel.is_private:
+		balance = wallet.get_balance(ctx.message.author.id)
+		await post_response(ctx.message, BALANCE_TEXT, balance)
 
-    balance_feature = BotFeature(command="BALANCE",
-				 command_keywords=["!balance"],
-				 response_templates=
-				 {"success": [
-				     "Balance: %d xrb",
-				     "You have %d xrb",
-				     "You've got %d xrb"
-				 ]})
+@client.command(pass_context=True, aliases=['register'])
+async def deposit(ctx):
+	if ctx.message.channel.is_private:
+		user_deposit_address = wallet.create_or_fetch_user(ctx.message.author.id, ctx.message.author.name).wallet_address
+		await post_response(ctx.message, DEPOSIT_TEXT, user_deposit_address,
+			      get_qr_url(user_deposit_address))
 
-    deposit_feature = BotFeature(command="DEPOSIT",
-				 command_keywords=["!deposit", "!register"],
-				 response_templates=
-				 {"success": [
-				     "Your wallet address is %s. \n QR: %s"
-				 ]})
-
-    tip_feature = BotFeature(command="TIP",
-			     command_keywords=["!tip"],
-			     response_templates=
-			     {"amount_not_found": [
-				 "I couldn't find the amount in your message!"
-			     ], "insufficient_funds": [
-				 "You don't have enough coins to tip that much!"
-			     ], "error": [
-				 "Something went wrong with the tip. I wrote to logs. "
-			     ], "tip_received": [
-				 "You were tipped %d xrb by <@%s> ! "
-			     ]})
-
-    withdraw_feature = BotFeature(command="WITHDRAW",
-				  command_keywords=["!withdraw"],
-				  response_templates=
-				  {"success": [
-				      "TXID: %s"
-				  ], "address_not_found": [
-				      "I did not see a destination address in your message, try !help"
-				  ], "invalid_address": [
-						      "Withdraw address is not valid"
-						  ], "error": [
-				      "Something went wrong ! :thermometer_face: "
-				  ]})
-
-    top_feature = BotFeature(command="TOP",
-			     command_keywords=["!toptips"],
-			     response_templates=
-			     {"header": [
-				 "Tip Leaderboard :point_down:"
-			     ], "empty": [
-				 "The leaderboard is empty!"
-			     ]})
-
-    return [help_feature, balance_feature, deposit_feature, tip_feature, withdraw_feature, top_feature]
-
-bot_features = setup_bot()
-
-async def handle_message(message):
-	features = [f for f in bot_features for c in f.command_keywords if c in message.content]
-	if len(features) == 1:
-		feat = features[0]
-
-		# Ignore messages from users that are < 1 second apart (prevent spam)
-		if db.last_msg_check(message.author.id) == False:
-			return
-
-		if feat.command == "HELP" and message.channel.is_private:
-			post_response(message, feat.response_templates["success"], BOT_VERSION)
-		elif feat.command == "BALANCE" and message.channel.is_private:
-			balance = wallet.get_balance(message.author.id)
-			post_response(message, feat.response_templates["success"], balance)
-		elif feat.command == "DEPOSIT" and message.channel.is_private:
-			user_deposit_address = wallet.create_or_fetch_user(message.author.id, message.author.name).wallet_address
-			post_response(message, feat.response_templates["success"], user_deposit_address,
-				      get_qr_url(user_deposit_address))
-		elif feat.command == "WITHDRAW" and message.channel.is_private:
-			try:
-				withdraw_address = find_address(message.content)
-				source_address = wallet.get_address(message.author.id)
-				amount = wallet.get_balance(message.author.id)
-				if amount == 0:
-					post_response(message, feat.response_templates["invalid_amt"]);
-				else:
-					txid = wallet.make_transaction_to_address(source_address, amount, withdraw_address)
-					post_response(message, feat.response_templates["success"], txid)
-			except util.TipBotException as e:
-				if e.error_type == "address_not_found":
-					post_response(message, feat.response_templates["address_not_found"])
-					if e.error_type == "invalid_address":
-					    post_response(message, feat.response_templates["invalid_address"])
-				if e.error_type == "error":
-					post_response(message, feat.response_templates["error"])
-		elif feat.command == "TIP":
-			try:
-				amount = find_amount(message.content)
-				# Make sure user has specified at least 1 recipient
-				if len(message.mentions) < 1:
-					return
-				# Make sure this user has enough in their balance to complete this tip
-				required_amt = amount * len(message.mentions)
-				user_balance = wallet.get_balance(message.author.id)
-				if user_balance < required_amt:
-					asyncio.get_event_loop().create_task(post_dm(message.author.id, feat.response_templates["insufficient_funds"]))
-					return
-				# Distribute tips
-				for member in message.mentions:
-					# Do not send tips to exempt parties (such as bots), subtract these from totals for reactions
-					if member.id in settings.exempt_users:
-						required_amt-=amount
-					else:
-						wallet.make_transaction_to_user(message.author.id, amount, member.id, member.name)
-						asyncio.get_event_loop().create_task(
-							post_dm(member.id, feat.response_templates["tip_received"], amount, message.author.id))
-				asyncio.get_event_loop().create_task(react_to_message(message, required_amt))
-			except util.TipBotException as e:
-				if e.error_type == "amount_not_found":
-					asyncio.get_event_loop().create_task(post_dm(message.author.id, feat.response_templates["amount_not_found"]))
-				if e.error_type == "error":
-					post_response(message, feat.response_templates["error"])
-		elif feat.command == "TOP":
-			top_users = wallet.get_top_users()
-			if len(top_users) == 0:
-				post_response(message, feat.response_templates["empty"])
+@client.command(pass_context=True)
+async def withdraw(ctx):
+	if ctx.message.channel.is_private:
+		try:
+			withdraw_address = find_address(ctx.message.content)
+			source_address = wallet.get_address(ctx.message.author.id)
+			amount = wallet.get_balance(ctx.message.author.id)
+			if amount == 0:
+				await post_response(ctx.message, WITHDRAW_NO_BALANCE_TEXT);
 			else:
-				response = random.choice(feat.response_templates["header"]) + "\n"
-				for top_user in top_users:
-					response += '\n %d: %.6f NANO tipped by %s' % (top_user['index'],
-							     top_user['amount'], top_user['name'])
-				post_response(message, [response])
+				uid = str(uuid.uuid4())
+				txid = wallet.make_transaction_to_address(source_address, amount, withdraw_address, uid)
+				await post_response(ctx.message, WITHDRAW_SUCCESS_TEXT, txid)
+		except util.TipBotException as e:
+			if e.error_type == "address_not_found":
+				await post_response(ctx.message, WITHDRAW_ADDRESS_NOT_FOUND_TEXT)
+			if e.error_type == "invalid_address":
+				await post_response(ctx.message, WITHDRAW_INVALID_ADDRESS_TEXT)
+			if e.error_type == "error":
+				await post_response(ctx.message, WITHDRAW_ERROR_TEXT)
 
+@client.command(pass_context=True)
+async def tip(ctx):
+	if ctx.message.channel.is_private:
+		return
+
+	try:
+		amount = find_amount(ctx.message.content)
+		# Make sure user has specified at least 1 recipient
+		if len(ctx.message.mentions) < 1:
+			return
+		# Make sure this user has enough in their balance to complete this tip
+		required_amt = amount * len(ctx.message.mentions)
+		user_balance = wallet.get_balance(ctx.message.author.id)
+		if user_balance < required_amt:
+			await post_dm(ctx.message.author, INSUFFICIENT_FUNDS_TEXT)
+			return
+		# Distribute tips
+		for member in ctx.message.mentions:
+			# Don't allow user to tip themselves, or people in exempt users list
+			# We do it this way because there may be multiple recipients on 1 tip
+			# So we just ignore the invalid ones, basically
+			if member.id in settings.exempt_users:
+				required_amt-=amount
+			elif member.id == ctx.message.author.id:
+				required_amt-=amount
+			else:
+				uid = str(uuid.uuid4())
+				wallet.make_transaction_to_user(ctx.message.author.id, amount, member.id, member.name, uid)
+				await post_dm(member, TIP_RECEIVED_TEXT, amount, ctx.message.author.id)
+		# Post message reactions
+		await react_to_message(ctx.message, required_amt)
+	except util.TipBotException as e:
+		if e.error_type == "amount_not_found":
+			await post_dm(ctx.message.author, AMOUNT_NOT_FOUND_TEXT)
+		if e.error_type == "error":
+			await post_response(ctx.message, TIP_ERROR_TEXT)
+
+@client.command(pass_context=True, aliases=['leaderboard'])
+async def bigtippers(ctx):
+	top_users = wallet.get_top_users()
+	if len(top_users) == 0:
+		await post_response(ctx.message, TOP_HEADER_EMPTY_TEXT)
+	else:
+		response = TOP_HEADER_TEXT + "\n"
+		for top_user in top_users:
+			response += '\n %d: %.6f NANO tipped by %s' % (top_user['index'],
+					     top_user['amount'], top_user['name'])
+		await post_response(ctx.message, response)
+
+### Utility Functions
 def get_qr_url(text):
 	return 'https://chart.googleapis.com/chart?cht=qr&chl=%s&chs=180x180&choe=UTF-8&chld=L|2' % text
 
 def find_address(input_text):
-	address = input_text.split(' ')[1]
-	if address is None:
+	address = input_text.split(' ')
+	if len(address) == 1:
 		raise util.TipBotException("invalid_address")
-	return address
+	elif address[1] is None:
+		raise util.TipBotException("invalid_address")
+	return address[1]
 
 def find_amount(input_text):
 	regex = r'(?:^|\s)(\d*\.?\d+)(?=$|\s)'
@@ -212,15 +194,20 @@ def find_amount(input_text):
 	else:
 		raise util.TipBotException("amount_not_found")
 
-def post_response(message, response_list, *args):
-	response = random.choice(response_list) % tuple(args)
+### Re-Used Discord Functions
+async def post_response(message, template, *args):
+	response = template % tuple(args)
 	if not message.channel.is_private:
 		response = "<@" + message.author.id + "> " + response
 	logger.info("sending response: '%s' to message: %s", response, message.content)
-	asyncio.get_event_loop().create_task(client.send_message(message.channel, response))
+	await client.send_message(message.channel, response)
 
 
-@client.event
+async def post_dm(member, template, *args):
+	response = template % tuple(args)
+	logger.info("sending dm: '%s' to user: %s", response, member.id)
+	await client.send_message(member, response)
+
 async def react_to_message(message, amount):
 	if amount > 0:
 		await client.add_reaction(message, '\U00002611')   # check mark
@@ -259,20 +246,6 @@ async def react_to_message(message, amount):
 		await client.add_reaction(message, '\U0001F1F4') # O
 		await client.add_reaction(message, '\U0001F1F3') # N
 
-@client.event
-async def post_dm(user_id, text_list, *args):
-	text = random.choice(text_list) % tuple(args)
-	logger.info("sending dm: '%s' to user: %s", text, user_id)
-	await client.send_message(await client.get_user_info(user_id), text)
-
-@client.event
-async def on_ready():
-	logger.info('connected as %s and id %s', client.user.name, client.user.id)
-
-@client.event
-async def on_message(message):
-	await handle_message(message)
-
-
+# Start the bot
 client.run(settings.discord_bot_token)
 

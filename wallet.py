@@ -73,7 +73,7 @@ def get_address(user_id):
 
 
 def make_transaction_to_address(source_address, amount,
-                                withdraw_address):
+                                withdraw_address, uid):
 
     # Check to see if the withdraw address is valid
 
@@ -97,6 +97,7 @@ def make_transaction_to_address(source_address, amount,
         'source': source_address,
         'destination': withdraw_address,
         'amount': int(raw_withdraw_amount),
+	'id': uid
         }
     wallet_output = communicate_wallet(wallet_command)
     logger.info('Withdraw successful')
@@ -112,11 +113,12 @@ def make_transaction_to_user(
     amount,
     target_user_id,
     target_user_name,
+    uid
     ):
     target_user = create_or_fetch_user(target_user_id, target_user_name)
     user = db.get_user_by_id(user_id)
     txid = make_transaction_to_address(user.wallet_address, amount,
-                                target_user.wallet_address)
+                                target_user.wallet_address, uid)
     db.update_tipped_amt(user_id, amount)
     logger.info('tip successful. (from: %s, to: %s, amount: %d, txid: %s)',
                 user_id, target_user.user_id, amount, txid)
