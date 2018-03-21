@@ -46,9 +46,8 @@ def create_or_fetch_user(user_id, user_name):
         return user
 
 
-def get_balance(user_id):
+def get_balance(user, user_id):
     logger.info('getting balance for user %s', user_id)
-    user = db.get_user_by_id(user_id)
     if user is None:
         logger.info('user %s does not exist.', user_id)
         return 0.0
@@ -62,6 +61,13 @@ def get_balance(user_id):
         balance = communicate_wallet(wallet_command)
         return int(balance['amount'])
 
+# Get balance minus pending sends
+def get_balance_adj(user_id):
+    user = db.get_user_by_id(user_id)
+    if user is None:
+       return 0.0
+    else:
+       return get_balance(user, user_id) - user.pending_send
 
 def get_address(user_id):
     logger.info('getting wallet address for user %s ...', user_id)
@@ -89,19 +95,10 @@ def make_transaction_to_address(source_address, amount,
         or address_validation['valid'] != '1':
         raise util.TipBotException('invalid_address')
 
-    raw_withdraw_amount = str(int(amount)) + '000000000000000000000000'
+    db.create_transaction(uid,source_address,withdraw_address,int(amount))
 
-    wallet_command = {
-        'action': 'send',
-        'wallet': wallet,
-        'source': source_address,
-        'destination': withdraw_address,
-        'amount': int(raw_withdraw_amount),
-	'id': uid
-        }
-    wallet_output = communicate_wallet(wallet_command)
-    logger.info('Withdraw successful')
-    return wallet_output['block']
+    logger.info('TX queued, uid %s', uid)
+    return
 
 
 def get_top_users():
@@ -117,9 +114,17 @@ def make_transaction_to_user(
     ):
     target_user = create_or_fetch_user(target_user_id, target_user_name)
     user = db.get_user_by_id(user_id)
-    txid = make_transaction_to_address(user.wallet_address, amount,
-                                target_user.wallet_address, uid)
+    # Set pending balances
+    db.update_pending(user_id, amount, 0)
+    db.update_pending(target_user_id, 0, amount)
+    try:
+        make_transaction_to_address(user.wallet_address, amount,
+                                    target_user.wallet_address, uid)
+    except util.TipBotException as e:
+        db.update_pending(user_id, amount * -1, 0)
+        db.update_pending(target_user_id, 0, amount * -1)
+        return
     db.update_tipped_amt(user_id, amount)
-    logger.info('tip successful. (from: %s, to: %s, amount: %d, txid: %s)',
-                user_id, target_user.user_id, amount, txid)
-    return txid;
+    logger.info('tip queued. (from: %s, to: %s, amount: %d, uid: %s)',
+                user_id, target_user.user_id, amount, uid)
+    return

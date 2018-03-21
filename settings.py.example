@@ -1,7 +1,7 @@
 # Discord
 discord_bot_id = '';
 discord_bot_token = '';
-# Nano node wallet key
+# Nano node wallet ID
 wallet = '';
 # Exempt users list (these user IDs will not be able to receive tips
 exempt_users = [ discord_bot_id, '395828286548344834', '405250059240996864' ]

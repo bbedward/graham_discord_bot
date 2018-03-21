@@ -20,7 +20,8 @@ nohup python3 bot.py &
 
 ## Dependencies (install using pip)
 
-- Python 3.4+
+- Python 3.5+
+- NANO Node v10+
 - `setuptools`
 - `discord`
 - `peewee`

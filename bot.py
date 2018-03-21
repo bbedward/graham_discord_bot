@@ -1,6 +1,9 @@
 import discord
 from discord.ext import commands
 from discord.ext.commands import Bot
+import threading
+from threading import Thread
+import time
 import collections
 import random
 import re
@@ -15,7 +18,7 @@ import db
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "0.2"
+BOT_VERSION = "0.3"
 
 # Change command prefix to whatever you want to begin commands with
 client = Bot(command_prefix='!')
@@ -55,13 +58,13 @@ HELP_TEXT=	"""NanoTipBot v%s - An open source NANO tip bot for Discord\n
 		:small_blue_diamond: !bigtippers or !leaderboard \n\n
 		    Show who has tipped the most. \n\n\n
 		NANO Tip Bot is open source: https://github.com/bbedward/NANO-Tip-Bot"""
-BALANCE_TEXT="Balance: %d nano"
+BALANCE_TEXT="Actual Balance: %d nano\nAvailable balance: %d nano\nPending send: %d nano\nPending receipt: %d nano"
 DEPOSIT_TEXT="Your wallet address is %s. \n QR: %s"
 AMOUNT_NOT_FOUND_TEXT="I couldn't find the amount in your message!"
 INSUFFICIENT_FUNDS_TEXT="You don't have enough nano to tip that much!"
 TIP_ERROR_TEXT="Something went wrong with the tip. I wrote to logs."
 TIP_RECEIVED_TEXT="You were tipped %d nano by <@%s>"
-WITHDRAW_SUCCESS_TEXT="Success!\nTXID: %s"
+WITHDRAW_SUCCESS_TEXT="Withdraw has been queued for processing"
 WITHDRAW_NO_BALANCE_TEXT="You have no nano to withdraw"
 WITHDRAW_ADDRESS_NOT_FOUND_TEXT="Withdraw address is required, try !help"
 WITHDRAW_INVALID_ADDRESS_TEXT="Withdraw address is not valid"
@@ -70,6 +73,50 @@ TOP_HEADER_TEXT="Big Tippers"
 TOP_HEADER_EMPTY_TEXT="The leaderboard is empty!"
 ### END Response Templates ###
 
+# Thread to process send transactions
+class SendProcessor(Thread):
+	def __init__(self):
+		super(SendProcessor, self).__init__()
+		self._stop_event = threading.Event()
+
+	def run(self):
+		while True:
+			txs = db.get_unprocessed_transactions()
+			for tx in txs:
+				if self.stopped():
+					break
+				src_addr = tx['source_address']
+				to_addr = tx['to_address']
+				amount = int(tx['amount'])
+				uid = tx['uid']
+				raw_withdraw_amt = str(amount) + '000000000000000000000000'
+				wallet_command = {
+					'action': 'send',
+					'wallet': settings.wallet,
+					'source': src_addr,
+					'destination': to_addr,
+					'amount': int(raw_withdraw_amt),
+					'id': uid
+				}
+				wallet_output = wallet.communicate_wallet(wallet_command)
+				db.mark_transaction_processed(uid)
+				logger.info('TX processed. UID: %s, TXID: %s', uid, wallet_output['block'])
+				src_usr = db.get_user_by_wallet_address(src_addr)
+				trg_usr = db.get_user_by_wallet_address(to_addr)
+				if src_usr is not None:
+					db.update_pending(src_usr.user_id, amount * -1, 0)
+				if trg_usr is not None:
+					db.update_pending(trg_usr.user_id, 0, amount * -1)
+			if self.stopped():
+				break
+			time.sleep(10)
+
+	def stop(self):
+		self._stop_event.set()
+
+	def stopped(self):
+		return self._stop_event.is_set()
+
 # Start bot, print info
 @client.event
 async def on_ready():
@@ -77,6 +124,11 @@ async def on_ready():
 	logger.info("Discord.py API version %s", discord.__version__)
 	logger.info("Name: %s", client.user.name)
 	logger.info("ID: %s", client.user.id)
+	logger.info("Starting TX Processor Thread")
+	try:
+		SendProcessor().start()
+	except (KeyboardInterrupt, SystemExit):
+		SendProcessor().stop()
 
 # Override on_message and do our spam check here
 @client.event
@@ -94,8 +146,10 @@ async def help(ctx):
 @client.command(pass_context=True)
 async def balance(ctx):
 	if ctx.message.channel.is_private:
-		balance = wallet.get_balance(ctx.message.author.id)
-		await post_response(ctx.message, BALANCE_TEXT, balance)
+		user = db.get_user_by_id(ctx.message.author.id)
+		actual_balance = wallet.get_balance(user, ctx.message.author.id)
+		available_balance = actual_balance - user.pending_send
+		await post_response(ctx.message, BALANCE_TEXT, actual_balance,available_balance,user.pending_send,user.pending_receive)
 
 @client.command(pass_context=True, aliases=['register'])
 async def deposit(ctx):
@@ -110,17 +164,19 @@ async def withdraw(ctx):
 		try:
 			withdraw_address = find_address(ctx.message.content)
 			source_address = wallet.get_address(ctx.message.author.id)
-			amount = wallet.get_balance(ctx.message.author.id)
+			amount = wallet.get_balance_adj(ctx.message.author.id)
 			if amount == 0:
 				await post_response(ctx.message, WITHDRAW_NO_BALANCE_TEXT);
 			else:
+				db.update_pending(ctx.message.author.id, amount, 0)
 				uid = str(uuid.uuid4())
-				txid = wallet.make_transaction_to_address(source_address, amount, withdraw_address, uid)
-				await post_response(ctx.message, WITHDRAW_SUCCESS_TEXT, txid)
+				wallet.make_transaction_to_address(source_address, amount, withdraw_address, uid)
+				await post_response(ctx.message, WITHDRAW_SUCCESS_TEXT)
 		except util.TipBotException as e:
 			if e.error_type == "address_not_found":
 				await post_response(ctx.message, WITHDRAW_ADDRESS_NOT_FOUND_TEXT)
 			if e.error_type == "invalid_address":
+				db.update_pending(ctx.message.author.id, amount * -1, 0)
 				await post_response(ctx.message, WITHDRAW_INVALID_ADDRESS_TEXT)
 			if e.error_type == "error":
 				await post_response(ctx.message, WITHDRAW_ERROR_TEXT)
@@ -137,7 +193,7 @@ async def tip(ctx):
 			return
 		# Make sure this user has enough in their balance to complete this tip
 		required_amt = amount * len(ctx.message.mentions)
-		user_balance = wallet.get_balance(ctx.message.author.id)
+		user_balance = wallet.get_balance_adj(ctx.message.author.id)
 		if user_balance < required_amt:
 			await post_dm(ctx.message.author, INSUFFICIENT_FUNDS_TEXT)
 			return
