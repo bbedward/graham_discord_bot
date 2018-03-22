@@ -4,4 +4,8 @@ discord_bot_token = '';
 # Nano node wallet ID
 wallet = '';
 # Exempt users list (these user IDs will not be able to receive tips
-exempt_users = [ discord_bot_id, '395828286548344834', '405250059240996864' ]
+exempt_users = [ discord_bot_id, '395828286548344834', '405250059240996864', '418425979942207499' ]
+# Restricted roles for certain commands
+admin_roles = ['Moderators', 'Core', 'Community Managers']
+# Minimum amount required for !rain
+rain_minimum = 100000

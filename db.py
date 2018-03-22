@@ -35,6 +35,34 @@ def get_top_users(count):
         return_data.append({'index': idx + 1, 'name': user.user_name, 'amount': user.tipped_amount})
     return return_data
 
+def get_tip_stats(user_id):
+    try:
+        user = get_user_by_id(user_id)
+        rank = User.select().where(User.tipped_amount > user.tipped_amount).count() + 1
+        if user.tip_count == 0:
+            average = 0
+        else:
+            average = user.tipped_amount / user.tip_count
+        return {'rank':rank, 'total':user.tipped_amount, 'average':average}
+    except User.DoesNotExist:
+        return None
+
+def update_tip_total(user_id, new_total):
+    user = get_user_by_id(user_id)
+    if user is None:
+        return
+    user.tipped_amount = new_total
+    user.save()
+    return
+
+def update_tip_count(user_id, new_count):
+    user = get_user_by_id(user_id)
+    if user is None:
+        return
+    user.tip_count = new_count
+    user.save()
+    return
+
 def update_pending(user_id, send, receive):
     user = get_user_by_id(user_id)
     if user is None:
@@ -52,6 +80,7 @@ def create_user(user_id, user_name, wallet_address):
                 wallet_balance=0.0,
                 pending_receive=0.0,
                 pending_send=0.0,
+                tip_count=0,
                 created=datetime.datetime.now(),
 		last_msg=datetime.datetime.now()
                 )
@@ -65,7 +94,8 @@ def create_transaction(uuid, source_addr, to_addr, amt):
                      to_address=to_addr,
                      amount=amt,
                      processed=False,
-                     created=datetime.datetime.now()
+                     created=datetime.datetime.now(),
+                     tran_id=''
                     )
     tx.save()
     return tx
@@ -80,12 +110,13 @@ def get_unprocessed_transactions():
 # You may think, this imposes serious double spend risks:
 #  ie. if a transaction actually has been processed, but has never been marked processed in the database
 #  This shouldn't happen even in that scenario, due to the id (uid here) field in nano node v10
-def mark_transaction_processed(uuid):
+def mark_transaction_processed(uuid, tranid):
     with db.atomic() as transaction:
         try:
             tx = Transaction.get(uid=uuid)
             if tx is not None:
                 tx.processed=True
+                tx.tran_id=tranid
                 tx.save()
             return
         except Exception as e:
@@ -127,6 +158,7 @@ def update_tipped_amt(user_id, tipped_amt):
             user = get_user_by_id(user_id)
             if user is not None:
                 user.tipped_amount += tipped_amt / 1000000
+                user.tip_count += 1
                 user.save()
             return
         except Exception as e:
@@ -143,6 +175,7 @@ class User(Model):
     wallet_balance = FloatField()
     pending_receive = IntegerField()
     pending_send = IntegerField()
+    tip_count = BigIntegerField()
     created = DateTimeField()
     last_msg = DateTimeField()
 
@@ -157,6 +190,7 @@ class Transaction(Model):
     amount = CharField()
     processed = BooleanField()
     created = DateTimeField()
+    tran_id = CharField()
 
     class Meta:
         database = db

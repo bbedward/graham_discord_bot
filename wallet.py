@@ -6,8 +6,6 @@ import db
 import datetime
 import settings
 
-TOP_USERS_COUNT = 15
-
 wallet = settings.wallet
 
 logger = util.get_logger('wallet')
@@ -99,11 +97,6 @@ def make_transaction_to_address(source_address, amount,
 
     logger.info('TX queued, uid %s', uid)
     return
-
-
-def get_top_users():
-    return db.get_top_users(TOP_USERS_COUNT)
-
 
 def make_transaction_to_user(
     user_id,
