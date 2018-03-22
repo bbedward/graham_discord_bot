@@ -277,7 +277,7 @@ async def rain(ctx):
 			if user is None:
 				continue
 			uid = str(uuid.uuid4())
-			wallet.make_transaction_to_user(ctx.message.author.id, amount, user.id, user.name, uid)
+			wallet.make_transaction_to_user(ctx.message.author.id, tip_amount, user.id, user.name, uid)
 			await post_dm(user, TIP_RECEIVED_TEXT, tip_amount, ctx.message.author.name)
 		# Post message reactions
 		await react_to_message(ctx.message, amount)
