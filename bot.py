@@ -110,7 +110,7 @@ SET_COUNT_USAGE="Usage:\n```" + SETCOUNT_INFO + "```"
 TIPSPLIT_USAGE="Usage:\n```" + TIPSPLIT_INFO + "```"
 TIPSPLIT_SMALL="Tip amount is too small to be distributed to that many users"
 RAIN_USAGE="Usage:\n```" + RAIN_INFO + "```"
-RAIN_NOBODY="Nobody to rain on, try to make your discord more popular"
+RAIN_NOBODY="I couldn't find any active users...besides you :wink:"
 ### END Response Templates ###
 
 # Thread to process send transactions
