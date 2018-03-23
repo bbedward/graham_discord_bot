@@ -75,15 +75,6 @@ def get_balance_by_id(user_id):
 	user = db.get_user_by_id(user_id)
 	return get_balance(user, user_id)
 
-def get_address(user_id):
-	logger.info('getting wallet address for user %s ...', user_id)
-	user = db.get_user_by_id(user_id)
-	if user is None:
-		return None
-	else:
-		return user.wallet_address
-
-
 def make_transaction_to_address(source_id, source_address, amount, withdraw_address, uid):
 	# Check to see if the withdraw address is valid
 	wallet_command = {'action': 'validate_account_number',

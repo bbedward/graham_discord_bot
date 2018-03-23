@@ -18,7 +18,6 @@ def get_user_by_id(user_id):
 		# logger.debug('user %s does not exist !', user_id)
 		return None
 
-
 def get_user_by_wallet_address(address):
 	try:
 		user = User.get(wallet_address=address)
@@ -27,6 +26,21 @@ def get_user_by_wallet_address(address):
 		# logger.debug('wallet %s does not exist !', address)
 		return None
 
+def get_active_users(since_minutes):
+	since_ts = datetime.datetime.now() - datetime.timedelta(minutes=since_minutes)
+	users = User.select(User.user_id).where(User.last_msg > since_ts)
+	return_ids = []
+	for user in users:
+		return_ids.append(user.user_id)
+	return return_ids
+
+def get_address(user_id):
+	logger.info('getting wallet address for user %s ...', user_id)
+	user = get_user_by_id(user_id)
+	if user is None:
+		return None
+	else:
+		return user.wallet_address
 
 def get_top_users(count):
 	users = User.select().where(User.tipped_amount > 0).order_by(User.tipped_amount.desc()).limit(count)
@@ -82,7 +96,7 @@ def create_user(user_id, user_name, wallet_address):
 		    pending_send=0.0,
 		    tip_count=0,
 		    created=datetime.datetime.now(),
-		    last_msg=datetime.datetime.now()
+		    last_msg=datetime.datetime.now(),
 		    )
 	user.save()
 	return user

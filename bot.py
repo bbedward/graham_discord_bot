@@ -19,18 +19,23 @@ import db
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "0.5"
+BOT_VERSION = "0.6"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
 # Minimum Amount for !rain
 RAIN_MINIMUM = settings.rain_minimum
+# How long to look back for active users for !rain (30)
+RAIN_DELTA=30
 # Spam Threshold (Seconds) - how long to output certain commands (e.g. bigtippers0
 SPAM_THRESHOLD=60
 # MAX TX_Retries - If wallet does not indicate a successful send for whatever reason, retry this many times
 MAX_TX_RETRIES=3
 # Change command prefix to whatever you want to begin commands with
-client = Bot(command_prefix='!')
+COMMAND_PREFIX="!"
+
+# Create discord client
+client = Bot(command_prefix=COMMAND_PREFIX)
 # Use custom help command
 client.remove_command('help')
 
@@ -38,34 +43,33 @@ client.remove_command('help')
 last_big_tippers=datetime.datetime.now()
 
 ### Response Templates ###
-BALANCE_TEXT="Actual Balance: %d nano\nAvailable Balance: %d nano\nPending Send: %d nano\nPending Receipt: %d nano"
-DEPOSIT_TEXT="Your wallet address is %s\nQR: %s"
-INSUFFICIENT_FUNDS_TEXT="You don't have enough nano in your available balance!"
-TIP_ERROR_TEXT="Something went wrong with the tip. I wrote to logs."
-HELP_INFO="!help or !man:\n Display this message"
-BALANCE_INFO=("!balance:\n Displays the balance of your tip account as described:" +
+HELP_INFO="%shelp or %sman:\n Display this message" % (COMMAND_PREFIX, COMMAND_PREFIX)
+BALANCE_INFO=("%sbalance:\n Displays the balance of your tip account (in nanorai) as described:" +
 		"\n - Actual Balance: The actual balance in your tip account" +
 		"\n - Available Balance: The balance you are able to tip with (Actual - Pending Send)" +
 		"\n - Pending Send: Tips you have sent, but have not yet been processed by the node" +
 		"\n - Pending Receipt: Tips that have been sent to you, but have not yet been processed by the node. " +
-		"\n Pending funds will be available for tip/withdraw after the transactions have been processed")
-DEPOSIT_INFO=("!deposit or !register:\n Displays your tip bot account address along with a QR code" +
+		"\n Pending funds will be available for tip/withdraw after the transactions have been processed") % COMMAND_PREFIX
+DEPOSIT_INFO=("%sdeposit or %sregister:\n Displays your tip bot account address along with a QR code" +
 		"\n Send NANO to this address to increase your tip bot balance" +
-		"\n If you do not have a tip bot account yet, this command will create one for you")
-WITHDRAW_INFO="!withdraw <address>:\n Withdraws your entire tip account balance to the specified address"
-TIP_INFO=("!tip <amount> <*users>:\n Tip specified amount to mentioned user(s) (minimum tip is 1 nano)" +
-		"\n Tip units are in 1/1000000th of NANO. 1 nano = 0.000001 NANO" +
+		"\n If you do not have a tip bot account yet, this command will create one for you") % (COMMAND_PREFIX, COMMAND_PREFIX)
+WITHDRAW_INFO="%swithdraw <address>:\n Withdraws your entire tip account balance to the specified address" % COMMAND_PREFIX
+TIP_INFO=("%stip <amount> <*users>:\n Tip specified amount to mentioned user(s) (minimum tip is 1 nanorai)" +
+		"\n Tip units are in 1/1000000th of NANO. 1 nanorai = 0.000001 NANO" +
 		"\n The recipient(s) will be notified of your tip via private message" +
-		"\n Successful tips will be deducted from your available balance immediately")
-RAIN_INFO=("!rain <amount>:\n Distribute <amount> to online users who have posted in the last 30 minutes" +
-		"\n Only pulls users who have posted in the current channel within the last 30 minutes" +
-		"\n Minimum amount required: " + str(RAIN_MINIMUM))
-LEADERBOARD_INFO="!bigtippers or !leaderboard:\n Display the all-time tip leaderboard"
-STATS_INFO="!tipstats:\n Display your personal tipping stats (rank, total tipped, and average tip)"
-SETTIP_INFO=("!settiptotal <user>:\n Manually set the 'total tipped' for a user (for tip leaderboard)" +
-		"\n This command is role restricted and only available to users with certain roles (e.g. Moderators)")
-SETCOUNT_INFO=("!settipcount <user>:\n Manually set the 'tip count' for a user (for average tip statistic)" +
-		"\n This command is role restricted and only available to users with certain roles (e.g. Moderators)")
+		"\n Successful tips will be deducted from your available balance immediately") % COMMAND_PREFIX
+TIPSPLIT_INFO="%stipsplit <amount> <*users>:\n Distribute <amount> evenly to all mentioned users" % COMMAND_PREFIX
+RAIN_INFO=("%srain <amount>:\n Distribute <amount> evenly to all users who meet the following criteria:" +
+		"\n - Have a tip account (have received a tip before, or have used !register)" +
+		"\n - Are currently online" +
+		"\n - Have posted a message on the server within the last %d minutes" +
+		"\n Minimum rain amount: %d nanorai") % (COMMAND_PREFIX, RAIN_DELTA, RAIN_MINIMUM)
+LEADERBOARD_INFO="%sbigtippers or %sleaderboard:\n Display the all-time tip leaderboard" % (COMMAND_PREFIX, COMMAND_PREFIX)
+STATS_INFO="%stipstats:\n Display your personal tipping stats (rank, total tipped, and average tip)" % COMMAND_PREFIX
+SETTIP_INFO=("%ssettiptotal <user>:\n Manually set the 'total tipped' for a user (for tip leaderboard)" +
+		"\n This command is role restricted and only available to users with certain roles (e.g. Moderators)") % COMMAND_PREFIX
+SETCOUNT_INFO=("%ssettipcount <user>:\n Manually set the 'tip count' for a user (for average tip statistic)" +
+		"\n This command is role restricted and only available to users with certain roles (e.g. Moderators)") % COMMAND_PREFIX
 HELP_TEXT=("NanoTipBot v%s - An open source NANO tip bot for Discord\n" +
 		"Developed by <@303599885800964097> - Feel free to send suggestions, ideas, and/or tips\n" +
 		"Supported Commands:\n" +
@@ -75,6 +79,7 @@ HELP_TEXT=("NanoTipBot v%s - An open source NANO tip bot for Discord\n" +
 		DEPOSIT_INFO + "\n\n" +
 		WITHDRAW_INFO + "\n\n" +
 		TIP_INFO + "\n\n" +
+		TIPSPLIT_INFO + "\n\n" +
 		RAIN_INFO + "\n\n" +
 		LEADERBOARD_INFO + "\n\n" +
 		STATS_INFO + "\n\n" +
@@ -82,12 +87,16 @@ HELP_TEXT=("NanoTipBot v%s - An open source NANO tip bot for Discord\n" +
 #		SETCOUNT_INFO +
 		"\n\n\nsend node```" +
 		"Source code: https://github.com/bbedward/NANO-Tip-Bot")
-TIP_RECEIVED_TEXT="You were tipped %d nano by %s"
+BALANCE_TEXT="Actual Balance: %d nanorai\nAvailable Balance: %d nanorai\nPending Send: %d nanorai\nPending Receipt: %d nanorai"
+DEPOSIT_TEXT="Your wallet address is %s\nQR: %s"
+INSUFFICIENT_FUNDS_TEXT="You don't have enough nano in your available balance!"
+TIP_ERROR_TEXT="Something went wrong with the tip. I wrote to logs."
+TIP_RECEIVED_TEXT="You were tipped %d nanorai by %s"
 TIP_USAGE="Usage:\n```" + TIP_INFO + "```"
 TIP_SELF="No valid recipients found in your tip.\n(You cannot tip yourself and certain other users are exempt from receiving tips)"
 WITHDRAW_SUCCESS_TEXT="Withdraw has been queued for processing"
 WITHDRAW_PROCESSED_TEXT="Withdraw processed TXID: %s" #TODO
-WITHDRAW_NO_BALANCE_TEXT="You have no nano to withdraw"
+WITHDRAW_NO_BALANCE_TEXT="You have no NANO to withdraw"
 WITHDRAW_ADDRESS_NOT_FOUND_TEXT="Usage:\n```" + WITHDRAW_INFO + "```"
 WITHDRAW_INVALID_ADDRESS_TEXT="Withdraw address is not valid"
 WITHDRAW_ERROR_TEXT="Something went wrong ! :thermometer_face: "
@@ -98,7 +107,10 @@ STATS_ACCT_NOT_FOUND_TEXT="I could not find an account for you, try private mess
 STATS_TEXT="You are rank #%d, have tipped a total of %.6f NANO, with an average tip of %.6f NANO"
 SET_TOTAL_USAGE="Usage:\n```" + SETTIP_INFO + "```"
 SET_COUNT_USAGE="Usage:\n```" + SETCOUNT_INFO + "```"
+TIPSPLIT_USAGE="Usage:\n```" + TIPSPLIT_INFO + "```"
+TIPSPLIT_SMALL="Tip amount is too small to be distributed to that many users"
 RAIN_USAGE="Usage:\n```" + RAIN_INFO + "```"
+RAIN_NOBODY="Nobody to rain on, try to make your discord more popular"
 ### END Response Templates ###
 
 # Thread to process send transactions
@@ -202,7 +214,7 @@ async def withdraw(ctx):
 		try:
 			withdraw_address = find_address(ctx.message.content)
 			source_id = ctx.message.author.id
-			source_address = wallet.get_address(source_id)
+			source_address = db.get_address(source_id)
 			amount = wallet.get_balance_by_id(source_id)['available']
 			if amount == 0:
 				await post_response(ctx.message, WITHDRAW_NO_BALANCE_TEXT);
@@ -244,6 +256,7 @@ async def tip(ctx):
 		required_amt = amount * len(users_to_tip)
 		user_balance = wallet.get_balance_by_id(ctx.message.author.id)['available']
 		if user_balance < required_amt:
+			await add_x_reaction(ctx.message)
 			await post_dm(ctx.message.author, INSUFFICIENT_FUNDS_TEXT)
 			return
 		# Distribute tips
@@ -252,7 +265,7 @@ async def tip(ctx):
 			actual_amt = wallet.make_transaction_to_user(ctx.message.author.id, amount, member.id, member.name, uid)
 			# Something went wrong, tip didn't go through
 			if actual_amt == 0:
-				required_amt -= required_amt
+				required_amt -= amount
 			else:
 				await post_dm(member, TIP_RECEIVED_TEXT, actual_amt, ctx.message.author.name)
 		# Post message reactions
@@ -262,48 +275,113 @@ async def tip(ctx):
 			await post_dm(ctx.message.author, TIP_USAGE)
 		elif e.error_type == "no_valid_recipient":
 			await post_dm(ctx.message.author, TIP_SELF)
-		elif e.error_type == "error":
+		else:
 			await post_response(ctx.message, TIP_ERROR_TEXT)
 
-"""
+@client.command(pass_context=True)
+async def tipsplit(ctx):
+	if ctx.message.channel.is_private:
+		return
+
+	try:
+		amount = find_amount(ctx.message.content)
+		# Make sure amount is valid and at least 1 user is mentioned
+		if amount < 1 or len(ctx.message.mentions) < 1:
+			raise util.TipBotException("usage_error")
+		if int(amount / len(ctx.message.mentions)) < 1:
+			raise util.TipBotException("invalid_tipsplit")
+		# Create tip list
+		users_to_tip = []
+		for member in ctx.message.mentions:
+			# Disregard mentions of self and exempt users
+			if member.id not in settings.exempt_users and member.id != ctx.message.author.id:
+				users_to_tip.append(member)
+		if len(users_to_tip) < 1:
+			raise util.TipBotException("no_valid_recipient")
+		# Remove duplicates
+		users_to_tip = list(set(users_to_tip))
+		# Make sure user has enough in their balance
+		user_balance = wallet.get_balance_by_id(ctx.message.author.id)['available']
+		if user_balance < amount:
+			await add_x_reaction(ctx.message)
+			await post_dm(ctx.message.author, INSUFFICIENT_FUNDS_TEXT)
+			return
+		# Distribute tips
+		tip_amount = int(amount / len(users_to_tip))
+		# Recalculate amount as it may be different since truncating decimal
+		amount = tip_amount * len(users_to_tip)
+		for member in users_to_tip:
+			uid = str(uuid.uuid4())
+			actual_amt = wallet.make_transaction_to_user(ctx.message.author.id, tip_amount, member.id, member.name, uid)
+			# Tip didn't go through
+			if actual_amt == 0:
+				amount -= tip_amount
+			else:
+				await post_dm(member, TIP_RECEIVED_TEXT, tip_amount, ctx.message.author.name)
+		await react_to_message(ctx.message, amount)
+	except util.TipBotException as e:
+		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
+			await post_dm(ctx.message.author, TIPSPLIT_USAGE)
+		elif e.error_type == "invalid_tipsplit":
+			await post_dm(ctx.message.author, TIPSPLIT_SMALL)
+		elif e.error_type == "no_valid_recipient":
+			await post_dm(ctx.message.author, TIP_SELF)
+		else:
+			await post_response(ctx.message, TIP_ERROR_TEXT)
+
 @client.command(pass_context=True)
 async def rain(ctx):
 	if ctx.message.channel.is_private:
 		return
 	try:
 		amount = find_amount(ctx.message.content)
-		balance = wallet.get_balance_adj(ctx.message.author.id)
-		# Make sure amount meets requirements
 		if amount < RAIN_MINIMUM:
-			await post_dm(ctx.message.author, RAIN_USAGE)
-			return
-		elif balance < RAIN_MINIMUM:
-			await post_dm(ctx.message.author, INSUFFICIENT_FUNDS_TEXT)
-		since_ts = datetime.datetime.now() - datetime.timedelta(minutes=30)
+			raise util.TipBotException("usage_error")
+		# Create tip list
 		users_to_tip = []
-		async for msg in client.logs_from(ctx.message.channel, limit=500, after=since_ts):
-			if msg.author.id not in settings.exempt_users and msg.author.id != ctx.message.author.id:
-				users_to_tip.append(msg.author.id)
-		# Make the list distinct by making it a set
+		active_user_ids = db.get_active_users(RAIN_DELTA)
+		if len(active_user_ids) < 1:
+			raise util.TipBotException("no_valid_recipient")
+		for auid in active_user_ids:
+			dmember = ctx.message.server.get_member(auid)
+			if dmember is not None and dmember.status == discord.Status.online:
+				if dmember.id not in settings.exempt_users and dmember.id != ctx.message.author.id:
+					users_to_tip.append(dmember)
 		users_to_tip = list(set(users_to_tip))
 		if len(users_to_tip) < 1:
-			return # Ops
-		# Get individual tip amount
+			raise util.TipBotException("no_valid_recipient")
+		if int(amount / len(users_to_tip)) < 1:
+			raise util.TipBotException("invalid_tipsplit")
+		user_balance = wallet.get_balance_by_id(ctx.message.author.id)['available']
+		if user_balance < amount:
+			await add_x_reaction(ctx.message)
+			await post_dm(ctx.message.author, INSUFFICIENT_FUNDS_TEXT)
+			return
+		# Distribute Tips
 		tip_amount = int(amount / len(users_to_tip))
-		for user_id in users_to_tip:
-			user = await client.get_user_info(user_id)
-			if user is None:
-				continue
+		# Recalculate actual tip amount as it may be smaller now
+		amount = tip_amount * len(users_to_tip)
+		for member in users_to_tip:
 			uid = str(uuid.uuid4())
-			wallet.make_transaction_to_user(ctx.message.author.id, tip_amount, user.id, user.name, uid)
-			await post_dm(user, TIP_RECEIVED_TEXT, tip_amount, ctx.message.author.name)
-		# Post message reactions
+			actual_amt = wallet.make_transaction_to_user(ctx.message.author.id, tip_amount, member.id, member.name, uid)
+			# Tip didn't go through for some reason
+			if actual_amt == 0:
+				amount -= tip_amount
+			else:
+				await post_dm(member, TIP_RECEIVED_TEXT, actual_amt, ctx.message.author.name)
+
+		# Message React
 		await react_to_message(ctx.message, amount)
 		await client.add_reaction(ctx.message, '\U0001F4A6') # Sweat Drops
 	except util.TipBotException as e:
-		if e.error_type == "amount_not_found":
+		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(ctx.message.author, RAIN_USAGE)
-"""
+		elif e.error_type == "no_valid_recipient":
+			await post_dm(ctx.message.author, RAIN_NOBODY)
+		elif e.error_type == "invalid_tipsplit":
+			await post_dm(ctx.message.author, TIPSPLIT_SMALL)
+		else:
+			await post_response(ctx.message, TIP_ERROR_TEXT)
 
 @client.command(pass_context=True, aliases=['leaderboard'])
 async def bigtippers(ctx):
@@ -400,6 +478,10 @@ async def post_dm(member, template, *args):
 	response = template % tuple(args)
 	logger.info("sending dm: '%s' to user: %s", response, member.id)
 	await client.send_message(member, response)
+
+async def add_x_reaction(message):
+	await client.add_reaction(message, '\U0000274C') # X
+	return
 
 async def react_to_message(message, amount):
 	if amount > 0:
