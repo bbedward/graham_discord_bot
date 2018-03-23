@@ -63,7 +63,7 @@ def update_tip_count(user_id, new_count):
 	user.save()
 	return
 
-def update_pending(user_id, send, receive):
+def update_pending(user_id, send=0, receive=0):
 	user = get_user_by_id(user_id)
 	if user is None:
 		return False
@@ -74,39 +74,47 @@ def update_pending(user_id, send, receive):
 
 def create_user(user_id, user_name, wallet_address):
 	user = User(user_id=user_id,
-				user_name=user_name,
-				wallet_address=wallet_address,
-				tipped_amount=0.0,
-				wallet_balance=0.0,
-				pending_receive=0.0,
-				pending_send=0.0,
-				tip_count=0,
-				created=datetime.datetime.now(),
-		last_msg=datetime.datetime.now(),
-				last_active=datetime.datetime.now()
-				)
+		    user_name=user_name,
+		    wallet_address=wallet_address,
+		    tipped_amount=0.0,
+		    wallet_balance=0.0,
+		    pending_receive=0.0,
+		    pending_send=0.0,
+		    tip_count=0,
+		    created=datetime.datetime.now(),
+		    last_msg=datetime.datetime.now(),
+		    last_active=datetime.datetime.now()
+		    )
 	user.save()
 	return user
 
 ### Transaction Stuff
 def create_transaction(uuid, source_addr, to_addr, amt):
 	tx = Transaction(uid=uuid,
-					 source_address=source_addr,
-					 to_address=to_addr,
-					 amount=amt,
-					 processed=False,
-					 created=datetime.datetime.now(),
-					 tran_id=''
-					)
+			 source_address=source_addr,
+			 to_address=to_addr,
+			 amount=amt,
+			 processed=False,
+			 created=datetime.datetime.now(),
+			 tran_id='',
+			 attempts=0
+			)
 	tx.save()
 	return tx
 
 def get_unprocessed_transactions():
+	# We don't simply return the txs list cuz that causes issues with database locks in the thread
 	txs = Transaction.select().where(Transaction.processed == False).order_by(Transaction.created.desc())
 	return_data = []
-	for idx, tx in enumerate(txs):
-		return_data.append({'uid':tx.uid,'source_address':tx.source_address,'to_address':tx.to_address,'amount':tx.amount})
+	for tx in txs:
+		return_data.append({'uid':tx.uid,'source_address':tx.source_address,'to_address':tx.to_address,'amount':tx.amount,'attempts':tx.attempts})
 	return return_data
+
+def inc_tx_attempts(tx):
+	if tx is not None:
+		tx.attempts += 1
+		tx.save()
+	return
 
 # You may think, this imposes serious double spend risks:
 #  ie. if a transaction actually has been processed, but has never been marked processed in the database
@@ -193,6 +201,7 @@ class Transaction(Model):
 	processed = BooleanField()
 	created = DateTimeField()
 	tran_id = CharField()
+	attempts = IntegerField()
 
 	class Meta:
 		database = db

@@ -48,24 +48,31 @@ def get_balance(user, user_id):
 	logger.info('getting balance for user %s', user_id)
 	if user is None:
 		logger.info('user %s does not exist.', user_id)
-		return 0.0
+		return {'actual':0,
+			'available':0,
+			'pending':0}
 	else:
 		logger.info('Fetching balance from wallet for %s', user_id)
 		wallet_command = {'action': 'account_balance',
-						  'account': user.wallet_address}
+				  'account': user.wallet_address}
 		wallet_output = communicate_wallet(wallet_command)
+		actual_balance = wallet_output['balance']
+		pending_balance = wallet_output['pending']
 		wallet_command = {'action': 'rai_from_raw',
-						  'amount': int(wallet_output['balance'])}
-		balance = communicate_wallet(wallet_command)
-		return int(balance['amount'])
+				  'amount': int(actual_balance)}
+		actual_balance = communicate_wallet(wallet_command)['amount']
+		wallet_command = {'action': 'rai_from_raw',
+				  'amount': int(pending_balance)}
+		pending_balance = communicate_wallet(wallet_command)['amount']
+		return {'actual':int(actual_balance),
+			'available': int(actual_balance) - user.pending_send,
+			'pending_send': user.pending_send,
+			'pending':int(pending_balance) + user.pending_receive,
+			}
 
-# Get balance minus pending sends
-def get_balance_adj(user_id):
+def get_balance_by_id(user_id):
 	user = db.get_user_by_id(user_id)
-	if user is None:
-	   return 0.0
-	else:
-	   return get_balance(user, user_id) - user.pending_send
+	return get_balance(user, user_id)
 
 def get_address(user_id):
 	logger.info('getting wallet address for user %s ...', user_id)
@@ -76,10 +83,10 @@ def get_address(user_id):
 		return user.wallet_address
 
 
-def make_transaction_to_address(source_address, amount, withdraw_address, uid):
+def make_transaction_to_address(source_id, source_address, amount, withdraw_address, uid):
 	# Check to see if the withdraw address is valid
 	wallet_command = {'action': 'validate_account_number',
-					  'account': withdraw_address}
+			  'account': withdraw_address}
 	address_validation = communicate_wallet(wallet_command)
 
 	# If the address was the incorrect length, did not start with xrb_ or nano_ or was deemed invalid by the node, return an error.
@@ -89,31 +96,30 @@ def make_transaction_to_address(source_address, amount, withdraw_address, uid):
 		or address_validation['valid'] != '1':
 		raise util.TipBotException('invalid_address')
 
-	db.create_transaction(uid,source_address,withdraw_address,int(amount))
+	# Validate amount
+	balance = get_balance_by_id(source_id)['available']
+	if balance >= amount:
+		# Update pending send for user
+		db.update_pending(source_id, send=amount)
+		db.create_transaction(uid,source_address,withdraw_address,int(amount))
+		logger.info('TX queued, uid %s', uid)
+	else:
+		raise util.TipBotException('balance_error')
 
-	logger.info('TX queued, uid %s', uid)
-	return
+	return amount
 
-def make_transaction_to_user(
-	user_id,
-	amount,
-	target_user_id,
-	target_user_name,
-	uid
-	):
+def make_transaction_to_user(user_id, amount, target_user_id, target_user_name, uid):
 	target_user = create_or_fetch_user(target_user_id, target_user_name)
 	user = db.get_user_by_id(user_id)
-	# Set pending balances
-	db.update_pending(user_id, amount, 0)
-	db.update_pending(target_user_id, 0, amount)
 	try:
-		make_transaction_to_address(user.wallet_address, amount,
-									target_user.wallet_address, uid)
+		actual_tip_amount = make_transaction_to_address(user_id, user.wallet_address, amount, target_user.wallet_address, uid)
 	except util.TipBotException as e:
-		db.update_pending(user_id, amount * -1, 0)
-		db.update_pending(target_user_id, 0, amount * -1)
-		return
+		return 0
+
+	# Set pending receive for target user
+	db.update_pending(target_user_id,receive=actual_tip_amount)
+	# Update tipper stats
 	db.update_tipped_amt(user_id, amount)
 	logger.info('tip queued. (from: %s, to: %s, amount: %d, uid: %s)',
-				user_id, target_user.user_id, amount, uid)
-	return
+				user_id, target_user.user_id, actual_tip_amount, uid)
+	return actual_tip_amount

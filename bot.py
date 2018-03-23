@@ -19,7 +19,7 @@ import db
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "0.4"
+BOT_VERSION = "0.5"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -27,6 +27,8 @@ TOP_TIPPERS_COUNT=15
 RAIN_MINIMUM = settings.rain_minimum
 # Spam Threshold (Seconds) - how long to output certain commands (e.g. bigtippers0
 SPAM_THRESHOLD=60
+# MAX TX_Retries - If wallet does not indicate a successful send for whatever reason, retry this many times
+MAX_TX_RETRIES=3
 # Change command prefix to whatever you want to begin commands with
 client = Bot(command_prefix='!')
 # Use custom help command
@@ -38,7 +40,7 @@ last_big_tippers=datetime.datetime.now()
 ### Response Templates ###
 BALANCE_TEXT="Actual Balance: %d nano\nAvailable Balance: %d nano\nPending Send: %d nano\nPending Receipt: %d nano"
 DEPOSIT_TEXT="Your wallet address is %s\nQR: %s"
-INSUFFICIENT_FUNDS_TEXT="You don't have enough nano to tip that much!"
+INSUFFICIENT_FUNDS_TEXT="You don't have enough nano in your available balance!"
 TIP_ERROR_TEXT="Something went wrong with the tip. I wrote to logs."
 HELP_INFO="!help or !man:\n Display this message"
 BALANCE_INFO=("!balance:\n Displays the balance of your tip account as described:" +
@@ -82,6 +84,7 @@ HELP_TEXT=("NanoTipBot v%s - An open source NANO tip bot for Discord\n" +
 		"Source code: https://github.com/bbedward/NANO-Tip-Bot")
 TIP_RECEIVED_TEXT="You were tipped %d nano by %s"
 TIP_USAGE="Usage:\n```" + TIP_INFO + "```"
+TIP_SELF="No valid recipients found in your tip.\n(You cannot tip yourself and certain other users are exempt from receiving tips)"
 WITHDRAW_SUCCESS_TEXT="Withdraw has been queued for processing"
 WITHDRAW_PROCESSED_TEXT="Withdraw processed TXID: %s" #TODO
 WITHDRAW_NO_BALANCE_TEXT="You have no nano to withdraw"
@@ -106,39 +109,47 @@ class SendProcessor(Thread):
 
 	def run(self):
 		while True:
+			# Just so we don't constantly berate the database if there's no TXs to chew through
+			time.sleep(10)
 			txs = db.get_unprocessed_transactions()
 			for tx in txs:
 				if self.stopped():
 					break
-				src_addr = tx['source_address']
-				to_addr = tx['to_address']
-				amount = int(tx['amount'])
+				source_address = tx['source_address']
+				to_address = tx['to_address']
+				amount = tx['amount']
 				uid = tx['uid']
+				attempts = tx['attempts']
 				raw_withdraw_amt = str(amount) + '000000000000000000000000'
 				wallet_command = {
 					'action': 'send',
 					'wallet': settings.wallet,
-					'source': src_addr,
-					'destination': to_addr,
+					'source': source_address,
+					'destination': to_address,
 					'amount': int(raw_withdraw_amt),
 					'id': uid
 				}
 				wallet_output = wallet.communicate_wallet(wallet_command)
 				if 'block' in wallet_output:
 					txid = wallet_output['block']
+					pending_delta = int(amount) * -1 # To update users pending balances
+					db.mark_transaction_processed(uid, txid)
+					logger.info('TX processed. UID: %s, TXID: %s', uid, txid)
+					src_usr = db.get_user_by_wallet_address(source_address)
+					trg_usr = db.get_user_by_wallet_address(to_address)
+					if src_usr is not None:
+						db.update_pending(src_usr.user_id, send=pending_delta)
+					if trg_usr is not None:
+						db.update_pending(trg_usr.user_id, receive=pending_delta)
 				else:
-					txid = 'invalid'
-				db.mark_transaction_processed(uid, txid)
-				logger.info('TX processed. UID: %s, TXID: %s', uid, txid)
-				src_usr = db.get_user_by_wallet_address(src_addr)
-				trg_usr = db.get_user_by_wallet_address(to_addr)
-				if src_usr is not None:
-					db.update_pending(src_usr.user_id, amount * -1, 0)
-				if trg_usr is not None:
-					db.update_pending(trg_usr.user_id, 0, amount * -1)
+					# Not sure what happen but we'll retry a few times
+					if attempts >= MAX_TX_RETRIES:
+						logger.info("Max Retires Exceeded for TX UID: %s", uid)
+						db.mark_transaction_processed(uid, 'invalid')
+					else:
+						db.inc_tx_attempts(uid)
 			if self.stopped():
 				break
-			time.sleep(10)
 
 	def stop(self):
 		self._stop_event.set()
@@ -175,10 +186,8 @@ async def help(ctx):
 @client.command(pass_context=True)
 async def balance(ctx):
 	if ctx.message.channel.is_private:
-		user = db.get_user_by_id(ctx.message.author.id)
-		actual_balance = wallet.get_balance(user, ctx.message.author.id)
-		available_balance = actual_balance - user.pending_send
-		await post_response(ctx.message, BALANCE_TEXT, actual_balance,available_balance,user.pending_send,user.pending_receive)
+		balances = wallet.get_balance_by_id(ctx.message.author.id)
+		await post_response(ctx.message, BALANCE_TEXT, balances['actual'],balances['available'],balances['pending_send'],balances['pending'])
 
 @client.command(pass_context=True, aliases=['register'])
 async def deposit(ctx):
@@ -192,22 +201,23 @@ async def withdraw(ctx):
 	if ctx.message.channel.is_private:
 		try:
 			withdraw_address = find_address(ctx.message.content)
-			source_address = wallet.get_address(ctx.message.author.id)
-			amount = wallet.get_balance_adj(ctx.message.author.id)
+			source_id = ctx.message.author.id
+			source_address = wallet.get_address(source_id)
+			amount = wallet.get_balance_by_id(source_id)['available']
 			if amount == 0:
 				await post_response(ctx.message, WITHDRAW_NO_BALANCE_TEXT);
 			else:
-				db.update_pending(ctx.message.author.id, amount, 0)
 				uid = str(uuid.uuid4())
-				wallet.make_transaction_to_address(source_address, amount, withdraw_address, uid)
+				wallet.make_transaction_to_address(source_id, source_address, amount, withdraw_address, uid)
 				await post_response(ctx.message, WITHDRAW_SUCCESS_TEXT)
 		except util.TipBotException as e:
 			if e.error_type == "address_not_found":
 				await post_response(ctx.message, WITHDRAW_ADDRESS_NOT_FOUND_TEXT)
-			if e.error_type == "invalid_address":
-				db.update_pending(ctx.message.author.id, amount * -1, 0)
+			elif e.error_type == "invalid_address":
 				await post_response(ctx.message, WITHDRAW_INVALID_ADDRESS_TEXT)
-			if e.error_type == "error":
+			elif e.error_type == "balance_error":
+				await post_response(ctx.message, INSUFFICIENT_FUNDS_TEXT)
+			elif e.error_type == "error":
 				await post_response(ctx.message, WITHDRAW_ERROR_TEXT)
 
 @client.command(pass_context=True)
@@ -217,38 +227,45 @@ async def tip(ctx):
 
 	try:
 		amount = find_amount(ctx.message.content)
-		# Make sure amount is valid and user has specified at least 1 recipient
+		# Make sure amount is valid and at least 1 user is mentioned
 		if amount < 1 or len(ctx.message.mentions) < 1:
-			await post_dm(ctx.message.author, TIP_USAGE)
-			return
+			raise util.TipBotException("usage_error")
+		# Create tip list
+		users_to_tip = []
+		for member in ctx.message.mentions:
+			# Disregard mentions of exempt users and self
+			if member.id not in settings.exempt_users and member.id != ctx.message.author.id:
+				users_to_tip.append(member)
+		if len(users_to_tip) < 1:
+			raise util.TipBotException("no_valid_recipient")
+		# Cut out duplicate mentions
+		users_to_tip = list(set(users_to_tip))
 		# Make sure this user has enough in their balance to complete this tip
-		required_amt = amount * len(ctx.message.mentions)
-		user_balance = wallet.get_balance_adj(ctx.message.author.id)
+		required_amt = amount * len(users_to_tip)
+		user_balance = wallet.get_balance_by_id(ctx.message.author.id)['available']
 		if user_balance < required_amt:
 			await post_dm(ctx.message.author, INSUFFICIENT_FUNDS_TEXT)
 			return
 		# Distribute tips
-		for member in ctx.message.mentions:
-			# Don't allow user to tip themselves, or people in exempt users list
-			# We do it this way because there may be multiple recipients on 1 tip
-			# So we just ignore the invalid ones, basically
-			if member.id in settings.exempt_users:
-				required_amt-=amount
-			elif member.id == ctx.message.author.id:
-				required_amt-=amount
+		for member in users_to_tip:
+			uid = str(uuid.uuid4())
+			actual_amt = wallet.make_transaction_to_user(ctx.message.author.id, amount, member.id, member.name, uid)
+			# Something went wrong, tip didn't go through
+			if actual_amt == 0:
+				required_amt -= required_amt
 			else:
-				uid = str(uuid.uuid4())
-				wallet.make_transaction_to_user(ctx.message.author.id, amount, member.id, member.name, uid)
-				await post_dm(member, TIP_RECEIVED_TEXT, amount, ctx.message.author.name)
+				await post_dm(member, TIP_RECEIVED_TEXT, actual_amt, ctx.message.author.name)
 		# Post message reactions
 		await react_to_message(ctx.message, required_amt)
 	except util.TipBotException as e:
-		if e.error_type == "amount_not_found":
+		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(ctx.message.author, TIP_USAGE)
-		if e.error_type == "error":
+		elif e.error_type == "no_valid_recipient":
+			await post_dm(ctx.message.author, TIP_SELF)
+		elif e.error_type == "error":
 			await post_response(ctx.message, TIP_ERROR_TEXT)
 
-
+"""
 @client.command(pass_context=True)
 async def rain(ctx):
 	if ctx.message.channel.is_private:
@@ -286,6 +303,7 @@ async def rain(ctx):
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found":
 			await post_dm(ctx.message.author, RAIN_USAGE)
+"""
 
 @client.command(pass_context=True, aliases=['leaderboard'])
 async def bigtippers(ctx):
