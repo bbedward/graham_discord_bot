@@ -82,8 +82,7 @@ def create_user(user_id, user_name, wallet_address):
 		    pending_send=0.0,
 		    tip_count=0,
 		    created=datetime.datetime.now(),
-		    last_msg=datetime.datetime.now(),
-		    last_active=datetime.datetime.now()
+		    last_msg=datetime.datetime.now()
 		    )
 	user.save()
 	return user
@@ -187,7 +186,6 @@ class User(Model):
 	tip_count = BigIntegerField()
 	created = DateTimeField()
 	last_msg = DateTimeField()
-	last_active = DateTimeField()
 
 	class Meta:
 		database = db

@@ -50,6 +50,7 @@ def get_balance(user, user_id):
 		logger.info('user %s does not exist.', user_id)
 		return {'actual':0,
 			'available':0,
+			'pending_send':0,
 			'pending':0}
 	else:
 		logger.info('Fetching balance from wallet for %s', user_id)
