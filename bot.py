@@ -25,7 +25,7 @@ BOT_VERSION = "0.6"
 TOP_TIPPERS_COUNT=15
 # Minimum Amount for !rain
 RAIN_MINIMUM = settings.rain_minimum
-# How long to look back for active users for !rain (30)
+# Rain Delta (Minutes) - How long to look back for active users for !rain
 RAIN_DELTA=30
 # Spam Threshold (Seconds) - how long to output certain commands (e.g. bigtippers0
 SPAM_THRESHOLD=60
