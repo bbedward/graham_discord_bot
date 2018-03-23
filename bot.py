@@ -248,6 +248,7 @@ async def tip(ctx):
 		if e.error_type == "error":
 			await post_response(ctx.message, TIP_ERROR_TEXT)
 
+
 @client.command(pass_context=True)
 async def rain(ctx):
 	if ctx.message.channel.is_private:
@@ -382,17 +383,14 @@ async def post_dm(member, template, *args):
 	logger.info("sending dm: '%s' to user: %s", response, member.id)
 	await client.send_message(member, response)
 
-async def post_dm_id(user_id, template, *args):
-	await post_dm(await client.get_user_info(user_id), template, args)
-
 async def react_to_message(message, amount):
 	if amount > 0:
-		await client.add_reaction(message, '\U00002611')   # check mark
+		await client.add_reaction(message, '\U00002611') # check mark
 	if amount > 0 and amount < 1000:
 		await client.add_reaction(message, '\U0001F1F8') # S
 		await client.add_reaction(message, '\U0001F1ED') # H
 		await client.add_reaction(message, '\U0001F1F7') # R
-		await client.add_reaction(message, '\U0001F1EE') # I 
+		await client.add_reaction(message, '\U0001F1EE') # I
 		await client.add_reaction(message, '\U0001F1F2') # M
 		await client.add_reaction(message, '\U0001F1F5') # P
 	elif amount >= 1000 and amount < 10000:
