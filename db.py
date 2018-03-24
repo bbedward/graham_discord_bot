@@ -102,18 +102,27 @@ def create_user(user_id, user_name, wallet_address):
 	return user
 
 ### Transaction Stuff
-def create_transaction(uuid, source_addr, to_addr, amt):
-	tx = Transaction(uid=uuid,
-			 source_address=source_addr,
-			 to_address=to_addr,
-			 amount=amt,
-			 processed=False,
-			 created=datetime.datetime.now(),
-			 tran_id='',
-			 attempts=0
-			)
-	tx.save()
-	return tx
+def create_transaction(uuid, source_addr, to_addr, amt, source_id, target_id=None):
+	with db.atomic() as transaction:
+		try:
+			tx = Transaction(uid=uuid,
+					 source_address=source_addr,
+					 to_address=to_addr,
+					 amount=amt,
+					 processed=False,
+					 created=datetime.datetime.now(),
+					 tran_id='',
+					 attempts=0
+					)
+			tx.save()
+			update_pending(source_id, send=amt)
+			if target_id is not None:
+				update_pending(target_id, receive=amt)
+			return tx
+		except Exception as e:
+			db.rollback()
+			logger.exception(e)
+			return
 
 def get_unprocessed_transactions():
 	# We don't simply return the txs list cuz that causes issues with database locks in the thread
@@ -133,14 +142,17 @@ def inc_tx_attempts(uid):
 # You may think, this imposes serious double spend risks:
 #  ie. if a transaction actually has been processed, but has never been marked processed in the database
 #  This shouldn't happen even in that scenario, due to the id (uid here) field in nano node v10
-def mark_transaction_processed(uuid, tranid):
+def mark_transaction_processed(uuid, tranid, amt, source_id, target_id=None):
 	with db.atomic() as transaction:
 		try:
 			tx = Transaction.get(uid=uuid)
-			if tx is not None:
+			if tx is not None and not tx.processed:
 				tx.processed=True
 				tx.tran_id=tranid
 				tx.save()
+				update_pending(source_id, send=amt)
+				if target_id is not None:
+					update_pending(target_id, receive=amt)
 			return
 		except Exception as e:
 			db.rollback()

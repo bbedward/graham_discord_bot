@@ -136,6 +136,16 @@ class SendProcessor(Thread):
 				uid = tx['uid']
 				attempts = tx['attempts']
 				raw_withdraw_amt = str(amount) + '000000000000000000000000'
+				src_usr = db.get_user_by_wallet_address(source_address)
+				trg_usr = db.get_user_by_wallet_address(to_address)
+				if src_usr is not None:
+					source_id = src_usr.user_id
+				else:
+					source_id = None
+				if trg_usr is not None:
+					target_id = trg_usr.user_id
+				else:
+					target_id = None
 				wallet_command = {
 					'action': 'send',
 					'wallet': settings.wallet,
@@ -148,19 +158,13 @@ class SendProcessor(Thread):
 				if 'block' in wallet_output:
 					txid = wallet_output['block']
 					pending_delta = int(amount) * -1 # To update users pending balances
-					db.mark_transaction_processed(uid, txid)
+					db.mark_transaction_processed(uid, txid, pending_delta, source_id, target_id)
 					logger.info('TX processed. UID: %s, TXID: %s', uid, txid)
-					src_usr = db.get_user_by_wallet_address(source_address)
-					trg_usr = db.get_user_by_wallet_address(to_address)
-					if src_usr is not None:
-						db.update_pending(src_usr.user_id, send=pending_delta)
-					if trg_usr is not None:
-						db.update_pending(trg_usr.user_id, receive=pending_delta)
 				else:
 					# Not sure what happen but we'll retry a few times
 					if attempts >= MAX_TX_RETRIES:
 						logger.info("Max Retires Exceeded for TX UID: %s", uid)
-						db.mark_transaction_processed(uid, 'invalid')
+						db.mark_transaction_processed(uid, 'invalid', int(amount) * -1, source_id, target_id)
 					else:
 						db.inc_tx_attempts(uid)
 			if self.stopped():
