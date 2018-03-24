@@ -123,7 +123,8 @@ def get_unprocessed_transactions():
 		return_data.append({'uid':tx.uid,'source_address':tx.source_address,'to_address':tx.to_address,'amount':tx.amount,'attempts':tx.attempts})
 	return return_data
 
-def inc_tx_attempts(tx):
+def inc_tx_attempts(uid):
+	tx = Transaction.get(uid = uid)
 	if tx is not None:
 		tx.attempts += 1
 		tx.save()
