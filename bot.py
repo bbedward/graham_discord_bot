@@ -355,7 +355,7 @@ async def rain(ctx):
 			raise util.TipBotException("no_valid_recipient")
 		for auid in active_user_ids:
 			dmember = ctx.message.server.get_member(auid)
-			if dmember is not None and dmember.status == discord.Status.online:
+			if dmember is not None and dmember.status == discord.Status.online or dmember.status == discord.Status.idle:
 				if dmember.id not in settings.exempt_users and dmember.id != ctx.message.author.id:
 					users_to_tip.append(dmember)
 		users_to_tip = list(set(users_to_tip))
