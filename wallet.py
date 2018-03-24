@@ -93,8 +93,8 @@ def make_transaction_to_address(source_id, source_address, amount, withdraw_addr
 	amount = int(amount) # whole numbers only
 	if balance >= amount:
 		# Update pending send for user
-		db.update_pending(source_id, send=amount)
 		db.create_transaction(uid,source_address,withdraw_address,amount)
+		db.update_pending(source_id, send=amount)
 		logger.info('TX queued, uid %s', uid)
 	else:
 		raise util.TipBotException('balance_error')
