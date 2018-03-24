@@ -57,14 +57,14 @@ def get_balance(user, user_id):
 		wallet_command = {'action': 'account_balance',
 				  'account': user.wallet_address}
 		wallet_output = communicate_wallet(wallet_command)
-		actual_balance = wallet_output['balance']
-		pending_balance = wallet_output['pending']
-		wallet_command = {'action': 'rai_from_raw',
-				  'amount': int(actual_balance)}
-		actual_balance = communicate_wallet(wallet_command)['amount']
-		wallet_command = {'action': 'rai_from_raw',
-				  'amount': int(pending_balance)}
-		pending_balance = communicate_wallet(wallet_command)['amount']
+		if 'balance' not in wallet_output:
+			# Ops
+			return None
+		actual_balance = int(wallet_output['balance'])
+		pending_balance = int(wallet_output['pending'])
+		# Equiv to rai_from_raw
+		actual_balance = actual_balance / 1000000000000000000000000
+		pending_balance = pending_balance / 1000000000000000000000000
 		return {'actual':int(actual_balance),
 			'available': int(actual_balance) - user.pending_send,
 			'pending_send': user.pending_send,

@@ -9,3 +9,5 @@ exempt_users = [ discord_bot_id, '395828286548344834', '405250059240996864', '41
 admin_roles = ['Moderators', 'Core', 'Community Managers']
 # Minimum amount required for !rain
 rain_minimum = 10000
+# Status
+playing_status='send me !help in private'

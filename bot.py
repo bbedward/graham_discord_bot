@@ -87,7 +87,7 @@ HELP_TEXT=("NanoTipBot v%s - An open source NANO tip bot for Discord\n" +
 #		SETCOUNT_INFO +
 		"\n\n\nsend node```" +
 		"Source code: https://github.com/bbedward/NANO-Tip-Bot")
-BALANCE_TEXT="Actual Balance: %d nanorai\nAvailable Balance: %d nanorai\nPending Send: %d nanorai\nPending Receipt: %d nanorai"
+BALANCE_TEXT="Actual Balance: %s nanorai\nAvailable Balance: %s nanorai\nPending Send: %s nanorai\nPending Receipt: %s nanorai"
 DEPOSIT_TEXT="Your wallet address is %s\nQR: %s"
 INSUFFICIENT_FUNDS_TEXT="You don't have enough nano in your available balance!"
 TIP_ERROR_TEXT="Something went wrong with the tip. I wrote to logs."
@@ -112,6 +112,9 @@ TIPSPLIT_SMALL="Tip amount is too small to be distributed to that many users"
 RAIN_USAGE="Usage:\n```" + RAIN_INFO + "```"
 RAIN_NOBODY="I couldn't find any active users...besides you :wink:"
 ### END Response Templates ###
+
+# Locks
+balanceLock = asyncio.Semaphore()
 
 # Thread to process send transactions
 class SendProcessor(Thread):
@@ -181,6 +184,7 @@ async def on_ready():
 		SendProcessor().start()
 	except (KeyboardInterrupt, SystemExit):
 		SendProcessor().stop()
+	await client.change_presence(game=discord.Game(name=settings.playing_status))
 
 # Override on_message and do our spam check here
 @client.event
@@ -198,8 +202,15 @@ async def help(ctx):
 @client.command(pass_context=True)
 async def balance(ctx):
 	if ctx.message.channel.is_private:
+		message = await post_response(ctx.message, "Fetching balance")
+		balanceLock.acquire()
 		balances = wallet.get_balance_by_id(ctx.message.author.id)
-		await post_response(ctx.message, BALANCE_TEXT, balances['actual'],balances['available'],balances['pending_send'],balances['pending'])
+		await post_edit(message, BALANCE_TEXT,
+				"{:,}".format(balances['actual']),
+				"{:,}".format(balances['available']),
+				"{:,}".format(balances['pending_send']),
+				"{:,}".format(balances['pending']))
+		balanceLock.release()
 
 @client.command(pass_context=True, aliases=['register'])
 async def deposit(ctx):
@@ -471,13 +482,17 @@ async def post_response(message, template, *args):
 	if not message.channel.is_private:
 		response = "<@" + message.author.id + "> \n" + response
 	logger.info("sending response: '%s' to message: %s", response, message.content)
-	await client.send_message(message.channel, response)
+	return await client.send_message(message.channel, response)
 
 
 async def post_dm(member, template, *args):
 	response = template % tuple(args)
 	logger.info("sending dm: '%s' to user: %s", response, member.id)
-	await client.send_message(member, response)
+	return await client.send_message(member, response)
+
+async def post_edit(message, template, *args):
+	response = template % tuple(args)
+	return await client.edit_message(message, response)
 
 async def add_x_reaction(message):
 	await client.add_reaction(message, '\U0000274C') # X
