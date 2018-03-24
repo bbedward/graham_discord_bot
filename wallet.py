@@ -90,10 +90,11 @@ def make_transaction_to_address(source_id, source_address, amount, withdraw_addr
 
 	# Validate amount
 	balance = get_balance_by_id(source_id)['available']
+	amount = int(amount) # whole numbers only
 	if balance >= amount:
 		# Update pending send for user
 		db.update_pending(source_id, send=amount)
-		db.create_transaction(uid,source_address,withdraw_address,int(amount))
+		db.create_transaction(uid,source_address,withdraw_address,amount)
 		logger.info('TX queued, uid %s', uid)
 	else:
 		raise util.TipBotException('balance_error')
@@ -111,7 +112,7 @@ def make_transaction_to_user(user_id, amount, target_user_id, target_user_name, 
 	# Set pending receive for target user
 	db.update_pending(target_user_id,receive=actual_tip_amount)
 	# Update tipper stats
-	db.update_tipped_amt(user_id, amount)
+	db.update_tipped_amt(user_id, actual_tip_amount)
 	logger.info('tip queued. (from: %s, to: %s, amount: %d, uid: %s)',
 				user_id, target_user.user_id, actual_tip_amount, uid)
 	return actual_tip_amount
