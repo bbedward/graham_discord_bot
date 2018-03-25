@@ -51,11 +51,11 @@ BALANCE_INFO=("%sbalance:\n Displays the balance of your tip account:" +
 		"\n - Pending Receipt: Tips that have been sent to you, but have not yet been processed by the node. " +
 		"\n Pending funds will be available for tip/withdraw after the transactions have been processed") % COMMAND_PREFIX
 DEPOSIT_INFO=("%sdeposit or %sregister:\n Displays your tip bot account address along with a QR code" +
-		"\n Send **BANANO** to this address to increase your tip bot balance" +
+		"\n Send BANANO to this address to increase your tip bot balance" +
 		"\n If you do not have a tip bot account yet, this command will create one for you") % (COMMAND_PREFIX, COMMAND_PREFIX)
 WITHDRAW_INFO="%swithdraw <address>:\n Withdraws your entire tip account balance to the specified address" % COMMAND_PREFIX
 TIP_INFO=("%sban <amount> <*users>:\n Tip specified amount to mentioned user(s) (minimum tip is 1 Banano)" +
-		"\n **Tip units are Banano not Banoshi**" +
+		"\n Tip units are Banano not Banoshi" +
 		"\n The recipient(s) will be notified of your tip via private message" +
 		"\n Successful tips will be deducted from your available balance immediately") % COMMAND_PREFIX
 TIPSPLIT_INFO="%sbansplit <amount> <*users>:\n Distribute <amount> evenly to all mentioned users" % COMMAND_PREFIX
@@ -136,6 +136,16 @@ class SendProcessor(Thread):
 				uid = tx['uid']
 				attempts = tx['attempts']
 				raw_withdraw_amt = str(amount) + '00000000000000000000000000000'
+				src_usr = db.get_user_by_wallet_address(source_address)
+				trg_usr = db.get_user_by_wallet_address(to_address)
+				if src_usr is not None:
+					source_id = src_usr.user_id
+				else:
+					source_id = None
+				if trg_usr is not None:
+					target_id = trg_usr.user_id
+				else:
+					target_id = None
 				wallet_command = {
 					'action': 'send',
 					'wallet': settings.wallet,
@@ -148,19 +158,13 @@ class SendProcessor(Thread):
 				if 'block' in wallet_output:
 					txid = wallet_output['block']
 					pending_delta = int(amount) * -1 # To update users pending balances
-					db.mark_transaction_processed(uid, txid)
+					db.mark_transaction_processed(uid, txid, pending_delta, source_id, target_id)
 					logger.info('TX processed. UID: %s, TXID: %s', uid, txid)
-					src_usr = db.get_user_by_wallet_address(source_address)
-					trg_usr = db.get_user_by_wallet_address(to_address)
-					if src_usr is not None:
-						db.update_pending(src_usr.user_id, send=pending_delta)
-					if trg_usr is not None:
-						db.update_pending(trg_usr.user_id, receive=pending_delta)
 				else:
 					# Not sure what happen but we'll retry a few times
 					if attempts >= MAX_TX_RETRIES:
 						logger.info("Max Retires Exceeded for TX UID: %s", uid)
-						db.mark_transaction_processed(uid, 'invalid')
+						db.mark_transaction_processed(uid, 'invalid', int(amount) * -1, source_id, target_id)
 					else:
 						db.inc_tx_attempts(uid)
 			if self.stopped():
@@ -346,6 +350,7 @@ async def rain(ctx):
 	try:
 		amount = find_amount(ctx.message.content)
 		if amount < RAIN_MINIMUM:
+			await add_x_reaction(ctx.message)
 			raise util.TipBotException("usage_error")
 		# Create tip list
 		users_to_tip = []
