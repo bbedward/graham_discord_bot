@@ -32,7 +32,7 @@ SPAM_THRESHOLD=60
 # MAX TX_Retries - If wallet does not indicate a successful send for whatever reason, retry this many times
 MAX_TX_RETRIES=3
 # Change command prefix to whatever you want to begin commands with
-COMMAND_PREFIX="!"
+COMMAND_PREFIX=settings.command_prefix
 
 # Create discord client
 client = Bot(command_prefix=COMMAND_PREFIX)
