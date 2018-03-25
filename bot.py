@@ -492,7 +492,10 @@ async def post_response(message, template, *args):
 async def post_dm(member, template, *args):
 	response = template % tuple(args)
 	logger.info("sending dm: '%s' to user: %s", response, member.id)
-	return await client.send_message(member, response)
+	try:
+		return await client.send_message(member, response)
+	except:
+		return None
 
 async def post_edit(message, template, *args):
 	response = template % tuple(args)
