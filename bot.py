@@ -61,10 +61,10 @@ TIP_INFO=("%stip <amount> <*users>:\n Tip specified amount to mentioned user(s) 
 		"\n Successful tips will be deducted from your available balance immediately") % COMMAND_PREFIX
 TIPSPLIT_INFO="%stipsplit <amount> <*users>:\n Distribute <amount> evenly to all mentioned users" % COMMAND_PREFIX
 RAIN_INFO=("%srain <amount>:\n Distribute <amount> evenly to all users who meet the following criteria:" +
-		"\n - Have a tip account (have received a tip before, or have used !register)" +
+		"\n - Have a tip account (have received a tip before, or have used %sregister)" +
 		"\n - Are currently online" +
 		"\n - Have posted a message on the server within the last %d minutes" +
-		"\n Minimum rain amount: %d nanorai") % (COMMAND_PREFIX, RAIN_DELTA, RAIN_MINIMUM)
+		"\n Minimum rain amount: %d nanorai") % (COMMAND_PREFIX, COMMAND_PREFIX, RAIN_DELTA, RAIN_MINIMUM)
 LEADERBOARD_INFO="%sbigtippers or %sleaderboard:\n Display the all-time tip leaderboard" % (COMMAND_PREFIX, COMMAND_PREFIX)
 STATS_INFO="%stipstats:\n Display your personal tipping stats (rank, total tipped, and average tip)" % COMMAND_PREFIX
 SETTIP_INFO=("%ssettiptotal <user>:\n Manually set the 'total tipped' for a user (for tip leaderboard)" +
@@ -380,7 +380,7 @@ async def rain(ctx):
 		# Distribute Tips
 		tip_amount = int(amount / len(users_to_tip))
 		# Recalculate actual tip amount as it may be smaller now
-		amount = tip_amount * len(users_to_tip)
+		#amount = tip_amount * len(users_to_tip) # nvm lets not short change reactions
 		for member in users_to_tip:
 			uid = str(uuid.uuid4())
 			actual_amt = wallet.make_transaction_to_user(ctx.message.author.id, tip_amount, member.id, member.name, uid)
