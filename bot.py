@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord.ext.commands import Bot
 import multiprocessing
 from multiprocessing import Process
+import atexit
 import time
 import collections
 import random
@@ -177,18 +178,22 @@ class SendProcessor(Process):
 		return self._stop_event.is_set()
 
 # Start bot, print info
+sp = SendProcessor()
+
+def handle_exit():
+	sp.stop()
+
 @client.event
 async def on_ready():
 	logger.info("NANO Tip Bot v%s started", BOT_VERSION)
 	logger.info("Discord.py API version %s", discord.__version__)
 	logger.info("Name: %s", client.user.name)
 	logger.info("ID: %s", client.user.id)
-	logger.info("Starting TX Processor Thread")
-	try:
-		SendProcessor().start()
-	except (KeyboardInterrupt, SystemExit):
-		SendProcessor().stop()
 	await client.change_presence(game=discord.Game(name=settings.playing_status))
+	logger.info("Starting SendProcessor Process")
+	sp.start()
+	logger.info("Registering atexit handler")
+	atexit.register(handle_exit)
 
 # Override on_message and do our spam check here
 @client.event
