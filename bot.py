@@ -1,8 +1,8 @@
 import discord
 from discord.ext import commands
 from discord.ext.commands import Bot
-import threading
-from threading import Thread
+import multiprocessing
+from multiprocessing import Process
 import time
 import collections
 import random
@@ -117,10 +117,10 @@ RAIN_NOBODY="I couldn't find any active users...besides you :wink:"
 balanceLock = asyncio.Semaphore()
 
 # Thread to process send transactions
-class SendProcessor(Thread):
+class SendProcessor(Process):
 	def __init__(self):
 		super(SendProcessor, self).__init__()
-		self._stop_event = threading.Event()
+		self._stop_event = multiprocessing.Event()
 
 	def run(self):
 		while True:
