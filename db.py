@@ -1,12 +1,11 @@
 import datetime
 import util
-import settings
 from peewee import *
 
 # (Seconds) how long a user must wait in between messaging the bot
 LAST_MSG_TIME = 1
 
-db = MySQLDatabase(settings.db_name, host=settings.db_host, port=settings.db_port, user=settings.db_username, passwd=settings.db_password)
+db = SqliteDatabase('nanotipbot.db')
 
 logger = util.get_logger("db")
 
@@ -236,7 +235,5 @@ def create_db():
 	db.connect()
 	db.create_tables([User, Transaction], safe=True)
 
-def close_conn():
-	db.close()
 
 create_db()
