@@ -88,8 +88,13 @@ HELP_TEXT=("NanoTipBot v%s - An open source NANO tip bot for Discord\n" +
 #		SETCOUNT_INFO +
 		"\n\n\nsend node```" +
 		"Source code: https://github.com/bbedward/NANO-Tip-Bot")
-BALANCE_TEXT="Actual Balance: %s nanorai\nAvailable Balance: %s nanorai\nPending Send: %s nanorai\nPending Receipt: %s nanorai"
-DEPOSIT_TEXT="Your wallet address is %s\nQR: %s"
+BALANCE_TEXT=(	"Actual Balance: %s nanorai (%.6f NANO)\n" +
+		"Available Balance: %s nanorai (%.6f NANO)\n" +
+		"Pending Send: %s nanorai (%.6f NANO)\n" +
+		"Pending Receipt: %s nanorai (%.6f NANO)")
+DEPOSIT_TEXT="Your wallet address is:"
+DEPOSIT_TEXT_2="%s"
+DEPOSIT_TEXT_3="QR: %s"
 INSUFFICIENT_FUNDS_TEXT="You don't have enough nano in your available balance!"
 TIP_ERROR_TEXT="Something went wrong with the tip. I wrote to logs."
 TIP_RECEIVED_TEXT="You were tipped %d nanorai by %s"
@@ -214,19 +219,32 @@ async def balance(ctx):
 		message = await post_response(ctx.message, "Fetching balance")
 		balanceLock.acquire()
 		balances = wallet.get_balance_by_id(ctx.message.author.id)
+		actual = balances['actual']
+		actualnano = actual / 1000000
+		available = balances['available']
+		availablenano = available / 1000000
+		send = balances['pending_send']
+		sendnano = send / 1000000
+		receive = balances['pending']
+		receivenano = receive / 1000000
 		await post_edit(message, BALANCE_TEXT,
-				"{:,}".format(balances['actual']),
-				"{:,}".format(balances['available']),
-				"{:,}".format(balances['pending_send']),
-				"{:,}".format(balances['pending']))
+				"{:,}".format(actual),
+				actualnano,
+				"{:,}".format(available),
+				availablenano,
+				"{:,}".format(send),
+				sendnano,
+				"{:,}".format(receive),
+				receivenano)
 		balanceLock.release()
 
 @client.command(pass_context=True, aliases=['register'])
 async def deposit(ctx):
 	if ctx.message.channel.is_private:
 		user_deposit_address = wallet.create_or_fetch_user(ctx.message.author.id, ctx.message.author.name).wallet_address
-		await post_response(ctx.message, DEPOSIT_TEXT, user_deposit_address,
-			      get_qr_url(user_deposit_address))
+		await post_response(ctx.message, DEPOSIT_TEXT)
+		await post_response(ctx.message, DEPOSIT_TEXT_2, user_deposit_address)
+		await post_response(ctx.message, DEPOSIT_TEXT_3, get_qr_url(user_deposit_address))
 
 @client.command(pass_context=True)
 async def withdraw(ctx):

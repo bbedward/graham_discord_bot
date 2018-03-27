@@ -6,7 +6,11 @@ Intended to operate in a similar manner to the old tip bot on nano's discord ser
 
 ## Usage
 
-To run the bot, update `settings.py` with nano wallet ID and discord bot ID+Token, then simply use:
+MySQL/MariaDB is required.
+
+To run the bot, update `settings.py` with nano wallet ID, discord bot ID+Token,  database information, then simply use:
+
+(you must create a database yourself, the bot will not do it. e.g create database nanotipbot)
 
 ```
 python3 bot.py
@@ -27,4 +31,4 @@ nohup python3 bot.py &
 - `peewee`
 - `asyncio`
 - `pycurl`
-
+- 'pymysql'
