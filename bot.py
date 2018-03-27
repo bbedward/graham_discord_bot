@@ -88,10 +88,10 @@ HELP_TEXT=("NanoTipBot v%s - An open source NANO tip bot for Discord\n" +
 #		SETCOUNT_INFO +
 		"\n\n\nsend node```" +
 		"Source code: https://github.com/bbedward/NANO-Tip-Bot")
-BALANCE_TEXT=(	"Actual Balance: %s nanorai (%.6f NANO)\n" +
+BALANCE_TEXT=(	"```Actual Balance   : %s nanorai (%.6f NANO)\n" +
 		"Available Balance: %s nanorai (%.6f NANO)\n" +
-		"Pending Send: %s nanorai (%.6f NANO)\n" +
-		"Pending Receipt: %s nanorai (%.6f NANO)")
+		"Pending Send     : %s nanorai (%.6f NANO)\n" +
+		"Pending Receipt  : %s nanorai (%.6f NANO)```")
 DEPOSIT_TEXT="Your wallet address is:"
 DEPOSIT_TEXT_2="%s"
 DEPOSIT_TEXT_3="QR: %s"
