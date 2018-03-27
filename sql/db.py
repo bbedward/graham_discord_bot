@@ -6,7 +6,7 @@ from playhouse.sqliteq import SqliteQueueDatabase
 # (Seconds) how long a user must wait in between messaging the bot
 LAST_MSG_TIME = 1
 
-db = SqliteQueueDatabase('bananodiscord.db')
+db = SqliteQueueDatabase('bananotipbot.db')
 
 logger = util.get_logger("db")
 
@@ -173,7 +173,7 @@ def update_last_msg(user):
 def update_tipped_amt(user_id, tipped_amt):
 	user = get_user_by_id(user_id)
 	if user is not None:
-		user.tipped_amount += tipped_amt
+		user.tipped_amount += tipped_amt / 1000000
 		user.tip_count += 1
 		user.save()
 	return
@@ -211,7 +211,6 @@ class Transaction(Model):
 def create_db():
 	db.connect()
 	db.create_tables([User, Transaction], safe=True)
-	logger.debug("DB Connected")
 
 
 create_db()
