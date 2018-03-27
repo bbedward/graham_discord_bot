@@ -193,7 +193,8 @@ async def on_ready():
 	logger.info("ID: %s", client.user.id)
 	await client.change_presence(game=discord.Game(name=settings.playing_status))
 	logger.info("Starting SendProcessor Thread")
-	sp.start()
+	if not sp.is_alive():
+		sp.start()
 	logger.info("Registering atexit handler")
 	atexit.register(handle_exit)
 
