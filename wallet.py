@@ -90,6 +90,11 @@ def make_transaction_to_address(source_id, source_address, amount, withdraw_addr
 
 	amount = int(amount) # whole numbers only
 	if amount >= 1:
+		# See if destination address belongs to a user
+		if target_id is None:
+			user = db.get_user_by_wallet_address(withdraw_address)
+			if user is not None:
+				target_id=user.user_id
 		# Update pending send for user
 		db.create_transaction(uid,source_address,withdraw_address,amount, source_id, target_id)
 		logger.info('TX queued, uid %s', uid)

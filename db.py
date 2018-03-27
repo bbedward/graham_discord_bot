@@ -211,6 +211,6 @@ class Transaction(Model):
 def create_db():
 	db.connect()
 	db.create_tables([User, Transaction], safe=True)
-
+	logger.debug("DB Connected")
 
 create_db()
