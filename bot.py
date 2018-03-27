@@ -173,6 +173,7 @@ class SendProcessor(Process):
 						db.mark_transaction_processed(uid, 'invalid', int(amount) * -1, source_id, target_id)
 					else:
 						db.inc_tx_attempts(uid)
+			db.close_conn()
 			if self.stopped():
 				break
 

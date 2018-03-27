@@ -236,5 +236,7 @@ def create_db():
 	db.connect()
 	db.create_tables([User, Transaction], safe=True)
 
+def close_conn():
+	db.close()
 
 create_db()
