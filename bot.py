@@ -1,8 +1,8 @@
 import discord
 from discord.ext import commands
 from discord.ext.commands import Bot
-import multiprocessing
-from multiprocessing import Process
+import threading
+from threading import Thread
 import atexit
 import time
 import collections
@@ -118,10 +118,10 @@ RAIN_NOBODY="I couldn't find any active users...besides you :wink:"
 balanceLock = asyncio.Semaphore()
 
 # Thread to process send transactions
-class SendProcessor(Process):
+class SendProcessor(Thread):
 	def __init__(self):
 		super(SendProcessor, self).__init__()
-		self._stop_event = multiprocessing.Event()
+		self._stop_event = threading.Event()
 
 	def run(self):
 		while True:
@@ -155,7 +155,9 @@ class SendProcessor(Process):
 					'amount': int(raw_withdraw_amt),
 					'id': uid
 				}
+				logger.debug("RPC Send")
 				wallet_output = wallet.communicate_wallet(wallet_command)
+				logger.debug("RPC Response")
 				if 'block' in wallet_output:
 					txid = wallet_output['block']
 					pending_delta = int(amount) * -1 # To update users pending balances
@@ -190,7 +192,7 @@ async def on_ready():
 	logger.info("Name: %s", client.user.name)
 	logger.info("ID: %s", client.user.id)
 	await client.change_presence(game=discord.Game(name=settings.playing_status))
-	logger.info("Starting SendProcessor Process")
+	logger.info("Starting SendProcessor Thread")
 	sp.start()
 	logger.info("Registering atexit handler")
 	atexit.register(handle_exit)

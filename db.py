@@ -1,11 +1,12 @@
 import datetime
 import util
 from peewee import *
+from playhouse.sqliteq import SqliteQueueDatabase
 
 # (Seconds) how long a user must wait in between messaging the bot
 LAST_MSG_TIME = 1
 
-db = SqliteDatabase('nanotipbot.db')
+db = SqliteQueueDatabase('nanotipbot.db')
 
 logger = util.get_logger("db")
 
@@ -103,26 +104,20 @@ def create_user(user_id, user_name, wallet_address):
 
 ### Transaction Stuff
 def create_transaction(uuid, source_addr, to_addr, amt, source_id, target_id=None):
-	with db.atomic() as transaction:
-		try:
-			tx = Transaction(uid=uuid,
-					 source_address=source_addr,
-					 to_address=to_addr,
-					 amount=amt,
-					 processed=False,
-					 created=datetime.datetime.now(),
-					 tran_id='',
-					 attempts=0
-					)
-			tx.save()
-			update_pending(source_id, send=amt)
-			if target_id is not None:
-				update_pending(target_id, receive=amt)
-			return tx
-		except Exception as e:
-			db.rollback()
-			logger.exception(e)
-			return
+	tx = Transaction(uid=uuid,
+			 source_address=source_addr,
+			 to_address=to_addr,
+			 amount=amt,
+			 processed=False,
+			 created=datetime.datetime.now(),
+			 tran_id='',
+			 attempts=0
+			)
+	tx.save()
+	update_pending(source_id, send=amt)
+	if target_id is not None:
+		update_pending(target_id, receive=amt)
+	return tx
 
 def get_unprocessed_transactions():
 	# We don't simply return the txs list cuz that causes issues with database locks in the thread
@@ -143,21 +138,15 @@ def inc_tx_attempts(uid):
 #  ie. if a transaction actually has been processed, but has never been marked processed in the database
 #  This shouldn't happen even in that scenario, due to the id (uid here) field in nano node v10
 def mark_transaction_processed(uuid, tranid, amt, source_id, target_id=None):
-	with db.atomic() as transaction:
-		try:
-			tx = Transaction.get(uid=uuid)
-			if tx is not None and not tx.processed:
-				tx.processed=True
-				tx.tran_id=tranid
-				tx.save()
-				update_pending(source_id, send=amt)
-				if target_id is not None:
-					update_pending(target_id, receive=amt)
-			return
-		except Exception as e:
-			db.rollback()
-			logger.exception(e)
-			return
+	tx = Transaction.get(uid=uuid)
+	if tx is not None and not tx.processed:
+		tx.processed=True
+		tx.tran_id=tranid
+		tx.save()
+		update_pending(source_id, send=amt)
+		if target_id is not None:
+			update_pending(target_id, receive=amt)
+	return
 
 # Return false if last message was < LAST_MSG_TIME
 # If > LAST_MSG_TIME, return True and update the user
@@ -175,31 +164,19 @@ def last_msg_check(user_id):
 	return True
 
 def update_last_msg(user):
-	with db.atomic() as transaction:
-		try:
-			if user is not None:
-				user.last_msg=datetime.datetime.now()
-				user.save()
-			return
-		except Exception as e:
-			db.rollback()
-			logger.exception(e)
-			return
+	if user is not None:
+		user.last_msg=datetime.datetime.now()
+		user.save()
+	return
 
 # Update tip amount for stats (this value is saved as NANO not xrb)
 def update_tipped_amt(user_id, tipped_amt):
-	with db.atomic() as transaction:
-		try:
-			user = get_user_by_id(user_id)
-			if user is not None:
-				user.tipped_amount += tipped_amt / 1000000
-				user.tip_count += 1
-				user.save()
-			return
-		except Exception as e:
-			db.rollback()
-			logger.exception(e)
-			return
+	user = get_user_by_id(user_id)
+	if user is not None:
+		user.tipped_amount += tipped_amt / 1000000
+		user.tip_count += 1
+		user.save()
+	return
 
 # User table
 class User(Model):
