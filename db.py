@@ -103,7 +103,7 @@ def create_user(user_id, user_name, wallet_address):
 	return user
 
 ### Transaction Stuff
-def create_transaction(uuid, source_addr, to_addr, amt, source_id, target_id=None):
+def create_transaction(uuid, source_addr, to_addr, amt, source_id, target_id=None, giveaway_id=0):
 	tx = Transaction(uid=uuid,
 			 source_address=source_addr,
 			 to_address=to_addr,
@@ -111,7 +111,8 @@ def create_transaction(uuid, source_addr, to_addr, amt, source_id, target_id=Non
 			 processed=False,
 			 created=datetime.datetime.now(),
 			 tran_id='',
-			 attempts=0
+			 attempts=0,
+			 giveawayid=giveaway_id
 			)
 	tx.save()
 	update_pending(source_id, send=amt)
@@ -121,11 +122,105 @@ def create_transaction(uuid, source_addr, to_addr, amt, source_id, target_id=Non
 
 def get_unprocessed_transactions():
 	# We don't simply return the txs list cuz that causes issues with database locks in the thread
-	txs = Transaction.select().where(Transaction.processed == False).order_by(Transaction.created.desc())
+	txs = Transaction.select().where((Transaction.processed == False) & (Transaction.giveawayid == 0)).order_by(Transaction.created)
 	return_data = []
 	for tx in txs:
 		return_data.append({'uid':tx.uid,'source_address':tx.source_address,'to_address':tx.to_address,'amount':tx.amount,'attempts':tx.attempts})
 	return return_data
+
+def process_giveaway_transactions(giveaway_id, winner_user_id):
+	txs = Transaction.select().where(Transaction.giveawayid == giveaway_id)
+	winner = get_user_by_id(winner_user_id);
+	pending_receive = 0
+	for tx in txs:
+		tx.to_address = winner.wallet_address
+		tx.giveawayid = 0
+		pending_receive += int(tx.amount)
+		tx.save()
+	update_pending(winner_user_id, receive=pending_receive)
+
+# Start Giveaway
+def start_giveaway(user_id, user_name, amount, end_time, channel):
+	giveaway = Giveaway(started_by=user_id,
+			    started_by_name=user_name,
+			    active=True,
+			    amount = amount,
+			    tip_amount = 0,
+			    end_time=end_time,
+			    channel_id = channel,
+			    winner_id = None
+			   )
+	giveaway.save()
+	tip_amt = update_giveaway_transactions(giveaway.id)
+	giveaway.tip_amount = tip_amt
+	giveaway.save()
+	return giveaway
+
+def update_giveaway_transactions(giveawayid):
+	tip_sum = 0
+	txs = Transaction.select().where(Transaction.giveawayid == -1)
+	for tx in txs:
+		tx.giveawayid = giveawayid
+		tip_sum += int(tx.amount)
+		tx.save()
+
+	return float(tip_sum)/ 1000000
+
+def get_giveaway():
+	try:
+		giveaway = Giveaway.get(active=True)
+		return giveaway
+	except:
+		return None
+
+def add_tip_to_giveaway(amount):
+	giveaway = get_giveaway()
+	if giveaway is not None:
+		giveaway.tip_amount += amount
+		giveaway.save()
+
+def get_tipgiveaway_sum():
+	tip_sum = 0
+	txs = Transaction.select().where(Transaction.giveawayid == -1)
+	for tx in txs:
+		tip_sum += int(tx.amount)
+	return tip_sum
+
+# Returns winning user
+def finish_giveaway():
+	picker_query = Contestant.select().order_by(fn.Random())
+	winner = get_user_by_id(picker_query.get().user_id)
+	Contestant.delete().execute()
+	giveaway = Giveaway.get(active=True)
+	giveaway.active=False
+	giveaway.winner_id = winner.user_id
+	giveaway.save()
+	process_giveaway_transactions(giveaway.id, winner.user_id)
+	return giveaway
+
+# Returns True is contestant added, False if contestant already exists
+def add_contestant(user_id):
+	exists = Contestant.select().where(Contestant.user_id == user_id).count()
+	if exists > 0:
+		return False
+	contestant = Contestant(user_id=user_id)
+	contestant.save()
+	return True
+
+def is_active_giveaway():
+	giveaway = Giveaway.select().where(Giveaway.active==True).count()
+	if giveaway > 0:
+		return True
+	return False
+
+# Gets giveaway stats
+def get_giveaway_stats():
+	try:
+		giveaway = Giveaway.get(active=True)
+		entries = Contestant.select().count()
+		return {"amount":giveaway.amount + giveaway.tip_amount, "started_by":giveaway.started_by_name, "entries":entries, "end":giveaway.end_time}
+	except Giveaway.DoesNotExist:
+		return None
 
 def inc_tx_attempts(uid):
 	tx = Transaction.get(uid = uid)
@@ -133,6 +228,27 @@ def inc_tx_attempts(uid):
 		tx.attempts += 1
 		tx.save()
 	return
+
+def get_top_tips():
+	dt = datetime.datetime.now()
+	past_dt = dt - datetime.timedelta(days=1) # Date 24H ago
+	month_str = dt.strftime("%B")
+	month_num = "%02d" % dt.month
+	amount = fn.MAX(Transaction.amount.cast('integer')).alias('amount')
+	top_24h = (Transaction
+		.select(amount, User.user_name)
+		.join(User,on=(User.wallet_address==Transaction.source_address))
+		.where(Transaction.created > past_dt)
+		.group_by(User.user_name)
+		.order_by(User.user_name)
+		.limit(1)
+		)
+	#toptxmonth = Transaction.select(fn.MAX(Transaction.amount)).where(fn.strftime("%m", Transaction.created) == month_num).limit(1)
+	#toptxat = Transaction.select(fn.MAX(Transaction.amount)).limit(1)
+	for top in top_24h:
+		nanoamt = float(top.amount) / 1000000
+		logger.debug("Amount %.6f User: %s" % (nanoamt, top.user.user_name))
+
 
 # You may think, this imposes serious double spend risks:
 #  ie. if a transaction actually has been processed, but has never been marked processed in the database
@@ -198,19 +314,41 @@ class User(Model):
 class Transaction(Model):
 	uid = CharField()
 	source_address = CharField()
-	to_address = CharField()
+	to_address = CharField(null = True)
 	amount = CharField()
 	processed = BooleanField()
 	created = DateTimeField()
 	tran_id = CharField()
 	attempts = IntegerField()
+	giveawayid = IntegerField(null = True)
+
+	class Meta:
+		database = db
+
+# Giveaway table, keep track of current giveaway
+class Giveaway(Model):
+	started_by = CharField() # User ID
+	started_by_name = CharField() # User Name
+	active = BooleanField()
+	amount = FloatField()
+	tip_amount = FloatField()
+	end_time = DateTimeField()
+	channel_id = CharField() # The channel to post the results
+	winner_id = CharField(null = True)
+
+	class Meta:
+		database = db
+
+# Giveaway Entrants
+class Contestant(Model):
+	user_id = CharField()
 
 	class Meta:
 		database = db
 
 def create_db():
 	db.connect()
-	db.create_tables([User, Transaction], safe=True)
+	db.create_tables([User, Transaction, Giveaway, Contestant], safe=True)
 	logger.debug("DB Connected")
 
 create_db()

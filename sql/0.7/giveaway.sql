@@ -1,1 +1,2 @@
-alter table 'transaction' add column giveawayid integer;
+drop table 'transaction';
+update user set pending_send=0,pending_receive=0;

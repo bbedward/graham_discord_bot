@@ -9,6 +9,12 @@ exempt_users = [ discord_bot_id, '395828286548344834', '405250059240996864', '41
 admin_roles = ['Moderators', 'Core', 'Community Managers']
 # Minimum amount required for !rain
 rain_minimum = 10000
+# Minimum amount required to start a giveaway
+giveaway_minimum = 1000000
+# Giveaway Duration (default giveaway duration, max=60 minutes)
+giveaway_duration=60
+# Auto Enter next giveaway by tipgiveaway this amount
+giveaway_auto_amt=50000
 # command prefix
 command_prefix='!'
 # Status

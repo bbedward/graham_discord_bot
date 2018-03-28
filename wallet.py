@@ -75,18 +75,20 @@ def get_balance_by_id(user_id):
 	user = db.get_user_by_id(user_id)
 	return get_balance(user, user_id)
 
-def make_transaction_to_address(source_id, source_address, amount, withdraw_address, uid, target_id=None):
-	# Check to see if the withdraw address is valid
-	wallet_command = {'action': 'validate_account_number',
-			  'account': withdraw_address}
-	address_validation = communicate_wallet(wallet_command)
+def make_transaction_to_address(source_id, source_address, amount, withdraw_address, uid, target_id=None, giveaway_id=0):
+	# Do not validate address for giveaway tx because we do not know it yet
+	if withdraw_address is not None:
+		# Check to see if the withdraw address is valid
+		wallet_command = {'action': 'validate_account_number',
+				  'account': withdraw_address}
+		address_validation = communicate_wallet(wallet_command)
 
-	# If the address was the incorrect length, did not start with xrb_ or nano_ or was deemed invalid by the node, return an error.
-	address_prefix_valid = withdraw_address[:4] == 'xrb_' \
-		or withdraw_address[:5] == 'nano_'
-	if len(withdraw_address) != 64 or not address_prefix_valid \
-		or address_validation['valid'] != '1':
-		raise util.TipBotException('invalid_address')
+		# If the address was the incorrect length, did not start with xrb_ or nano_ or was deemed invalid by the node, return an error.
+		address_prefix_valid = withdraw_address[:4] == 'xrb_' \
+			or withdraw_address[:5] == 'nano_'
+		if len(withdraw_address) != 64 or not address_prefix_valid \
+			or address_validation['valid'] != '1':
+			raise util.TipBotException('invalid_address')
 
 	amount = int(amount) # whole numbers only
 	if amount >= 1:
@@ -96,7 +98,7 @@ def make_transaction_to_address(source_id, source_address, amount, withdraw_addr
 			if user is not None:
 				target_id=user.user_id
 		# Update pending send for user
-		db.create_transaction(uid,source_address,withdraw_address,amount, source_id, target_id)
+		db.create_transaction(uid,source_address,withdraw_address,amount, source_id, target_id, giveaway_id)
 		logger.info('TX queued, uid %s', uid)
 	else:
 		raise util.TipBotException('balance_error')
