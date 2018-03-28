@@ -517,7 +517,7 @@ async def givearai(ctx):
 		source_address = db.get_address(source_id)
 		giveaway = db.start_giveaway(ctx.message.author.id, ctx.message.author.name, nano_amt, end_time, ctx.message.channel.id)
 		uid = str(uuid.uuid4())
-		wallet.make_transaction_to_address(source_id, source_address, amount, None, uid, giveaway_id=giveaway.id)
+		wallet.make_transaction_to_address(source_id, source_address, amount, None, uid, giveaway_id=giveaway.id,update_stats=True)
 		await post_response(ctx.message, GIVEAWAY_STARTED, ctx.message.author.name, nano_amt)
 		await start_giveaway_timer()
 	except util.TipBotException as e:
@@ -545,7 +545,7 @@ async def tipgiveaway(ctx):
 		source_id = ctx.message.author.id
 		source_address = db.get_address(source_id)
 		uid = str(uuid.uuid4())
-		wallet.make_transaction_to_address(source_id, source_address, amount, None, uid, giveaway_id=giveawayid)
+		wallet.make_transaction_to_address(source_id, source_address, amount, None, uid, giveaway_id=giveawayid,update_stats=True)
 		await react_to_message(ctx.message, amount)
 		# Add user to next giveaway if sum is >= amount
 		if amount >= settings.giveaway_auto_amt:

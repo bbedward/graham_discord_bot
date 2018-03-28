@@ -75,7 +75,7 @@ def get_balance_by_id(user_id):
 	user = db.get_user_by_id(user_id)
 	return get_balance(user, user_id)
 
-def make_transaction_to_address(source_id, source_address, amount, withdraw_address, uid, target_id=None, giveaway_id=0):
+def make_transaction_to_address(source_id, source_address, amount, withdraw_address, uid, target_id=None, giveaway_id=0, update_stats=False):
 	# Do not validate address for giveaway tx because we do not know it yet
 	if withdraw_address is not None:
 		# Check to see if the withdraw address is valid
@@ -90,7 +90,9 @@ def make_transaction_to_address(source_id, source_address, amount, withdraw_addr
 			or address_validation['valid'] != '1':
 			raise util.TipBotException('invalid_address')
 
-	amount = int(amount) # whole numbers only
+	amount = int(amount)
+	if update_stats:
+		db.update_tipped_amt(source_id, amount)
 	if amount >= 1:
 		# See if destination address belongs to a user
 		if target_id is None:
