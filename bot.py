@@ -75,7 +75,7 @@ RAIN_INFO=("%srain <amount>:\n Distribute <amount> evenly to all users who meet 
 START_GIVEAWAY_INFO=("%sgivearai or %ssponsorgiveaway <amount>:\n Start a giveaway with given amount." +
 		"\n Minimum amount to start giveaway: %d nanorai" +
 		"\n Giveaway will end and choose random winner after %d minutes (Giveaways over 500k nanorai will last for 60 minutes)") % (COMMAND_PREFIX, COMMAND_PREFIX, GIVEAWAY_MINIMUM, GIVEAWAY_DURATION)
-ENTER_INFO="%senter:\n Enter the current giveaway, if there is one" % COMMAND_PREFIX
+ENTER_INFO="%sentergiveaway:\n Enter the current giveaway, if there is one" % COMMAND_PREFIX
 TIPGIVEAWAY_INFO="%stipgiveaway <amount>\n Add <amount> to the current giveaway pool\n If there is no giveaway, one will be started when minimum is reached.\n Tips >= %d nanorai automatically enter you for the next giveaway" % (COMMAND_PREFIX, settings.giveaway_auto_amt)
 GIVEAWAY_STATS_INFO="%sgiveawaystats:\n Display statistics relevant to the current giveaway" % COMMAND_PREFIX
 LEADERBOARD_INFO="%sbigtippers or %sleaderboard:\n Display the all-time tip leaderboard" % (COMMAND_PREFIX, COMMAND_PREFIX)
@@ -477,7 +477,7 @@ async def rain(ctx):
 			await post_response(ctx.message, TIP_ERROR_TEXT)
 
 @client.command(pass_context=True)
-async def enter(ctx):
+async def entergiveaway(ctx):
 	if not db.is_active_giveaway():
 		await add_x_reaction(ctx.message)
 		await post_dm(ctx.message.author, TIPGIVEAWAY_NO_ACTIVE)
