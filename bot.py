@@ -238,7 +238,7 @@ async def on_ready():
 	logger.info("Starting withdraw check job")
 	asyncio.get_event_loop().create_task(check_for_withdraw())
 	logger.info("Continuing outstanding giveaway")
-	await start_giveaway_timer()
+	asyncio.get_event_loop().create_task(start_giveaway_timer())
 
 async def check_for_withdraw():
 	try:
@@ -519,7 +519,7 @@ async def givearai(ctx):
 		uid = str(uuid.uuid4())
 		wallet.make_transaction_to_address(source_id, source_address, amount, None, uid, giveaway_id=giveaway.id,update_stats=True)
 		await post_response(ctx.message, GIVEAWAY_STARTED, ctx.message.author.name, nano_amt)
-		await start_giveaway_timer()
+		asyncio.get_event_loop().create_task(start_giveaway_timer())
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(ctx.message.author, GIVEAWAY_USAGE)
@@ -558,7 +558,7 @@ async def tipgiveaway(ctx):
 				end_time = datetime.datetime.now() + datetime.timedelta(minutes=GIVEAWAY_DURATION)
 				db.start_giveaway(client.user.id, client.user.name, 0, end_time, ctx.message.channel.id)
 				await post_response(ctx.message, GIVEAWAY_STARTED, client.user.name, nano_amt)
-				await start_giveaway_timer()
+				asyncio.get_event_loop().create_task(start_giveaway_timer())
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(ctx.message.author, GIVEAWAY_USAGE)
