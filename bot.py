@@ -534,7 +534,7 @@ async def givearai_task(message):
 		giveaway = db.start_giveaway(message.author.id, message.author.name, nano_amt, end_time, message.channel.id)
 		uid = str(uuid.uuid4())
 		wallet.make_transaction_to_address(source_id, source_address, amount, None, uid, giveaway_id=giveaway.id,update_stats=True)
-		await post_response(ctx.message, GIVEAWAY_STARTED, message.author.name, nano_amt)
+		await post_response(message, GIVEAWAY_STARTED, message.author.name, nano_amt)
 		asyncio.get_event_loop().create_task(start_giveaway_timer())
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
