@@ -21,7 +21,7 @@ import db
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "0.7"
+BOT_VERSION = "0.8"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -48,7 +48,8 @@ client = Bot(command_prefix=COMMAND_PREFIX)
 client.remove_command('help')
 
 # Spam prevention
-last_big_tippers=datetime.datetime.now()
+last_big_tippers=datetime.datetime.now() - datetime.timedelta(seconds=SPAM_THRESHOLD)
+last_top_tips=datetime.datetime.now() - datetime.timedelta(seconds=SPAM_THRESHOLD)
 
 ### Response Templates ###
 HELP_INFO="%shelp or %sman:\n Display this message" % (COMMAND_PREFIX, COMMAND_PREFIX)
@@ -75,10 +76,11 @@ RAIN_INFO=("%srain <amount>:\n Distribute <amount> evenly to all users who meet 
 START_GIVEAWAY_INFO=("%sgivearai or %ssponsorgiveaway <amount>:\n Start a giveaway with given amount." +
 		"\n Minimum amount to start giveaway: %d nanorai" +
 		"\n Giveaway will end and choose random winner after %d minutes (Giveaways over 500k nanorai will last for 60 minutes)") % (COMMAND_PREFIX, COMMAND_PREFIX, GIVEAWAY_MINIMUM, GIVEAWAY_DURATION)
-ENTER_INFO="%sentergiveaway:\n Enter the current giveaway, if there is one" % COMMAND_PREFIX
+ENTER_INFO="%sticket or %sentergiveaway:\n Enter the current giveaway, if there is one" % (COMMAND_PREFIX, COMMAND_PREFIX)
 TIPGIVEAWAY_INFO="%stipgiveaway <amount>\n Add <amount> to the current giveaway pool\n If there is no giveaway, one will be started when minimum is reached.\n Tips >= %d nanorai automatically enter you for the next giveaway" % (COMMAND_PREFIX, settings.giveaway_auto_amt)
-GIVEAWAY_STATS_INFO="%sgiveawaystats:\n Display statistics relevant to the current giveaway" % COMMAND_PREFIX
+GIVEAWAY_STATS_INFO="%sgiveawaystats or %sgoldenticket:\n Display statistics relevant to the current giveaway" % (COMMAND_PREFIX, COMMAND_PREFIX)
 LEADERBOARD_INFO="%sbigtippers or %sleaderboard:\n Display the all-time tip leaderboard" % (COMMAND_PREFIX, COMMAND_PREFIX)
+TOPTIPS_INFO="%stoptips:\n Display the single largest tips for the past 24 hours, current month, and all time" % COMMAND_PREFIX
 STATS_INFO="%stipstats:\n Display your personal tipping stats (rank, total tipped, and average tip)" % COMMAND_PREFIX
 SETTIP_INFO=("%ssettiptotal <user>:\n Manually set the 'total tipped' for a user (for tip leaderboard)" +
 		"\n This command is role restricted and only available to users with certain roles (e.g. Moderators)") % COMMAND_PREFIX
@@ -106,6 +108,7 @@ HELP_TEXT_4=("Stats Commands:\n" +
 		"```" +
 		LEADERBOARD_INFO + "\n\n" +
 		STATS_INFO + "\n\n" +
+		TOPTIPS_INFO + "\n\n" +
 #              SETTIP_INFO + "\n\n" +
 #              SETCOUN_INFO +
 		GIVEAWAY_STATS_INFO +
@@ -142,7 +145,7 @@ RAIN_USAGE="Usage:\n```" + RAIN_INFO + "```"
 RAIN_NOBODY="I couldn't find any active users...besides you :wink:"
 GIVEAWAY_EXISTS="There's already an active giveaway"
 GIVEAWAY_USAGE="Usage:\n```" + START_GIVEAWAY_INFO + "```"
-GIVEAWAY_STARTED="%s has sponsored a giveaway of %.6f NANO! Use " + COMMAND_PREFIX + "entergiveaway to enter and " + COMMAND_PREFIX + "tipgiveaway to increase the pot!"
+GIVEAWAY_STARTED="%s has sponsored a giveaway of %.6f NANO! Use " + COMMAND_PREFIX + "ticket to enter and " + COMMAND_PREFIX + "tipgiveaway to increase the pot!"
 GIVEAWAY_ENDED="Congratulations! <@%s> was the winner of the giveaway! They have been sent %.6f NANO!"
 GIVEAWAY_STATS="There are %d entries to win %.6f NANO ending in %s - sponsored by %s"
 GIVEAWAY_STATS_INACTIVE="There are no active giveaways\n%d nanorai required to autostart one"
@@ -150,6 +153,7 @@ ENTER_ADDED="You've been successfully entered into the giveaway"
 ENTER_DUP="You've already entered the giveaway"
 TIPGIVEAWAY_NO_ACTIVE="There are no active giveaways"
 TIPGIVEAWAY_USAGE="Usage:\n```" + TIPGIVEAWAY_INFO + "```"
+TOPTIP_SPAM="No more top tips for %d seconds"
 ### END Response Templates ###
 
 # Thread to process send transactions
@@ -279,7 +283,7 @@ async def balance(ctx):
 		asyncio.get_event_loop().create_task(balance_task(ctx.message))
 
 async def balance_task(message):
-		balances = wallet.get_balance_by_id(message.author.id)
+		balances = await wallet.get_balance_by_id(message.author.id)
 		actual = balances['actual']
 		actualnano = actual / 1000000
 		available = balances['available']
@@ -300,7 +304,8 @@ async def balance_task(message):
 @client.command(pass_context=True, aliases=['register'])
 async def deposit(ctx):
 	if ctx.message.channel.is_private:
-		user_deposit_address = wallet.create_or_fetch_user(ctx.message.author.id, ctx.message.author.name).wallet_address
+		user = await wallet.create_or_fetch_user(ctx.message.author.id, ctx.message.author.name)
+		user_deposit_address = user.wallet_address
 		await post_response(ctx.message, DEPOSIT_TEXT)
 		await post_response(ctx.message, DEPOSIT_TEXT_2, user_deposit_address)
 		await post_response(ctx.message, DEPOSIT_TEXT_3, get_qr_url(user_deposit_address))
@@ -315,12 +320,13 @@ async def withdraw_task(message):
 			withdraw_address = find_address(message.content)
 			source_id = message.author.id
 			source_address = db.get_address(source_id)
-			amount = wallet.get_balance_by_id(source_id)['available']
+			balance = await wallet.get_balance_by_id(source_id)
+			amount = balance['available']
 			if amount == 0:
 				await post_response(message, WITHDRAW_NO_BALANCE_TEXT);
 			else:
 				uid = str(uuid.uuid4())
-				wallet.make_transaction_to_address(source_id, source_address, amount, withdraw_address, uid)
+				await wallet.make_transaction_to_address(source_id, source_address, amount, withdraw_address, uid)
 				await post_response(message, WITHDRAW_SUCCESS_TEXT)
 		except util.TipBotException as e:
 			if e.error_type == "address_not_found":
@@ -355,7 +361,8 @@ async def tip_task(message):
 		users_to_tip = list(set(users_to_tip))
 		# Make sure this user has enough in their balance to complete this tip
 		required_amt = amount * len(users_to_tip)
-		user_balance = wallet.get_balance_by_id(message.author.id)['available']
+		balance = await wallet.get_balance_by_id(message.author.id)
+		user_balance = balance['available']
 		if user_balance < required_amt:
 			await add_x_reaction(message)
 			await post_dm(message.author, INSUFFICIENT_FUNDS_TEXT)
@@ -363,7 +370,7 @@ async def tip_task(message):
 		# Distribute tips
 		for member in users_to_tip:
 			uid = str(uuid.uuid4())
-			actual_amt = wallet.make_transaction_to_user(message.author.id, amount, member.id, member.name, uid)
+			actual_amt = await wallet.make_transaction_to_user(message.author.id, amount, member.id, member.name, uid)
 			# Something went wrong, tip didn't go through
 			if actual_amt == 0:
 				required_amt -= amount
@@ -403,7 +410,8 @@ async def tipsplit_task(message):
 		# Remove duplicates
 		users_to_tip = list(set(users_to_tip))
 		# Make sure user has enough in their balance
-		user_balance = wallet.get_balance_by_id(message.author.id)['available']
+		balance = await wallet.get_balance_by_id(message.author.id)
+		user_balance = balance['available']
 		if user_balance < amount:
 			await add_x_reaction(ctx.message)
 			await post_dm(message.author, INSUFFICIENT_FUNDS_TEXT)
@@ -414,7 +422,7 @@ async def tipsplit_task(message):
 		amount = tip_amount * len(users_to_tip)
 		for member in users_to_tip:
 			uid = str(uuid.uuid4())
-			actual_amt = wallet.make_transaction_to_user(message.author.id, tip_amount, member.id, member.name, uid)
+			actual_amt = await wallet.make_transaction_to_user(message.author.id, tip_amount, member.id, member.name, uid)
 			# Tip didn't go through
 			if actual_amt == 0:
 				amount -= tip_amount
@@ -456,7 +464,8 @@ async def rain_task(message):
 			raise util.TipBotException("no_valid_recipient")
 		if int(amount / len(users_to_tip)) < 1:
 			raise util.TipBotException("invalid_tipsplit")
-		user_balance = wallet.get_balance_by_id(message.author.id)['available']
+		balance = await wallet.get_balance_by_id(message.author.id)
+		user_balance = balance['available']
 		if user_balance < amount:
 			await add_x_reaction(message)
 			await post_dm(ctx.message.author, INSUFFICIENT_FUNDS_TEXT)
@@ -467,7 +476,7 @@ async def rain_task(message):
 		#amount = tip_amount * len(users_to_tip) # nvm lets not short change reactions
 		for member in users_to_tip:
 			uid = str(uuid.uuid4())
-			actual_amt = wallet.make_transaction_to_user(message.author.id, tip_amount, member.id, member.name, uid)
+			actual_amt = await wallet.make_transaction_to_user(message.author.id, tip_amount, member.id, member.name, uid)
 			# Tip didn't go through for some reason
 			if actual_amt == 0:
 				amount -= tip_amount
@@ -487,7 +496,7 @@ async def rain_task(message):
 		else:
 			await post_response(message, TIP_ERROR_TEXT)
 
-@client.command(pass_context=True)
+@client.command(pass_context=True, aliases=['ticket'])
 async def entergiveaway(ctx):
 	asyncio.get_event_loop().create_task(entergiveaway_task(ctx.message))
 
@@ -498,7 +507,7 @@ async def entergiveaway_task(message):
 		return
 	entered = db.add_contestant(message.author.id)
 	if entered:
-		wallet.create_or_fetch_user(message.author.id, message.author.name)
+		await wallet.create_or_fetch_user(message.author.id, message.author.name)
 		await post_dm(message.author, ENTER_ADDED)
 		await client.add_reaction(message, '\U00002611') # Check Mark
 	else:
@@ -518,7 +527,8 @@ async def givearai_task(message):
 		amount = find_amount(message.content)
 		if amount < GIVEAWAY_MINIMUM:
 			raise util.TipBotException("usage_error")
-		user_balance = wallet.get_balance_by_id(message.author.id)['available']
+		balance = await wallet.get_balance_by_id(message.author.id)
+		user_balance = balance['available']
 		if user_balance < amount:
 			await add_x_reaction(message)
 			await post_dm(message.author, INSUFFICIENT_FUNDS_TEXT)
@@ -533,7 +543,7 @@ async def givearai_task(message):
 		source_address = db.get_address(source_id)
 		giveaway = db.start_giveaway(message.author.id, message.author.name, nano_amt, end_time, message.channel.id)
 		uid = str(uuid.uuid4())
-		wallet.make_transaction_to_address(source_id, source_address, amount, None, uid, giveaway_id=giveaway.id,update_stats=True)
+		await wallet.make_transaction_to_address(source_id, source_address, amount, None, uid, giveaway_id=giveaway.id,update_stats=True)
 		await post_response(message, GIVEAWAY_STARTED, message.author.name, nano_amt)
 		asyncio.get_event_loop().create_task(start_giveaway_timer())
 	except util.TipBotException as e:
@@ -549,7 +559,8 @@ async def tipgiveaway_task(message):
 	try:
 		giveaway = db.get_giveaway()
 		amount = find_amount(message.content)
-		user_balance = wallet.get_balance_by_id(message.author.id)['available']
+		balance = await wallet.get_balance_by_id(message.author.id)
+		user_balance = balance['available']
 		if user_balance < amount:
 			await add_x_reaction(message)
 			await post_dm(message.author, INSUFFICIENT_FUNDS_TEXT)
@@ -563,7 +574,7 @@ async def tipgiveaway_task(message):
 		source_id = message.author.id
 		source_address = db.get_address(source_id)
 		uid = str(uuid.uuid4())
-		wallet.make_transaction_to_address(source_id, source_address, amount, None, uid, giveaway_id=giveawayid,update_stats=True)
+		await wallet.make_transaction_to_address(source_id, source_address, amount, None, uid, giveaway_id=giveawayid,update_stats=True)
 		await react_to_message(message, amount)
 		# Add user to next giveaway if sum is >= amount
 		if amount >= settings.giveaway_auto_amt:
@@ -581,7 +592,7 @@ async def tipgiveaway_task(message):
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(message.author, TIPGIVEAWAY_USAGE)
 
-@client.command(pass_context=True)
+@client.command(pass_context=True,aliases=['goldenticket'])
 async def giveawaystats(ctx):
 	stats = db.get_giveaway_stats()
 	if stats is None:
@@ -651,6 +662,19 @@ async def bigtippers(ctx):
 			response += '\n'
 		response += "```"
 		await post_response(ctx.message, response)
+
+@client.command(pass_context=True, aliases=['toptits'])
+async def toptips(ctx):
+	# Check spam
+	global last_top_tips
+	if not ctx.message.channel.is_private:
+		tdelta = datetime.datetime.now() - last_big_tippers
+		if SPAM_THRESHOLD > tdelta.seconds:
+			await post_response(ctx.message, TOPTIP_SPAM, (SPAM_THRESHOLD - tdelta.seconds))
+			return
+		last_top_tips = datetime.datetime.now()
+	top_tips_msg = db.get_top_tips()
+	await post_response(ctx.message, top_tips_msg)
 
 @client.command(pass_context=True)
 async def tipstats(ctx):

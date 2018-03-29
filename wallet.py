@@ -5,6 +5,7 @@ import util
 import db
 import datetime
 import settings
+import asyncio
 
 wallet = settings.wallet
 
@@ -26,14 +27,14 @@ def communicate_wallet(wallet_command):
 	return parsed_json
 
 
-def create_or_fetch_user(user_id, user_name):
+async def create_or_fetch_user(user_id, user_name):
 	logger.info('attempting to fetch user %s ...', user_id)
 	user = db.get_user_by_id(user_id)
 	if user is None:
 		logger.info('user %s does not exist. creating new user ...',
 					user_id)
 		wallet_command = {'action': 'account_create', 'wallet': wallet}
-		wallet_output = communicate_wallet(wallet_command)
+		wallet_output = await asyncio.get_event_loop().run_in_executor(None, communicate_wallet, wallet_command)
 		address = wallet_output['account']
 		user = db.create_user(user_id=user_id, user_name=user_name,
 							  wallet_address=address)
@@ -44,7 +45,7 @@ def create_or_fetch_user(user_id, user_name):
 		return user
 
 
-def get_balance(user, user_id):
+async def get_balance(user, user_id):
 	logger.info('getting balance for user %s', user_id)
 	if user is None:
 		logger.info('user %s does not exist.', user_id)
@@ -56,7 +57,7 @@ def get_balance(user, user_id):
 		logger.info('Fetching balance from wallet for %s', user_id)
 		wallet_command = {'action': 'account_balance',
 				  'account': user.wallet_address}
-		wallet_output = communicate_wallet(wallet_command)
+		wallet_output = await asyncio.get_event_loop().run_in_executor(None, communicate_wallet, wallet_command)
 		if 'balance' not in wallet_output:
 			# Ops
 			return None
@@ -71,17 +72,17 @@ def get_balance(user, user_id):
 			'pending':int(pending_balance) + user.pending_receive,
 			}
 
-def get_balance_by_id(user_id):
+async def get_balance_by_id(user_id):
 	user = db.get_user_by_id(user_id)
-	return get_balance(user, user_id)
+	return await get_balance(user, user_id)
 
-def make_transaction_to_address(source_id, source_address, amount, withdraw_address, uid, target_id=None, giveaway_id=0, update_stats=False):
+async def make_transaction_to_address(source_id, source_address, amount, withdraw_address, uid, target_id=None, giveaway_id=0, update_stats=False):
 	# Do not validate address for giveaway tx because we do not know it yet
 	if withdraw_address is not None:
 		# Check to see if the withdraw address is valid
 		wallet_command = {'action': 'validate_account_number',
 				  'account': withdraw_address}
-		address_validation = communicate_wallet(wallet_command)
+		address_validation = await asyncio.get_event_loop().run_in_executor(None, communicate_wallet, wallet_command)
 
 		# If the address was the incorrect length, did not start with xrb_ or nano_ or was deemed invalid by the node, return an error.
 		address_prefix_valid = withdraw_address[:4] == 'xrb_' \
@@ -107,11 +108,11 @@ def make_transaction_to_address(source_id, source_address, amount, withdraw_addr
 
 	return amount
 
-def make_transaction_to_user(user_id, amount, target_user_id, target_user_name, uid):
-	target_user = create_or_fetch_user(target_user_id, target_user_name)
+async def make_transaction_to_user(user_id, amount, target_user_id, target_user_name, uid):
+	target_user = await create_or_fetch_user(target_user_id, target_user_name)
 	user = db.get_user_by_id(user_id)
 	try:
-		actual_tip_amount = make_transaction_to_address(user_id, user.wallet_address, amount, target_user.wallet_address, uid, target_user_id)
+		actual_tip_amount = await make_transaction_to_address(user_id, user.wallet_address, amount, target_user.wallet_address, uid, target_user_id)
 	except util.TipBotException as e:
 		return 0
 

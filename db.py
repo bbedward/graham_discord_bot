@@ -233,22 +233,42 @@ def get_top_tips():
 	dt = datetime.datetime.now()
 	past_dt = dt - datetime.timedelta(days=1) # Date 24H ago
 	month_str = dt.strftime("%B")
-	month_num = "%02d" % dt.month
+	month_num = "%02d" % dt.month # Sqlite uses 2 digit month (with leading 0)
 	amount = fn.MAX(Transaction.amount.cast('integer')).alias('amount')
-	top_24h = (Transaction
-		.select(amount, User.user_name)
-		.join(User,on=(User.wallet_address==Transaction.source_address))
-		.where(Transaction.created > past_dt)
-		.group_by(User.user_name)
-		.order_by(User.user_name)
-		.limit(1)
-		)
-	#toptxmonth = Transaction.select(fn.MAX(Transaction.amount)).where(fn.strftime("%m", Transaction.created) == month_num).limit(1)
-	#toptxat = Transaction.select(fn.MAX(Transaction.amount)).limit(1)
-	for top in top_24h:
-		nanoamt = float(top.amount) / 1000000
-		logger.debug("Amount %.6f User: %s" % (nanoamt, top.user.user_name))
+	user_addresses = User.select(User.wallet_address)
+	top_24h = Transaction.select(amount, Transaction.source_address).where((Transaction.created > past_dt) & (Transaction.to_address.in_(user_addresses)))
+	top_month = Transaction.select(amount, Transaction.source_address).where((fn.strftime("%m", Transaction.created) == month_num) & (Transaction.to_address.in_(user_addresses)))
+	top_at = Transaction.select(amount, Transaction.source_address).where((Transaction.created > past_dt) & (Transaction.to_address.in_(user_addresses)))
+	# Formatted output
+	user24h = None
+	monthuser = None
+	atuser = None
 
+	for top in top_24h:
+		user = get_user_by_wallet_address(top.source_address)
+		user24h = user.user_name
+		amount24h = float(top.amount) / 1000000
+	for top in top_month:
+		user = get_user_by_wallet_address(top.source_address)
+		monthuser = user.user_name
+		monthamount = float(top.amount) / 1000000
+	for top in top_at:
+		user = get_user_by_wallet_address(top.source_address)
+		atuser = user.user_name
+		atamount = float(top.amount) / 1000000
+
+	if user24h is None and monthuser is None and atuser is None:
+		return "```No Tips Found```"
+
+	result = ""
+	if user24h is not None:
+		result += "Biggest tip in the last 24 hours:```%.6f NANO by %s```" % (amount24h, user24h)
+	if monthuser is not None:
+		result += "Biggest tip in %s:```%.6f NANO by %s```" % (month_str, monthamount, monthuser)
+	if atuser is not None:
+		result += "Biggest tip of all time:```%.6f NANO by %s```" % (atamount, atuser)
+
+	return result
 
 # You may think, this imposes serious double spend risks:
 #  ie. if a transaction actually has been processed, but has never been marked processed in the database
