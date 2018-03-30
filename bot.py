@@ -262,7 +262,7 @@ async def check_for_withdraw():
 		logger.exception(ex)
 
 # Command List
-commands=['help', 'man', 'deposit', 'register', 'withdraw', 'balance',  'tip', 'tipsplit', 'rain', 'givearai', 'sponsorgivearai', 'tipgiveaway', 'leaderboard', 'toptips' ,'entergiveaway', 'ticket', 'donate', 'giveawaystats', 'goldenticket']
+commands=['help', 'man', 'deposit', 'register', 'withdraw', 'balance',  'tip', 'tipsplit', 'rain', 'givearai', 'sponsorgiveaway', 'tipgiveaway', 'leaderboard', 'toptips' ,'entergiveaway', 'ticket', 'donate', 'giveawaystats', 'goldenticket']
 cmdlist=[COMMAND_PREFIX + c for c in commands]
 
 # Override on_message and do our spam check here
