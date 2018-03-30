@@ -48,6 +48,7 @@ last_big_tippers=datetime.datetime.now() - datetime.timedelta(seconds=SPAM_THRES
 last_top_tips=datetime.datetime.now() - datetime.timedelta(seconds=SPAM_THRESHOLD)
 
 ### Response Templates ###
+COMMAND_NOT_FOUND="I don't understand what you're saying, try %shelp" % COMMAND_PREFIX
 HELP_INFO="%shelp or %sman:\n Display this message" % (COMMAND_PREFIX, COMMAND_PREFIX)
 BALANCE_INFO=("%sbalance:\n Displays the balance of your tip account (in nanorai) as described:" +
 		"\n - Actual Balance: The actual balance in your tip account" +
@@ -143,7 +144,7 @@ GIVEAWAY_EXISTS="There's already an active giveaway"
 GIVEAWAY_USAGE="Usage:\n```" + START_GIVEAWAY_INFO + "```"
 GIVEAWAY_STARTED="%s has sponsored a giveaway of %.6f NANO! Use " + COMMAND_PREFIX + "ticket to enter and " + COMMAND_PREFIX + "donate to increase the pot!"
 GIVEAWAY_ENDED="Congratulations! <@%s> was the winner of the giveaway! They have been sent %.6f NANO!"
-GIVEAWAY_STATS="There are %d entries to win %.6f NANO ending in %s - sponsored by %s"
+GIVEAWAY_STATS="There are %d entries to win %.6f NANO ending in %s - sponsored by %s.\nUse " + COMMAND_PREFIX + "ticket to enter and " + COMMAND_PREFIX + "donate to add to the pot"
 GIVEAWAY_STATS_INACTIVE="There are no active giveaways\n%d nanorai required to autostart one"
 ENTER_ADDED="You've been successfully entered into the giveaway"
 ENTER_DUP="You've already entered the giveaway"
@@ -278,6 +279,8 @@ async def on_message(message):
 	else:
 		return
 	if cmd not in cmdlist:
+#		if message.channel.is_private:
+#			await post_response(message, COMMAND_NOT_FOUND)
 		return
 	# Strip prefix from command
 	cmd = cmd[1:]
@@ -296,8 +299,8 @@ async def on_message(message):
 	elif cmd == 'rain':
 		await rain(message)
 	elif cmd == 'ticket' or cmd == 'entergiveaway':
-		await remove_message(message)
 		await entergiveaway(message)
+		await remove_message(message)
 	elif cmd == 'givearai' or cmd == 'sponsorgiveaway':
 		await givearai(message)
 	elif cmd == 'donate' or cmd == 'tipgiveaway':
