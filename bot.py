@@ -262,7 +262,7 @@ async def check_for_withdraw():
 		logger.exception(ex)
 
 # Command List
-commands=['help', 'man', 'deposit', 'register', 'withdraw', 'tip', 'tipsplit', 'rain', 'givearai', 'sponsorgivearai', 'tipgiveaway', 'leaderboard', 'toptips' ,'entergiveaway', 'ticket', 'donate', 'giveawaystats', 'goldenticket']
+commands=['help', 'man', 'deposit', 'register', 'withdraw', 'balance',  'tip', 'tipsplit', 'rain', 'givearai', 'sponsorgivearai', 'tipgiveaway', 'leaderboard', 'toptips' ,'entergiveaway', 'ticket', 'donate', 'giveawaystats', 'goldenticket']
 cmdlist=[COMMAND_PREFIX + c for c in commands]
 
 # Override on_message and do our spam check here
@@ -273,16 +273,12 @@ async def on_message(message):
 
 	# Make sure cmd is supported
 	content = message.content
-	params = ""
-	if len(content.split()) > 1:
-		cmd,params = message.content.split(' ', 1)
-	elif len(content.split()) == 1:
+	if len(content.split()) >= 1:
 		cmd = message.content.split(' ', 1)[0]
 	else:
 		return
 	if cmd not in cmdlist:
 		return
-	message.content = params
 	# Strip prefix from command
 	cmd = cmd[1:]
 	if cmd == 'help' or cmd == 'man':
@@ -596,7 +592,8 @@ async def tipgiveaway(message):
 		await wallet.make_transaction_to_address(source_id, source_address, amount, None, uid, giveaway_id=giveawayid,update_stats=True)
 		await react_to_message(message, amount)
 		# Add user to next giveaway if sum is >= amount
-		if amount >= settings.giveaway_auto_amt:
+		existing_contributions = db.get_tipgiveaway_contributions(message.author.id)
+		if (amount + existing_contributions) >= settings.giveaway_auto_amt:
 			entered = db.add_contestant(message.author.id)
 			if entered:
 				await post_response(message, TIPGIVEAWAY_ENTERED)

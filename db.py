@@ -186,6 +186,16 @@ def get_tipgiveaway_sum():
 		tip_sum += int(tx.amount)
 	return tip_sum
 
+# Get tipgiveaway contributions
+def get_tipgiveaway_contributions(user_id):
+	tip_sum = 0
+	user = get_user_by_id(user_id)
+	txs = Transaction.select().where((Transaction.giveawayid == -1) & (Transaction.source_address == user.wallet_address))
+	for tx in txs:
+		tip_sum += int(tx.amount)
+	logger.debug("Tipsum: %d" % tip_sum)
+	return tip_sum
+
 # Returns winning user
 def finish_giveaway():
 	picker_query = Contestant.select().order_by(fn.Random())
