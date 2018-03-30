@@ -206,7 +206,6 @@ def get_tipgiveaway_contributions(user_id):
 	txs = Transaction.select().where((Transaction.giveawayid == -1) & (Transaction.source_address == user.wallet_address))
 	for tx in txs:
 		tip_sum += int(tx.amount)
-	logger.debug("Tipsum: %d" % tip_sum)
 	return tip_sum
 
 # Returns winning user
