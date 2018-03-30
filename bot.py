@@ -150,7 +150,7 @@ ENTER_ADDED="You've been successfully entered into the giveaway"
 ENTER_DUP="You've already entered the giveaway"
 TIPGIVEAWAY_NO_ACTIVE="There are no active giveaways"
 TIPGIVEAWAY_USAGE="Usage:\n```" + TIPGIVEAWAY_INFO + "```"
-TIPGIVEAWAY_ENTERED="Since you are such a generous donor, I've automatically entered you into the next giveaway!"
+TIPGIVEAWAY_ENTERED="Since you are such a generous donor, I'll automatically enter you into the next giveaway when it begins!"
 TOPTIP_SPAM="No more top tips for %d seconds"
 ### END Response Templates ###
 
@@ -541,7 +541,6 @@ async def entergiveaway(message):
 	if entered:
 		await wallet.create_or_fetch_user(message.author.id, message.author.name)
 		await post_dm(message.author, ENTER_ADDED)
-		await client.add_reaction(message, '\U00002611') # Check Mark
 	else:
 		await post_dm(message.author, ENTER_DUP)
 
