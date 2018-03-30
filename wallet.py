@@ -19,6 +19,7 @@ def communicate_wallet(wallet_command):
 	c.setopt(c.PORT, 7076)
 	c.setopt(c.POSTFIELDS, json.dumps(wallet_command))
 	c.setopt(c.WRITEFUNCTION, buffer.write)
+	c.setopt(c.TIMEOUT, 300)
 	c.perform()
 	c.close()
 

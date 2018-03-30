@@ -1,6 +1,4 @@
 import discord
-from discord.ext import commands
-from discord.ext.commands import Bot
 import threading
 from threading import Thread
 from queue import Queue
@@ -21,7 +19,7 @@ import db
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "0.8"
+BOT_VERSION = "0.9"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -43,9 +41,7 @@ COMMAND_PREFIX=settings.command_prefix
 WITHDRAW_CHECK_JOB=15
 
 # Create discord client
-client = Bot(command_prefix=COMMAND_PREFIX)
-# Use custom help command
-client.remove_command('help')
+client = discord.Client()
 
 # Spam prevention
 last_big_tippers=datetime.datetime.now() - datetime.timedelta(seconds=SPAM_THRESHOLD)
@@ -77,9 +73,9 @@ START_GIVEAWAY_INFO=("%sgivearai or %ssponsorgiveaway <amount>:\n Start a giveaw
 		"\n Minimum amount to start giveaway: %d nanorai" +
 		"\n Giveaway will end and choose random winner after %d minutes (Giveaways over 500k nanorai will last for 60 minutes)") % (COMMAND_PREFIX, COMMAND_PREFIX, GIVEAWAY_MINIMUM, GIVEAWAY_DURATION)
 ENTER_INFO="%sticket or %sentergiveaway:\n Enter the current giveaway, if there is one" % (COMMAND_PREFIX, COMMAND_PREFIX)
-TIPGIVEAWAY_INFO="%stipgiveaway <amount>\n Add <amount> to the current giveaway pool\n If there is no giveaway, one will be started when minimum is reached.\n Tips >= %d nanorai automatically enter you for the next giveaway" % (COMMAND_PREFIX, settings.giveaway_auto_amt)
+TIPGIVEAWAY_INFO="%stipgiveaway or %sdonate <amount>\n Add <amount> to the current giveaway pool\n If there is no giveaway, one will be started when minimum is reached.\n Tips >= %d nanorai automatically enter you for the next giveaway" % (COMMAND_PREFIX, COMMAND_PREFIX, settings.giveaway_auto_amt)
 GIVEAWAY_STATS_INFO="%sgiveawaystats or %sgoldenticket:\n Display statistics relevant to the current giveaway" % (COMMAND_PREFIX, COMMAND_PREFIX)
-LEADERBOARD_INFO="%sbigtippers or %sleaderboard:\n Display the all-time tip leaderboard" % (COMMAND_PREFIX, COMMAND_PREFIX)
+LEADERBOARD_INFO="%sleaderboard:\n Display the all-time tip leaderboard" % COMMAND_PREFIX
 TOPTIPS_INFO="%stoptips:\n Display the single largest tips for the past 24 hours, current month, and all time" % COMMAND_PREFIX
 STATS_INFO="%stipstats:\n Display your personal tipping stats (rank, total tipped, and average tip)" % COMMAND_PREFIX
 SETTIP_INFO=("%ssettiptotal <user>:\n Manually set the 'total tipped' for a user (for tip leaderboard)" +
@@ -145,7 +141,7 @@ RAIN_USAGE="Usage:\n```" + RAIN_INFO + "```"
 RAIN_NOBODY="I couldn't find any active users...besides you :wink:"
 GIVEAWAY_EXISTS="There's already an active giveaway"
 GIVEAWAY_USAGE="Usage:\n```" + START_GIVEAWAY_INFO + "```"
-GIVEAWAY_STARTED="%s has sponsored a giveaway of %.6f NANO! Use " + COMMAND_PREFIX + "ticket to enter and " + COMMAND_PREFIX + "tipgiveaway to increase the pot!"
+GIVEAWAY_STARTED="%s has sponsored a giveaway of %.6f NANO! Use " + COMMAND_PREFIX + "ticket to enter and " + COMMAND_PREFIX + "donate to increase the pot!"
 GIVEAWAY_ENDED="Congratulations! <@%s> was the winner of the giveaway! They have been sent %.6f NANO!"
 GIVEAWAY_STATS="There are %d entries to win %.6f NANO ending in %s - sponsored by %s"
 GIVEAWAY_STATS_INACTIVE="There are no active giveaways\n%d nanorai required to autostart one"
@@ -153,6 +149,7 @@ ENTER_ADDED="You've been successfully entered into the giveaway"
 ENTER_DUP="You've already entered the giveaway"
 TIPGIVEAWAY_NO_ACTIVE="There are no active giveaways"
 TIPGIVEAWAY_USAGE="Usage:\n```" + TIPGIVEAWAY_INFO + "```"
+TIPGIVEAWAY_ENTERED="Since you are such a generous donor, I've automatically entered you into the next giveaway!"
 TOPTIP_SPAM="No more top tips for %d seconds"
 ### END Response Templates ###
 
@@ -197,7 +194,11 @@ class SendProcessor(Thread):
 					'id': uid
 				}
 				logger.debug("RPC Send")
-				wallet_output = wallet.communicate_wallet(wallet_command)
+				try:
+					wallet_output = wallet.communicate_wallet(wallet_command)
+				except Exception as e:
+					logger.exception(e)
+					continue
 				logger.debug("RPC Response")
 				if 'block' in wallet_output:
 					txid = wallet_output['block']
@@ -260,29 +261,71 @@ async def check_for_withdraw():
 	except Exception as ex:
 		logger.exception(ex)
 
+# Command List
+commands=['help', 'man', 'deposit', 'register', 'withdraw', 'tip', 'tipsplit', 'rain', 'givearai', 'sponsorgivearai', 'tipgiveaway', 'leaderboard', 'toptips' ,'entergiveaway', 'ticket', 'donate', 'giveawaystats', 'goldenticket']
+cmdlist=[COMMAND_PREFIX + c for c in commands]
+
 # Override on_message and do our spam check here
 @client.event
 async def on_message(message):
 	if db.last_msg_check(message.author.id) == False:
 		return
-	await client.process_commands(message)
+
+	# Make sure cmd is supported
+	content = message.content
+	params = ""
+	if len(content.split()) > 1:
+		cmd,params = message.content.split(' ', 1)
+	elif len(content.split()) == 1:
+		cmd = message.content.split(' ', 1)[0]
+	else:
+		return
+	if cmd not in cmdlist:
+		return
+	message.content = params
+	# Strip prefix from command
+	cmd = cmd[1:]
+	if cmd == 'help' or cmd == 'man':
+		await help(message)
+	elif cmd == 'balance':
+		await balance(message)
+	elif cmd == 'deposit' or cmd == 'register':
+		await deposit(message)
+	elif cmd == 'withdraw':
+		await withdraw(message)
+	elif cmd == 'tip':
+		await tip(message)
+	elif cmd == 'tipsplit':
+		await tipsplit(message)
+	elif cmd == 'rain':
+		await rain(message)
+	elif cmd == 'ticket' or cmd == 'entergiveaway':
+		await remove_message(message)
+		await entergiveaway(message)
+	elif cmd == 'giverai' or cmd == 'sponsorgiveaway':
+		await giverai(message)
+	elif cmd == 'donate' or cmd == 'tipgiveaway':
+		await tipgiveaway(message)
+	elif cmd == 'giveawaystats' or cmd == 'goldenticket':
+		await giveawaystats(message)
+	elif cmd == 'leaderboard':
+		await leaderboard(message)
+	elif cmd == 'toptips':
+		await toptips(message)
+	elif cmd == 'tipstats':
+		await tipstats(message)
 
 ### Commands
-@client.command(pass_context=True, aliases=['man'])
-async def help(ctx):
-	if ctx.message.channel.is_private:
+async def help(message):
+	if message.channel.is_private:
 		# Four messages because discord API responds in error with our really long help text
-		await post_response(ctx.message, HELP_TEXT_1, BOT_VERSION)
-		await post_response(ctx.message, HELP_TEXT_2)
-		await post_response(ctx.message, HELP_TEXT_3)
-		await post_response(ctx.message, HELP_TEXT_4)
+		await post_response(message, HELP_TEXT_1, BOT_VERSION)
+		await post_response(message, HELP_TEXT_2)
+		await post_response(message, HELP_TEXT_3)
+		await post_response(message, HELP_TEXT_4)
 
-@client.command(pass_context=True)
-async def balance(ctx):
-	if ctx.message.channel.is_private:
-		asyncio.get_event_loop().create_task(balance_task(ctx.message))
-
-async def balance_task(message):
+async def balance(message):
+	if message.channel.is_private:
 		balances = await wallet.get_balance_by_id(message.author.id)
 		actual = balances['actual']
 		actualnano = actual / 1000000
@@ -301,21 +344,16 @@ async def balance_task(message):
 								"{:,}".format(receive),
 								receivenano)
 
-@client.command(pass_context=True, aliases=['register'])
-async def deposit(ctx):
-	if ctx.message.channel.is_private:
-		user = await wallet.create_or_fetch_user(ctx.message.author.id, ctx.message.author.name)
+async def deposit(message):
+	if message.channel.is_private:
+		user = await wallet.create_or_fetch_user(message.author.id, message.author.name)
 		user_deposit_address = user.wallet_address
-		await post_response(ctx.message, DEPOSIT_TEXT)
-		await post_response(ctx.message, DEPOSIT_TEXT_2, user_deposit_address)
-		await post_response(ctx.message, DEPOSIT_TEXT_3, get_qr_url(user_deposit_address))
+		await post_response(message, DEPOSIT_TEXT)
+		await post_response(message, DEPOSIT_TEXT_2, user_deposit_address)
+		await post_response(message, DEPOSIT_TEXT_3, get_qr_url(user_deposit_address))
 
-@client.command(pass_context=True)
-async def withdraw(ctx):
-	if ctx.message.channel.is_private:
-		asyncio.get_event_loop().create_task(withdraw_task(ctx.message))
-
-async def withdraw_task(message):
+async def withdraw(message):
+	if message.channel.is_private:
 		try:
 			withdraw_address = find_address(message.content)
 			source_id = message.author.id
@@ -338,12 +376,10 @@ async def withdraw_task(message):
 			elif e.error_type == "error":
 				await post_response(message, WITHDRAW_ERROR_TEXT)
 
-@client.command(pass_context=True)
-async def tip(ctx):
-	if not ctx.message.channel.is_private:
-		asyncio.get_event_loop().create_task(tip_task(ctx.message))
+async def tip(message):
+	if message.channel.is_private:
+		return
 
-async def tip_task(message):
 	try:
 		amount = find_amount(message.content)
 		# Make sure amount is valid and at least 1 user is mentioned
@@ -386,12 +422,9 @@ async def tip_task(message):
 		else:
 			await post_response(message, TIP_ERROR_TEXT)
 
-@client.command(pass_context=True)
-async def tipsplit(ctx):
-	if not ctx.message.channel.is_private:
-		asyncio.get_event_loop().create_task(tipsplit_task(ctx.message))
-
-async def tipsplit_task(message):
+async def tipsplit(message):
+	if message.channel.is_private:
+		return
 	try:
 		amount = find_amount(message.content)
 		# Make sure amount is valid and at least 1 user is mentioned
@@ -439,12 +472,9 @@ async def tipsplit_task(message):
 		else:
 			await post_response(message, TIP_ERROR_TEXT)
 
-@client.command(pass_context=True)
-async def rain(ctx):
-	if not ctx.message.channel.is_private:
-		asyncio.get_event_loop().create_task(rain_task(ctx.message))
-
-async def rain_task(message):
+async def rain(message):
+	if message.channel.is_private:
+		return
 	try:
 		amount = find_amount(message.content)
 		if amount < RAIN_MINIMUM:
@@ -496,13 +526,8 @@ async def rain_task(message):
 		else:
 			await post_response(message, TIP_ERROR_TEXT)
 
-@client.command(pass_context=True, aliases=['ticket'])
-async def entergiveaway(ctx):
-	asyncio.get_event_loop().create_task(entergiveaway_task(ctx.message))
-
-async def entergiveaway_task(message):
+async def entergiveaway(message):
 	if not db.is_active_giveaway():
-		await add_x_reaction(message)
 		await post_dm(message.author, TIPGIVEAWAY_NO_ACTIVE)
 		return
 	entered = db.add_contestant(message.author.id)
@@ -513,12 +538,9 @@ async def entergiveaway_task(message):
 	else:
 		await post_dm(message.author, ENTER_DUP)
 
-@client.command(pass_context=True, aliases=['sponsorgiveaway'])
-async def givearai(ctx):
-	if not ctx.message.channel.is_private:
-		asyncio.get_event_loop().create_task(givearai_task(ctx.message))
-
-async def givearai_task(message):
+async def givearai(message):
+	if message.channel.is_private:
+		return
 	try:
 		# One giveaway at a time
 		if db.is_active_giveaway():
@@ -550,12 +572,9 @@ async def givearai_task(message):
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(message.author, GIVEAWAY_USAGE)
 
-@client.command(pass_context=True)
-async def tipgiveaway(ctx):
-	if not ctx.message.channel.is_private:
-		asyncio.get_event_loop().create_task(tipgiveaway_task(ctx.message))
-
-async def tipgiveaway_task(message):
+async def tipgiveaway(message):
+	if message.channel.is_private:
+		return
 	try:
 		giveaway = db.get_giveaway()
 		amount = find_amount(message.content)
@@ -578,7 +597,9 @@ async def tipgiveaway_task(message):
 		await react_to_message(message, amount)
 		# Add user to next giveaway if sum is >= amount
 		if amount >= settings.giveaway_auto_amt:
-			db.add_contestant(message.author.id)
+			entered = db.add_contestant(message.author.id)
+			if entered:
+				await post_response(message, TIPGIVEAWAY_ENTERED)
 		# If tip sum is >= GIVEAWAY MINIMUM then start giveaway
 		if giveaway is None:
 			tipgiveaway_sum = db.get_tipgiveaway_sum()
@@ -592,17 +613,16 @@ async def tipgiveaway_task(message):
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(message.author, TIPGIVEAWAY_USAGE)
 
-@client.command(pass_context=True,aliases=['goldenticket'])
-async def giveawaystats(ctx):
+async def giveawaystats(message):
 	stats = db.get_giveaway_stats()
 	if stats is None:
 		for_next = GIVEAWAY_MINIMUM - db.get_tipgiveaway_sum()
-		await post_response(ctx.message, GIVEAWAY_STATS_INACTIVE, for_next)
+		await post_response(message, GIVEAWAY_STATS_INACTIVE, for_next)
 	else:
 		end = stats['end'] - datetime.datetime.now()
 		end_s = int(end.total_seconds())
 		str_delta = time.strftime("%M Minutes and %S Seconds", time.gmtime(end_s))
-		await post_response(ctx.message, GIVEAWAY_STATS, stats['entries'], stats['amount'], str_delta, stats['started_by'])
+		await post_response(message, GIVEAWAY_STATS, stats['entries'], stats['amount'], str_delta, stats['started_by'])
 
 
 async def start_giveaway_timer():
@@ -625,19 +645,18 @@ async def finish_giveaway(delay):
 		await client.send_message(channel, response)
 		await post_dm(await client.get_user_info(giveaway.winner_id), response)
 
-@client.command(pass_context=True, aliases=['leaderboard'])
-async def bigtippers(ctx):
+async def leaderboard(message):
 	# Check spam
 	global last_big_tippers
-	if not ctx.message.channel.is_private:
+	if not message.channel.is_private:
 		tdelta = datetime.datetime.now() - last_big_tippers
 		if SPAM_THRESHOLD > tdelta.seconds:
-			await post_response(ctx.message, TOP_SPAM, (SPAM_THRESHOLD - tdelta.seconds))
+			await post_response(message, TOP_SPAM, (SPAM_THRESHOLD - tdelta.seconds))
 			return
 		last_big_tippers = datetime.datetime.now()
 	top_users = db.get_top_users(TOP_TIPPERS_COUNT)
 	if len(top_users) == 0:
-		await post_response(ctx.message, TOP_HEADER_EMPTY_TEXT)
+		await post_response(message, TOP_HEADER_EMPTY_TEXT)
 	else:
 		# Probably a very clunky and sloppy way to format this output, I'm sure there's something better
 		response = TOP_HEADER_TEXT % TOP_TIPPERS_COUNT
@@ -661,29 +680,28 @@ async def bigtippers(ctx):
 			response += '- %.6f NANO' % top_user['amount']
 			response += '\n'
 		response += "```"
-		await post_response(ctx.message, response)
+		await post_response(message, response)
 
-@client.command(pass_context=True, aliases=['toptits'])
-async def toptips(ctx):
+async def toptips(message):
 	# Check spam
 	global last_top_tips
-	if not ctx.message.channel.is_private:
+	if not message.channel.is_private:
 		tdelta = datetime.datetime.now() - last_big_tippers
 		if SPAM_THRESHOLD > tdelta.seconds:
-			await post_response(ctx.message, TOPTIP_SPAM, (SPAM_THRESHOLD - tdelta.seconds))
+			await post_response(message, TOPTIP_SPAM, (SPAM_THRESHOLD - tdelta.seconds))
 			return
 		last_top_tips = datetime.datetime.now()
 	top_tips_msg = db.get_top_tips()
-	await post_response(ctx.message, top_tips_msg)
+	await post_response(message, top_tips_msg)
 
-@client.command(pass_context=True)
-async def tipstats(ctx):
-	tip_stats = db.get_tip_stats(ctx.message.author.id)
+async def tipstats(message):
+	tip_stats = db.get_tip_stats(message.author.id)
 	if tip_stats is None or len(tip_stats) == 0:
-		await post_response(ctx.message, STATS_ACCT_NOT_FOUND_TEXT)
+		await post_response(message, STATS_ACCT_NOT_FOUND_TEXT)
 		return
-	await post_response(ctx.message, STATS_TEXT, tip_stats['rank'], tip_stats['total'], tip_stats['average'])
+	await post_response(message, STATS_TEXT, tip_stats['rank'], tip_stats['total'], tip_stats['average'])
 
+"""
 @client.command(pass_context=True)
 @commands.has_any_role(*settings.admin_roles)
 async def settiptotal(ctx, amount: float = -1.0, user: discord.Member = None):
@@ -699,6 +717,7 @@ async def settipcount(ctx, cnt: int = -1, user: discord.Member = None):
 		await post_response(ctx.message, SET_COUNT_USAGE)
 		return
 	db.update_tip_count(user.id, cnt)
+"""
 
 ### Utility Functions
 def get_qr_url(text):
@@ -742,6 +761,11 @@ async def post_dm(member, template, *args):
 async def post_edit(message, template, *args):
 	response = template % tuple(args)
 	return await client.edit_message(message, response)
+
+async def remove_message(message):
+	client_member = message.server.get_member(client.user.id)
+	if client_member.permissions_in(message.channel).manage_messages:
+		await client.delete_message(message)
 
 async def add_x_reaction(message):
 	await client.add_reaction(message, '\U0000274C') # X
