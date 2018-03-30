@@ -298,8 +298,8 @@ async def on_message(message):
 	elif cmd == 'ticket' or cmd == 'entergiveaway':
 		await remove_message(message)
 		await entergiveaway(message)
-	elif cmd == 'giverai' or cmd == 'sponsorgiveaway':
-		await giverai(message)
+	elif cmd == 'givearai' or cmd == 'sponsorgiveaway':
+		await givearai(message)
 	elif cmd == 'donate' or cmd == 'tipgiveaway':
 		await tipgiveaway(message)
 	elif cmd == 'giveawaystats' or cmd == 'goldenticket':
