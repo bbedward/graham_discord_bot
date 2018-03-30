@@ -19,7 +19,7 @@ import db
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "0.9"
+BOT_VERSION = "1.0"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -44,8 +44,8 @@ WITHDRAW_CHECK_JOB=15
 client = discord.Client()
 
 # Spam prevention
-last_big_tippers=datetime.datetime.now() - datetime.timedelta(seconds=SPAM_THRESHOLD)
-last_top_tips=datetime.datetime.now() - datetime.timedelta(seconds=SPAM_THRESHOLD)
+last_big_tippers=datetime.datetime.now()
+last_top_tips=datetime.datetime.now()
 
 ### Response Templates ###
 COMMAND_NOT_FOUND="I don't understand what you're saying, try %shelp" % COMMAND_PREFIX
@@ -133,7 +133,7 @@ TOP_HEADER_TEXT="Here are the top %d tippers :clap:"
 TOP_HEADER_EMPTY_TEXT="The leaderboard is empty!"
 TOP_SPAM="No more big tippers for %d seconds"
 STATS_ACCT_NOT_FOUND_TEXT="I could not find an account for you, try private messaging me !register"
-STATS_TEXT="You are rank #%d, have tipped a total of %.6f NANO, with an average tip of %.6f NANO"
+STATS_TEXT="You are rank #%d, you've tipped a total of %.6f NANO, your average tip is %.6f NANO, and your biggest tip of all time is %.6f NANO"
 SET_TOTAL_USAGE="Usage:\n```" + SETTIP_INFO + "```"
 SET_COUNT_USAGE="Usage:\n```" + SETCOUNT_INFO + "```"
 TIPSPLIT_USAGE="Usage:\n```" + TIPSPLIT_INFO + "```"
@@ -145,7 +145,7 @@ GIVEAWAY_USAGE="Usage:\n```" + START_GIVEAWAY_INFO + "```"
 GIVEAWAY_STARTED="%s has sponsored a giveaway of %.6f NANO! Use " + COMMAND_PREFIX + "ticket to enter and " + COMMAND_PREFIX + "donate to increase the pot!"
 GIVEAWAY_ENDED="Congratulations! <@%s> was the winner of the giveaway! They have been sent %.6f NANO!"
 GIVEAWAY_STATS="There are %d entries to win %.6f NANO ending in %s - sponsored by %s.\nUse " + COMMAND_PREFIX + "ticket to enter and " + COMMAND_PREFIX + "donate to add to the pot"
-GIVEAWAY_STATS_INACTIVE="There are no active giveaways\n%d nanorai required to autostart one"
+GIVEAWAY_STATS_INACTIVE="There are no active giveaways\n%d nanorai required to to automatically start one! You can also sponsor one using " + COMMAND_PREFIX + "givearai"
 ENTER_ADDED="You've been successfully entered into the giveaway"
 ENTER_DUP="You've already entered the giveaway"
 TIPGIVEAWAY_NO_ACTIVE="There are no active giveaways"
@@ -263,7 +263,7 @@ async def check_for_withdraw():
 		logger.exception(ex)
 
 # Command List
-commands=['help', 'man', 'deposit', 'register', 'withdraw', 'balance',  'tip', 'tipsplit', 'rain', 'givearai', 'sponsorgiveaway', 'tipgiveaway', 'leaderboard', 'toptips' ,'entergiveaway', 'ticket', 'donate', 'giveawaystats', 'goldenticket']
+commands=['help', 'man', 'deposit', 'register', 'withdraw', 'balance',  'tip', 'tipsplit', 'rain', 'givearai', 'sponsorgiveaway', 'tipgiveaway', 'leaderboard', 'toptips' ,'entergiveaway', 'ticket', 'donate', 'giveawaystats', 'goldenticket', 'tipstats']
 cmdlist=[COMMAND_PREFIX + c for c in commands]
 
 # Override on_message and do our spam check here
@@ -417,6 +417,8 @@ async def tip(message):
 				await post_dm(member, TIP_RECEIVED_TEXT, actual_amt, message.author.name)
 		# Post message reactions
 		await react_to_message(message, required_amt)
+		# Update top tip
+		db.update_top_tip(message.author.id, required_amt)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(message.author, TIP_USAGE)
@@ -455,7 +457,7 @@ async def tipsplit(message):
 		# Distribute tips
 		tip_amount = int(amount / len(users_to_tip))
 		# Recalculate amount as it may be different since truncating decimal
-		amount = tip_amount * len(users_to_tip)
+		real_amount = tip_amount * len(users_to_tip)
 		for member in users_to_tip:
 			uid = str(uuid.uuid4())
 			actual_amt = await wallet.make_transaction_to_user(message.author.id, tip_amount, member.id, member.name, uid)
@@ -465,6 +467,7 @@ async def tipsplit(message):
 			else:
 				await post_dm(member, TIP_RECEIVED_TEXT, tip_amount, message.author.name)
 		await react_to_message(message, amount)
+		db.update_top_tip(message.author.id, real_amount)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(message.author, TIPSPLIT_USAGE)
@@ -506,7 +509,7 @@ async def rain(message):
 		# Distribute Tips
 		tip_amount = int(amount / len(users_to_tip))
 		# Recalculate actual tip amount as it may be smaller now
-		#amount = tip_amount * len(users_to_tip) # nvm lets not short change reactions
+		real_amount = tip_amount * len(users_to_tip)
 		for member in users_to_tip:
 			uid = str(uuid.uuid4())
 			actual_amt = await wallet.make_transaction_to_user(message.author.id, tip_amount, member.id, member.name, uid)
@@ -519,6 +522,7 @@ async def rain(message):
 		# Message React
 		await react_to_message(message, amount)
 		await client.add_reaction(message, '\U0001F4A6') # Sweat Drops
+		db.update_top_tip(message.author.id, real_amount)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(message.author, RAIN_USAGE)
@@ -571,6 +575,7 @@ async def givearai(message):
 		await wallet.make_transaction_to_address(source_id, source_address, amount, None, uid, giveaway_id=giveaway.id,update_stats=True)
 		await post_response(message, GIVEAWAY_STARTED, message.author.name, nano_amt)
 		asyncio.get_event_loop().create_task(start_giveaway_timer())
+		db.update_top_tip(message.author.id, amount)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(message.author, GIVEAWAY_USAGE)
@@ -613,6 +618,8 @@ async def tipgiveaway(message):
 				db.start_giveaway(client.user.id, client.user.name, 0, end_time, message.channel.id)
 				await post_response(message, GIVEAWAY_STARTED, client.user.name, nano_amt)
 				asyncio.get_event_loop().create_task(start_giveaway_timer())
+		# Update top tip
+		db.update_top_tip(message.author.id, amount)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(message.author, TIPGIVEAWAY_USAGE)
@@ -690,7 +697,7 @@ async def toptips(message):
 	# Check spam
 	global last_top_tips
 	if not message.channel.is_private:
-		tdelta = datetime.datetime.now() - last_big_tippers
+		tdelta = datetime.datetime.now() - last_top_tips
 		if SPAM_THRESHOLD > tdelta.seconds:
 			await post_response(message, TOPTIP_SPAM, (SPAM_THRESHOLD - tdelta.seconds))
 			return
@@ -703,7 +710,7 @@ async def tipstats(message):
 	if tip_stats is None or len(tip_stats) == 0:
 		await post_response(message, STATS_ACCT_NOT_FOUND_TEXT)
 		return
-	await post_response(message, STATS_TEXT, tip_stats['rank'], tip_stats['total'], tip_stats['average'])
+	await post_response(message, STATS_TEXT, tip_stats['rank'], tip_stats['total'], tip_stats['average'],tip_stats['top'])
 
 """
 @client.command(pass_context=True)

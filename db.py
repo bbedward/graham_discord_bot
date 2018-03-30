@@ -58,7 +58,7 @@ def get_tip_stats(user_id):
 			average = 0
 		else:
 			average = user.tipped_amount / user.tip_count
-		return {'rank':rank, 'total':user.tipped_amount, 'average':average}
+		return {'rank':rank, 'total':user.tipped_amount, 'average':average,'top':float(user.top_tip) / 1000000}
 	except User.DoesNotExist:
 		return None
 
@@ -75,6 +75,17 @@ def update_tip_count(user_id, new_count):
 	if user is None:
 		return
 	user.tip_count = new_count
+	user.save()
+	return
+
+def update_top_tip(user_id, tip):
+	user = get_user_by_id(user_id)
+	if user is None:
+		return
+	if int(float(user.top_tip)) > int(tip):
+		return
+	user.top_tip=tip
+	user.top_tip_ts=datetime.datetime.now()
 	user.save()
 	return
 
@@ -98,6 +109,8 @@ def create_user(user_id, user_name, wallet_address):
 		    tip_count=0,
 		    created=datetime.datetime.now(),
 		    last_msg=datetime.datetime.now(),
+		    top_tip='0',
+		    top_tip_ts=datetime.datetime.now()
 		    )
 	user.save()
 	return user
@@ -244,27 +257,23 @@ def get_top_tips():
 	past_dt = dt - datetime.timedelta(days=1) # Date 24H ago
 	month_str = dt.strftime("%B")
 	month_num = "%02d" % dt.month # Sqlite uses 2 digit month (with leading 0)
-	amount = fn.MAX(Transaction.amount.cast('integer')).alias('amount')
-	user_addresses = User.select(User.wallet_address)
-	top_24h = Transaction.select(amount, Transaction.source_address).where((Transaction.created > past_dt) & (Transaction.to_address.in_(user_addresses)))
-	top_month = Transaction.select(amount, Transaction.source_address).where((fn.strftime("%m", Transaction.created) == month_num) & (Transaction.to_address.in_(user_addresses)))
-	top_at = Transaction.select(amount, Transaction.source_address).where((Transaction.created > past_dt) & (Transaction.to_address.in_(user_addresses)))
+	amount = fn.MAX(User.top_tip.cast('integer')).alias('amount')
+	top_24h = User.select(amount, User.user_name).where(User.top_tip_ts > past_dt)
+	top_month = User.select(amount, User.user_name).where(fn.strftime("%m", User.top_tip_ts) == month_num)
+	top_at = User.select(amount, User.user_name)
 	# Formatted output
 	user24h = None
 	monthuser = None
 	atuser = None
 
 	for top in top_24h:
-		user = get_user_by_wallet_address(top.source_address)
-		user24h = user.user_name
+		user24h = top.user_name
 		amount24h = float(top.amount) / 1000000
 	for top in top_month:
-		user = get_user_by_wallet_address(top.source_address)
-		monthuser = user.user_name
+		monthuser = top.user_name
 		monthamount = float(top.amount) / 1000000
 	for top in top_at:
-		user = get_user_by_wallet_address(top.source_address)
-		atuser = user.user_name
+		atuser = top.user_name
 		atamount = float(top.amount) / 1000000
 
 	if user24h is None and monthuser is None and atuser is None:
@@ -336,6 +345,8 @@ class User(Model):
 	tip_count = BigIntegerField()
 	created = DateTimeField()
 	last_msg = DateTimeField()
+	top_tip = CharField()
+	top_tip_ts = DateTimeField()
 
 	class Meta:
 		database = db
