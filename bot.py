@@ -269,6 +269,10 @@ cmdlist=[COMMAND_PREFIX + c for c in commands]
 # Override on_message and do our spam check here
 @client.event
 async def on_message(message):
+	# disregard messages sent by our own bot
+	if message.author.id == client.user.id:
+		return
+
 	if db.last_msg_check(message.author.id) == False:
 		return
 
@@ -279,8 +283,8 @@ async def on_message(message):
 	else:
 		return
 	if cmd not in cmdlist:
-#		if message.channel.is_private:
-#			await post_response(message, COMMAND_NOT_FOUND)
+		if message.channel.is_private:
+			await post_response(message, COMMAND_NOT_FOUND)
 		return
 	# Strip prefix from command
 	cmd = cmd[1:]
