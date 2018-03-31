@@ -19,7 +19,7 @@ import db
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "1.0"
+BOT_VERSION = "1.1"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -150,7 +150,8 @@ ENTER_ADDED="You've been successfully entered into the giveaway"
 ENTER_DUP="You've already entered the giveaway"
 TIPGIVEAWAY_NO_ACTIVE="There are no active giveaways"
 TIPGIVEAWAY_USAGE="Usage:\n```" + TIPGIVEAWAY_INFO + "```"
-TIPGIVEAWAY_ENTERED="Since you are such a generous donor, I'll automatically enter you into the next giveaway when it begins!"
+TIPGIVEAWAY_ENTERED="No need to pull a ticket to the giveaway, I've submitted your entry for you"
+TIPGIVEAWAY_ENTERED_FUTURE="Since you are such a generous donor, I'll automatically enter you into the next giveaway when it begins!"
 TOPTIP_SPAM="No more top tips for %d seconds"
 ### END Response Templates ###
 
@@ -539,11 +540,14 @@ async def rain(message):
 
 async def entergiveaway(message):
 	if not db.is_active_giveaway():
+		db.ticket_spam_check(message.author.id)
 		await post_dm(message.author, TIPGIVEAWAY_NO_ACTIVE)
 		return
-	entered = db.add_contestant(message.author.id)
-	if entered:
-		await wallet.create_or_fetch_user(message.author.id, message.author.name)
+	spam = db.ticket_spam_check(message.author.id,increment=False)
+	entered = db.add_contestant(message.author.id, banned=spam)
+	if entered or spam:
+		if not spam:
+			await wallet.create_or_fetch_user(message.author.id, message.author.name)
 		await post_dm(message.author, ENTER_ADDED)
 	else:
 		await post_dm(message.author, ENTER_DUP)
@@ -612,7 +616,10 @@ async def tipgiveaway(message):
 		if (amount + existing_contributions) >= settings.giveaway_auto_amt:
 			entered = db.add_contestant(message.author.id)
 			if entered:
-				await post_response(message, TIPGIVEAWAY_ENTERED)
+				if giveaway is not None:
+					await post_response(message, TIPGIVEAWAY_ENTERED)
+				else:
+					await post_response(message, TIPGIVEAWAY_ENTERED_FUTURE)
 		# If tip sum is >= GIVEAWAY MINIMUM then start giveaway
 		if giveaway is None:
 			tipgiveaway_sum = db.get_tipgiveaway_sum()

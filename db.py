@@ -110,7 +110,8 @@ def create_user(user_id, user_name, wallet_address):
 		    created=datetime.datetime.now(),
 		    last_msg=datetime.datetime.now(),
 		    top_tip='0',
-		    top_tip_ts=datetime.datetime.now()
+		    top_tip_ts=datetime.datetime.now(),
+		    ticket_count=0
 		    )
 	user.save()
 	return user
@@ -210,7 +211,7 @@ def get_tipgiveaway_contributions(user_id):
 
 # Returns winning user
 def finish_giveaway():
-	picker_query = Contestant.select().order_by(fn.Random())
+	picker_query = Contestant.select().where(Contestant.banned == False).order_by(fn.Random())
 	winner = get_user_by_id(picker_query.get().user_id)
 	Contestant.delete().execute()
 	giveaway = Giveaway.get(active=True)
@@ -218,14 +219,17 @@ def finish_giveaway():
 	giveaway.winner_id = winner.user_id
 	giveaway.save()
 	process_giveaway_transactions(giveaway.id, winner.user_id)
+	# Undo shadow bans
+	q = User.update({User.ticket_count:0})
+	q.execute()
 	return giveaway
 
 # Returns True is contestant added, False if contestant already exists
-def add_contestant(user_id):
+def add_contestant(user_id, banned=False):
 	exists = Contestant.select().where(Contestant.user_id == user_id).count()
 	if exists > 0:
 		return False
-	contestant = Contestant(user_id=user_id)
+	contestant = Contestant(user_id=user_id,banned=banned)
 	contestant.save()
 	return True
 
@@ -234,6 +238,16 @@ def is_active_giveaway():
 	if giveaway > 0:
 		return True
 	return False
+
+# Return true if shadow banned
+def ticket_spam_check(user_id, increment=True):
+	user = get_user_by_id(user_id)
+	if user is None:
+		return False
+	if increment:
+		user.ticket_count += 1
+		user.save()
+	return user.ticket_count >= 3
 
 # Gets giveaway stats
 def get_giveaway_stats():
@@ -346,6 +360,7 @@ class User(Model):
 	last_msg = DateTimeField()
 	top_tip = CharField()
 	top_tip_ts = DateTimeField()
+	ticket_count = IntegerField()
 
 	class Meta:
 		database = db
@@ -382,6 +397,7 @@ class Giveaway(Model):
 # Giveaway Entrants
 class Contestant(Model):
 	user_id = CharField()
+	banned = BooleanField()
 
 	class Meta:
 		database = db
