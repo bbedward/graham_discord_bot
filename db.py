@@ -257,9 +257,9 @@ def get_top_tips():
 	month_str = dt.strftime("%B")
 	month_num = "%02d" % dt.month # Sqlite uses 2 digit month (with leading 0)
 	amount = fn.MAX(User.top_tip.cast('integer')).alias('amount')
-	top_24h = User.select(amount, User.user_name).where(User.top_tip_ts > past_dt)
-	top_month = User.select(amount, User.user_name).where(fn.strftime("%m", User.top_tip_ts) == month_num)
-	top_at = User.select(amount, User.user_name)
+	top_24h = User.select(amount, User.user_name).where(User.top_tip_ts > past_dt).order_by(User.top_tip_ts).limit(1)
+	top_month = User.select(amount, User.user_name).where(fn.strftime("%m", User.top_tip_ts) == month_num).order_by(User.top_tip_ts).limit(1)
+	top_at = User.select(amount, User.user_name).order_by(User.top_tip_ts).limit(1)
 	# Formatted output
 	user24h = None
 	monthuser = None
