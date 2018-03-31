@@ -304,7 +304,8 @@ async def on_message(message):
 		await rain(message)
 	elif cmd == 'ticket' or cmd == 'entergiveaway':
 		await entergiveaway(message)
-		await remove_message(message)
+		if not message.channel.is_private:
+			await remove_message(message)
 	elif cmd == 'givearai' or cmd == 'sponsorgiveaway':
 		await givearai(message)
 	elif cmd == 'donate' or cmd == 'tipgiveaway':
