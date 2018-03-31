@@ -545,7 +545,7 @@ async def entergiveaway(message):
 		return
 	spam = db.ticket_spam_check(message.author.id,increment=False)
 	entered = db.add_contestant(message.author.id, banned=spam)
-	if entered or spam:
+	if entered:
 		if not spam:
 			await wallet.create_or_fetch_user(message.author.id, message.author.name)
 		await post_dm(message.author, ENTER_ADDED)
