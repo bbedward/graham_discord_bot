@@ -77,7 +77,7 @@ async def get_balance_by_id(user_id):
 	user = db.get_user_by_id(user_id)
 	return await get_balance(user, user_id)
 
-async def make_transaction_to_address(source_id, source_address, amount, withdraw_address, uid, target_id=None, giveaway_id=0, update_stats=False):
+async def make_transaction_to_address(source_id, source_address, amount, withdraw_address, uid, target_id=None, giveaway_id=0):
 	# Do not validate address for giveaway tx because we do not know it yet
 	if withdraw_address is not None:
 		# Check to see if the withdraw address is valid
@@ -93,8 +93,6 @@ async def make_transaction_to_address(source_id, source_address, amount, withdra
 			raise util.TipBotException('invalid_address')
 
 	amount = int(amount)
-	if update_stats:
-		db.update_tipped_amt(source_id, amount)
 	if amount >= 1:
 		# See if destination address belongs to a user
 		if target_id is None:
@@ -117,8 +115,6 @@ async def make_transaction_to_user(user_id, amount, target_user_id, target_user_
 	except util.TipBotException as e:
 		return 0
 
-	# Update tipper stats
-	db.update_tipped_amt(user_id, actual_tip_amount)
 	logger.info('tip queued. (from: %s, to: %s, amount: %d, uid: %s)',
 				user_id, target_user.user_id, actual_tip_amount, uid)
 	return actual_tip_amount
