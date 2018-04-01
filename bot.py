@@ -274,6 +274,8 @@ cmdlist=[COMMAND_PREFIX + c for c in commands]
 # Override on_message and do our spam check here
 @client.event
 async def on_message(message):
+	global paused
+
 	# disregard messages sent by our own bot
 	if message.author.id == client.user.id:
 		return
@@ -307,12 +309,12 @@ async def on_message(message):
 		await toptips(message)
 	elif cmd == 'tipstats':
 		await tipstats(message)
-	elif cmd == 'pause' and message.author.id in settings.admin_ids:
+	elif cmd == 'pause' and (message.author.id in settings.admin_ids):
 		paused = True
-	elif cmd == 'unpause' and message.author.id in settings.admin_ids:
+	elif cmd == 'unpause' and (message.author.id in settings.admin_ids):
 		paused = False
 	elif paused:
-		await post_response(message, PAUSE_MSG)
+		await post_dm(message.author, PAUSE_MSG)
 		return
 	elif cmd == 'withdraw':
 		await withdraw(message)
