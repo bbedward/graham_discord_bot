@@ -51,16 +51,15 @@ def get_top_users(count):
 	return return_data
 
 def get_tip_stats(user_id):
-	try:
-		user = get_user_by_id(user_id)
-		rank = User.select().where(User.tipped_amount > user.tipped_amount).count() + 1
-		if user.tip_count == 0:
-			average = 0
-		else:
-			average = user.tipped_amount / user.tip_count
-		return {'rank':rank, 'total':user.tipped_amount, 'average':average,'top':float(user.top_tip) / 1000000}
-	except User.DoesNotExist:
+	user = get_user_by_id(user_id)
+	if user is None:
 		return None
+	rank = User.select().where(User.tipped_amount > user.tipped_amount).count() + 1
+	if user.tip_count == 0:
+		average = 0
+	else:
+		average = user.tipped_amount / user.tip_count
+	return {'rank':rank, 'total':user.tipped_amount, 'average':average,'top':float(user.top_tip) / 1000000}
 
 def update_tip_total(user_id, new_total):
 	user = get_user_by_id(user_id)
@@ -78,15 +77,15 @@ def update_tip_count(user_id, new_count):
 	user.save()
 	return
 
-def update_top_tip(user_id, tip):
-	user = get_user_by_id(user_id)
-	if user is None:
-		return
-	if int(float(user.top_tip)) > int(tip):
-		return
-	user.top_tip=tip
-	user.top_tip_ts=datetime.datetime.now()
-	user.save()
+# Update tip stats
+def update_tip_stats(user, tip):
+	if user is not None:
+		user.tipped_amount += tip / 1000000
+		user.tip_count += 1
+		if tip > int(float(user.top_tip)):
+			user.top_tip = tip
+			user.top_tip_ts=datetime.datetime.now()
+		user.save()
 	return
 
 def update_pending(user_id, send=0, receive=0):
@@ -117,9 +116,9 @@ def create_user(user_id, user_name, wallet_address):
 	return user
 
 ### Transaction Stuff
-def create_transaction(uuid, source_addr, to_addr, amt, source_id, target_id=None, giveaway_id=0):
+def create_transaction(src_usr, uuid, to_addr, amt, target_id=None, giveaway_id=0):
 	tx = Transaction(uid=uuid,
-			 source_address=source_addr,
+			 source_address=src_usr.wallet_address,
 			 to_address=to_addr,
 			 amount=amt,
 			 processed=False,
@@ -129,7 +128,8 @@ def create_transaction(uuid, source_addr, to_addr, amt, source_id, target_id=Non
 			 giveawayid=giveaway_id
 			)
 	tx.save()
-	update_pending(source_id, send=amt)
+	src_usr.pending_send += amt
+	src_usr.save()
 	if target_id is not None:
 		update_pending(target_id, receive=amt)
 	return tx
@@ -334,15 +334,6 @@ def last_msg_check(user_id):
 def update_last_msg(user):
 	if user is not None:
 		user.last_msg=datetime.datetime.now()
-		user.save()
-	return
-
-# Update tip amount for stats (this value is saved as NANO not xrb)
-def update_tipped_amt(user_id, tipped_amt):
-	user = get_user_by_id(user_id)
-	if user is not None:
-		user.tipped_amount += tipped_amt / 1000000
-		user.tip_count += 1
 		user.save()
 	return
 

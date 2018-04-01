@@ -46,7 +46,8 @@ async def create_or_fetch_user(user_id, user_name):
 		return user
 
 
-async def get_balance(user, user_id):
+async def get_balance(user):
+	user_id = user.user_id
 	logger.info('getting balance for user %s', user_id)
 	if user is None:
 		logger.info('user %s does not exist.', user_id)
@@ -73,13 +74,9 @@ async def get_balance(user, user_id):
 			'pending':int(pending_balance) + user.pending_receive,
 			}
 
-async def get_balance_by_id(user_id):
-	user = db.get_user_by_id(user_id)
-	return await get_balance(user, user_id)
-
-async def make_transaction_to_address(source_id, source_address, amount, withdraw_address, uid, target_id=None, giveaway_id=0):
+async def make_transaction_to_address(source_user, amount, withdraw_address, uid, target_id=None, giveaway_id=0, verify_address=False):
 	# Do not validate address for giveaway tx because we do not know it yet
-	if withdraw_address is not None:
+	if verify_address:
 		# Check to see if the withdraw address is valid
 		wallet_command = {'action': 'validate_account_number',
 				  'account': withdraw_address}
@@ -100,21 +97,20 @@ async def make_transaction_to_address(source_id, source_address, amount, withdra
 			if user is not None:
 				target_id=user.user_id
 		# Update pending send for user
-		db.create_transaction(uid,source_address,withdraw_address,amount, source_id, target_id, giveaway_id)
+		db.create_transaction(source_user, uid, withdraw_address,amount, target_id, giveaway_id)
 		logger.info('TX queued, uid %s', uid)
 	else:
 		raise util.TipBotException('balance_error')
 
 	return amount
 
-async def make_transaction_to_user(user_id, amount, target_user_id, target_user_name, uid):
+async def make_transaction_to_user(user, amount, target_user_id, target_user_name, uid):
 	target_user = await create_or_fetch_user(target_user_id, target_user_name)
-	user = db.get_user_by_id(user_id)
 	try:
-		actual_tip_amount = await make_transaction_to_address(user_id, user.wallet_address, amount, target_user.wallet_address, uid, target_user_id)
+		actual_tip_amount = await make_transaction_to_address(user, amount, target_user.wallet_address, uid, target_user_id)
 	except util.TipBotException as e:
 		return 0
 
 	logger.info('tip queued. (from: %s, to: %s, amount: %d, uid: %s)',
-				user_id, target_user.user_id, actual_tip_amount, uid)
+				user.user_id, target_user.user_id, actual_tip_amount, uid)
 	return actual_tip_amount

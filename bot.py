@@ -19,7 +19,7 @@ import db
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "1.1"
+BOT_VERSION = "1.2"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -331,7 +331,10 @@ async def help(message):
 
 async def balance(message):
 	if message.channel.is_private:
-		balances = await wallet.get_balance_by_id(message.author.id)
+		user = db.get_user_by_id(message.author.id)
+		if user is None:
+			return
+		balances = await wallet.get_balance(user)
 		actual = balances['actual']
 		actualnano = actual / 1000000
 		available = balances['available']
@@ -361,15 +364,18 @@ async def withdraw(message):
 	if message.channel.is_private:
 		try:
 			withdraw_address = find_address(message.content)
-			source_id = message.author.id
-			source_address = db.get_address(source_id)
-			balance = await wallet.get_balance_by_id(source_id)
+			user = db.get_user_by_id(message.author.id)
+			if user is None:
+				return
+			source_id = user.user_id
+			source_address = user.wallet_address
+			balance = await wallet.get_balance(user)
 			amount = balance['available']
 			if amount == 0:
 				await post_response(message, WITHDRAW_NO_BALANCE_TEXT);
 			else:
 				uid = str(uuid.uuid4())
-				await wallet.make_transaction_to_address(source_id, source_address, amount, withdraw_address, uid)
+				await wallet.make_transaction_to_address(user, amount, withdraw_address, uid,verify_address = True)
 				await post_response(message, WITHDRAW_SUCCESS_TEXT)
 		except util.TipBotException as e:
 			if e.error_type == "address_not_found":
@@ -402,7 +408,8 @@ async def tip(message):
 		users_to_tip = list(set(users_to_tip))
 		# Make sure this user has enough in their balance to complete this tip
 		required_amt = amount * len(users_to_tip)
-		balance = await wallet.get_balance_by_id(message.author.id)
+		user = db.get_user_by_id(message.author.id)
+		balance = await wallet.get_balance(user)
 		user_balance = balance['available']
 		if user_balance < required_amt:
 			await add_x_reaction(message)
@@ -411,7 +418,7 @@ async def tip(message):
 		# Distribute tips
 		for member in users_to_tip:
 			uid = str(uuid.uuid4())
-			actual_amt = await wallet.make_transaction_to_user(message.author.id, amount, member.id, member.name, uid)
+			actual_amt = await wallet.make_transaction_to_user(user, amount, member.id, member.name, uid)
 			# Something went wrong, tip didn't go through
 			if actual_amt == 0:
 				required_amt -= amount
@@ -419,9 +426,8 @@ async def tip(message):
 				await post_dm(member, TIP_RECEIVED_TEXT, actual_amt, message.author.name)
 		# Post message reactions
 		await react_to_message(message, required_amt)
-		# Update top tip
-		db.update_top_tip(message.author.id, required_amt)
-		db.update_tipped_amt(message.author.id, required_amt)
+		# Update tip stats
+		db.update_tip_stats(user, required_amt)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(message.author, TIP_USAGE)
@@ -451,7 +457,10 @@ async def tipsplit(message):
 		# Remove duplicates
 		users_to_tip = list(set(users_to_tip))
 		# Make sure user has enough in their balance
-		balance = await wallet.get_balance_by_id(message.author.id)
+		user = db.get_user_by_id(message.author.id)
+		if user is None:
+			return
+		balance = await wallet.get_balance(user)
 		user_balance = balance['available']
 		if user_balance < amount:
 			await add_x_reaction(ctx.message)
@@ -463,15 +472,14 @@ async def tipsplit(message):
 		real_amount = tip_amount * len(users_to_tip)
 		for member in users_to_tip:
 			uid = str(uuid.uuid4())
-			actual_amt = await wallet.make_transaction_to_user(message.author.id, tip_amount, member.id, member.name, uid)
+			actual_amt = await wallet.make_transaction_to_user(user, tip_amount, member.id, member.name, uid)
 			# Tip didn't go through
 			if actual_amt == 0:
 				amount -= tip_amount
 			else:
 				await post_dm(member, TIP_RECEIVED_TEXT, tip_amount, message.author.name)
 		await react_to_message(message, amount)
-		db.update_top_tip(message.author.id, real_amount)
-		db.update_tipped_amt(message.author.id, real_amount)
+		db.update_tip_stats(user, real_amount)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(message.author, TIPSPLIT_USAGE)
@@ -504,7 +512,10 @@ async def rain(message):
 			raise util.TipBotException("no_valid_recipient")
 		if int(amount / len(users_to_tip)) < 1:
 			raise util.TipBotException("invalid_tipsplit")
-		balance = await wallet.get_balance_by_id(message.author.id)
+		user = db.get_user_by_id(message.author.id)
+		if user is None:
+			return
+		balance = await wallet.get_balance(user)
 		user_balance = balance['available']
 		if user_balance < amount:
 			await add_x_reaction(message)
@@ -516,7 +527,7 @@ async def rain(message):
 		real_amount = tip_amount * len(users_to_tip)
 		for member in users_to_tip:
 			uid = str(uuid.uuid4())
-			actual_amt = await wallet.make_transaction_to_user(message.author.id, tip_amount, member.id, member.name, uid)
+			actual_amt = await wallet.make_transaction_to_user(user, tip_amount, member.id, member.name, uid)
 			# Tip didn't go through for some reason
 			if actual_amt == 0:
 				amount -= tip_amount
@@ -526,8 +537,7 @@ async def rain(message):
 		# Message React
 		await react_to_message(message, amount)
 		await client.add_reaction(message, '\U0001F4A6') # Sweat Drops
-		db.update_top_tip(message.author.id, real_amount)
-		db.update_tipped_amt(message.author.id, real_amount)
+		db.update_tip_stats(user, real_amount)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(message.author, RAIN_USAGE)
@@ -563,7 +573,10 @@ async def givearai(message):
 		amount = find_amount(message.content)
 		if amount < GIVEAWAY_MINIMUM:
 			raise util.TipBotException("usage_error")
-		balance = await wallet.get_balance_by_id(message.author.id)
+		user = db.get_user_by_id(message.author.id)
+		if user is None:
+			return
+		balance = await wallet.get_balance(user)
 		user_balance = balance['available']
 		if user_balance < amount:
 			await add_x_reaction(message)
@@ -575,15 +588,12 @@ async def givearai(message):
 			duration = GIVEAWAY_DURATION
 		end_time = datetime.datetime.now() + datetime.timedelta(minutes=duration)
 		nano_amt = amount / 1000000
-		source_id = message.author.id
-		source_address = db.get_address(source_id)
 		giveaway = db.start_giveaway(message.author.id, message.author.name, nano_amt, end_time, message.channel.id)
 		uid = str(uuid.uuid4())
-		await wallet.make_transaction_to_address(source_id, source_address, amount, None, uid, giveaway_id=giveaway.id)
+		await wallet.make_transaction_to_address(user, amount, None, uid, giveaway_id=giveaway.id)
 		await post_response(message, GIVEAWAY_STARTED, message.author.name, nano_amt)
 		asyncio.get_event_loop().create_task(start_giveaway_timer())
-		db.update_top_tip(message.author.id, amount)
-		db.update_tipped_amt(message.author.id, amount)
+		db.update_tip_stats(user, amount)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(message.author, GIVEAWAY_USAGE)
@@ -594,7 +604,10 @@ async def tipgiveaway(message):
 	try:
 		giveaway = db.get_giveaway()
 		amount = find_amount(message.content)
-		balance = await wallet.get_balance_by_id(message.author.id)
+		user = db.get_user_by_id(message.author.id)
+		if user is None:
+			return
+		balance = await wallet.get_balance(user)
 		user_balance = balance['available']
 		if user_balance < amount:
 			await add_x_reaction(message)
@@ -606,10 +619,8 @@ async def tipgiveaway(message):
 			giveawayid = giveaway.id
 		else:
 			giveawayid = -1
-		source_id = message.author.id
-		source_address = db.get_address(source_id)
 		uid = str(uuid.uuid4())
-		await wallet.make_transaction_to_address(source_id, source_address, amount, None, uid, giveaway_id=giveawayid)
+		await wallet.make_transaction_to_address(user, amount, None, uid, giveaway_id=giveawayid)
 		await react_to_message(message, amount)
 		# Add user to next giveaway if sum is >= amount
 		existing_contributions = db.get_tipgiveaway_contributions(message.author.id)
@@ -630,8 +641,7 @@ async def tipgiveaway(message):
 				await post_response(message, GIVEAWAY_STARTED, client.user.name, nano_amt)
 				asyncio.get_event_loop().create_task(start_giveaway_timer())
 		# Update top tip
-		db.update_top_tip(message.author.id, amount)
-		db.update_tipped_amt(message.author.id, amount)
+		db.update_tip_stats(user, amount)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(message.author, TIPGIVEAWAY_USAGE)
