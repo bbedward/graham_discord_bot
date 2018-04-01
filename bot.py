@@ -153,7 +153,11 @@ TIPGIVEAWAY_USAGE="Usage:\n```" + TIPGIVEAWAY_INFO + "```"
 TIPGIVEAWAY_ENTERED="No need to pull a ticket to the giveaway, I've submitted your entry for you"
 TIPGIVEAWAY_ENTERED_FUTURE="Since you are such a generous donor, I'll automatically enter you into the next giveaway when it begins!"
 TOPTIP_SPAM="No more top tips for %d seconds"
+PAUSE_MSG="All transaction activity is currently suspended. Check back later."
 ### END Response Templates ###
+
+# Paused flag, indicates whether or not bot is paused
+paused = False
 
 # Thread to process send transactions
 # Queue is used to communicate back to main thread
@@ -264,7 +268,7 @@ async def check_for_withdraw():
 		logger.exception(ex)
 
 # Command List
-commands=['help', 'man', 'deposit', 'register', 'withdraw', 'balance',  'tip', 'tipsplit', 'rain', 'givearai', 'sponsorgiveaway', 'tipgiveaway', 'leaderboard', 'toptips' ,'entergiveaway', 'ticket', 'donate', 'giveawaystats', 'goldenticket', 'tipstats']
+commands=['help', 'man', 'deposit', 'register', 'withdraw', 'balance',  'tip', 'tipsplit', 'rain', 'givearai', 'sponsorgiveaway', 'tipgiveaway', 'leaderboard', 'toptips' ,'entergiveaway', 'ticket', 'donate', 'giveawaystats', 'goldenticket', 'tipstats', 'pause', 'unpause']
 cmdlist=[COMMAND_PREFIX + c for c in commands]
 
 # Override on_message and do our spam check here
@@ -295,6 +299,21 @@ async def on_message(message):
 		await balance(message)
 	elif cmd == 'deposit' or cmd == 'register':
 		await deposit(message)
+	elif cmd == 'giveawaystats' or cmd == 'goldenticket':
+		await giveawaystats(message)
+	elif cmd == 'leaderboard':
+		await leaderboard(message)
+	elif cmd == 'toptips':
+		await toptips(message)
+	elif cmd == 'tipstats':
+		await tipstats(message)
+	elif cmd == 'pause' and message.author.id in settings.admin_ids:
+		paused = True
+	elif cmd == 'unpause' and message.author.id in settings.admin_ids:
+		paused = False
+	elif paused:
+		await post_response(message, PAUSE_MSG)
+		return
 	elif cmd == 'withdraw':
 		await withdraw(message)
 	elif cmd == 'tip':
@@ -311,14 +330,6 @@ async def on_message(message):
 		await givearai(message)
 	elif cmd == 'donate' or cmd == 'tipgiveaway':
 		await tipgiveaway(message)
-	elif cmd == 'giveawaystats' or cmd == 'goldenticket':
-		await giveawaystats(message)
-	elif cmd == 'leaderboard':
-		await leaderboard(message)
-	elif cmd == 'toptips':
-		await toptips(message)
-	elif cmd == 'tipstats':
-		await tipstats(message)
 
 ### Commands
 async def help(message):
