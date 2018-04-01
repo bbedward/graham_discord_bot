@@ -19,7 +19,7 @@ import db
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "1.2"
+BOT_VERSION = "1.3"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -50,7 +50,7 @@ last_top_tips=datetime.datetime.now()
 ### Response Templates ###
 COMMAND_NOT_FOUND="I don't understand what you're saying, try %shelp" % COMMAND_PREFIX
 HELP_INFO="%shelp or %sman:\n Display this message" % (COMMAND_PREFIX, COMMAND_PREFIX)
-BALANCE_INFO=("%sbalance:\n Displays the balance of your tip account (in nanorai) as described:" +
+BALANCE_INFO=("%sbalance:\n Displays the balance of your tip account (in naneroo) as described:" +
 		"\n - Actual Balance: The actual balance in your tip account" +
 		"\n - Available Balance: The balance you are able to tip with (Actual - Pending Send)" +
 		"\n - Pending Send: Tips you have sent, but have not yet been processed by the node" +
@@ -60,8 +60,8 @@ DEPOSIT_INFO=("%sdeposit or %sregister:\n Displays your tip bot account address 
 		"\n Send NANO to this address to increase your tip bot balance" +
 		"\n If you do not have a tip bot account yet, this command will create one for you") % (COMMAND_PREFIX, COMMAND_PREFIX)
 WITHDRAW_INFO="%swithdraw <address>:\n Withdraws your entire tip account balance to the specified address" % COMMAND_PREFIX
-TIP_INFO=("%stip <amount> <*users>:\n Tip specified amount to mentioned user(s) (minimum tip is 1 nanorai)" +
-		"\n Tip units are in 1/1000000th of NANO. 1 nanorai = 0.000001 NANO" +
+TIP_INFO=("%stip <amount> <*users>:\n Tip specified amount to mentioned user(s) (minimum tip is 1 naneroo)" +
+		"\n Tip units are in 1/1000000th of NANO. 1 naneroo = 0.000001 NANO" +
 		"\n The recipient(s) will be notified of your tip via private message" +
 		"\n Successful tips will be deducted from your available balance immediately") % COMMAND_PREFIX
 TIPSPLIT_INFO="%stipsplit <amount> <*users>:\n Distribute <amount> evenly to all mentioned users" % COMMAND_PREFIX
@@ -69,12 +69,12 @@ RAIN_INFO=("%srain <amount>:\n Distribute <amount> evenly to all users who meet 
 		"\n - Have a tip account (have received a tip before, or have used %sregister)" +
 		"\n - Are currently online" +
 		"\n - Have posted a message on the server within the last %d minutes" +
-		"\n Minimum rain amount: %d nanorai") % (COMMAND_PREFIX, COMMAND_PREFIX, RAIN_DELTA, RAIN_MINIMUM)
+		"\n Minimum rain amount: %d naneroo") % (COMMAND_PREFIX, COMMAND_PREFIX, RAIN_DELTA, RAIN_MINIMUM)
 START_GIVEAWAY_INFO=("%sgivearai or %ssponsorgiveaway <amount>:\n Start a giveaway with given amount." +
-		"\n Minimum amount to start giveaway: %d nanorai" +
-		"\n Giveaway will end and choose random winner after %d minutes (Giveaways over 500k nanorai will last for 60 minutes)") % (COMMAND_PREFIX, COMMAND_PREFIX, GIVEAWAY_MINIMUM, GIVEAWAY_DURATION)
+		"\n Minimum amount to start giveaway: %d naneroo" +
+		"\n Giveaway will end and choose random winner after %d minutes (Giveaways over 500k naneroo will last for 60 minutes)") % (COMMAND_PREFIX, COMMAND_PREFIX, GIVEAWAY_MINIMUM, GIVEAWAY_DURATION)
 ENTER_INFO="%sticket or %sentergiveaway:\n Enter the current giveaway, if there is one" % (COMMAND_PREFIX, COMMAND_PREFIX)
-TIPGIVEAWAY_INFO="%stipgiveaway or %sdonate <amount>\n Add <amount> to the current giveaway pool\n If there is no giveaway, one will be started when minimum is reached.\n Tips >= %d nanorai automatically enter you for the next giveaway" % (COMMAND_PREFIX, COMMAND_PREFIX, settings.giveaway_auto_amt)
+TIPGIVEAWAY_INFO="%stipgiveaway or %sdonate <amount>\n Add <amount> to the current giveaway pool\n If there is no giveaway, one will be started when minimum is reached.\n Tips >= %d naneroo automatically enter you for the next giveaway" % (COMMAND_PREFIX, COMMAND_PREFIX, settings.giveaway_auto_amt)
 GIVEAWAY_STATS_INFO="%sgiveawaystats or %sgoldenticket:\n Display statistics relevant to the current giveaway" % (COMMAND_PREFIX, COMMAND_PREFIX)
 LEADERBOARD_INFO="%sleaderboard:\n Display the all-time tip leaderboard" % COMMAND_PREFIX
 TOPTIPS_INFO="%stoptips:\n Display the single largest tips for the past 24 hours, current month, and all time" % COMMAND_PREFIX
@@ -111,16 +111,16 @@ HELP_TEXT_4=("Stats Commands:\n" +
 		GIVEAWAY_STATS_INFO +
                 "\n\n\nsend node```" +
                 "Source code: https://github.com/bbedward/NANO-Tip-Bot")
-BALANCE_TEXT=(	"```Actual Balance   : %s nanorai (%.6f NANO)\n" +
-		"Available Balance: %s nanorai (%.6f NANO)\n" +
-		"Pending Send     : %s nanorai (%.6f NANO)\n" +
-		"Pending Receipt  : %s nanorai (%.6f NANO)```")
+BALANCE_TEXT=(	"```Actual Balance   : %s naneroo (%.6f NANO)\n" +
+		"Available Balance: %s naneroo (%.6f NANO)\n" +
+		"Pending Send     : %s naneroo (%.6f NANO)\n" +
+		"Pending Receipt  : %s naneroo (%.6f NANO)```")
 DEPOSIT_TEXT="Your wallet address is:"
 DEPOSIT_TEXT_2="%s"
 DEPOSIT_TEXT_3="QR: %s"
 INSUFFICIENT_FUNDS_TEXT="You don't have enough nano in your available balance!"
 TIP_ERROR_TEXT="Something went wrong with the tip. I wrote to logs."
-TIP_RECEIVED_TEXT="You were tipped %d nanorai by %s"
+TIP_RECEIVED_TEXT="You were tipped %d naneroo by %s"
 TIP_USAGE="Usage:\n```" + TIP_INFO + "```"
 TIP_SELF="No valid recipients found in your tip.\n(You cannot tip yourself and certain other users are exempt from receiving tips)"
 WITHDRAW_SUCCESS_TEXT="Withdraw has been queued for processing, I'll send you a link to the transaction after I've broadcasted it to the network!"
@@ -145,7 +145,7 @@ GIVEAWAY_USAGE="Usage:\n```" + START_GIVEAWAY_INFO + "```"
 GIVEAWAY_STARTED="%s has sponsored a giveaway of %.6f NANO! Use `" + COMMAND_PREFIX + "ticket` to enter and `" + COMMAND_PREFIX + "donate` to increase the pot!"
 GIVEAWAY_ENDED="Congratulations! <@%s> was the winner of the giveaway! They have been sent %.6f NANO!"
 GIVEAWAY_STATS="There are %d entries to win %.6f NANO ending in %s - sponsored by %s.\nUse `" + COMMAND_PREFIX + "ticket` to enter and `" + COMMAND_PREFIX + "donate` to add to the pot"
-GIVEAWAY_STATS_INACTIVE="There are no active giveaways\n%d nanorai required to to automatically start one! Donate to the pot using `" + COMMAND_PREFIX + "donate`. You can also sponsor one using `" + COMMAND_PREFIX + "givearai`"
+GIVEAWAY_STATS_INACTIVE="There are no active giveaways\n%d naneroo required to to automatically start one! Donate to the pot using `" + COMMAND_PREFIX + "donate`. You can also sponsor one using `" + COMMAND_PREFIX + "givearai`"
 ENTER_ADDED="You've been successfully entered into the giveaway"
 ENTER_DUP="You've already entered the giveaway"
 TIPGIVEAWAY_NO_ACTIVE="There are no active giveaways. Check giveaway status using `%sgiveawaystats`, or reserve your spot to the next one by `%stipgiveaway %d`" % (COMMAND_PREFIX, COMMAND_PREFIX, settings.giveaway_auto_amt)

@@ -339,7 +339,7 @@ def update_last_msg(user):
 class User(Model):
 	user_id = CharField()
 	user_name = CharField()
-	wallet_address = CharField()
+	wallet_address = CharField(unique=True)
 	tipped_amount = FloatField()
 	wallet_balance = FloatField()
 	pending_receive = IntegerField()
