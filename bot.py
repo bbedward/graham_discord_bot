@@ -177,16 +177,6 @@ class SendProcessor(Thread):
 				uid = tx['uid']
 				attempts = tx['attempts']
 				raw_withdraw_amt = str(amount) + '000000000000000000000000'
-				src_usr = db.get_user_by_wallet_address(source_address)
-				trg_usr = db.get_user_by_wallet_address(to_address)
-				if src_usr is not None:
-					source_id = src_usr.user_id
-				else:
-					source_id = None
-				if trg_usr is not None:
-					target_id = trg_usr.user_id
-				else:
-					target_id = None
 				wallet_command = {
 					'action': 'send',
 					'wallet': settings.wallet,
@@ -202,6 +192,16 @@ class SendProcessor(Thread):
 					logger.exception(e)
 					continue
 				logger.debug("RPC Response")
+				src_usr = db.get_user_by_wallet_address(source_address)
+				trg_usr = db.get_user_by_wallet_address(to_address)
+				if src_usr is not None:
+					source_id = src_usr.user_id
+				else:
+ 					source_id = None
+				if trg_usr is not None:
+					target_id = trg_usr.user_id
+				else:
+					target_id = None
 				if 'block' in wallet_output:
 					txid = wallet_output['block']
 					pending_delta = int(amount) * -1 # To update users pending balances
