@@ -79,6 +79,7 @@ def update_tip_count(user_id, new_count):
 
 # Update tip stats
 def update_tip_stats(user, tip):
+	user = get_user_by_id(user.user_id)
 	if user is not None:
 		user.tipped_amount += tip / 1000000
 		user.tip_count += 1
