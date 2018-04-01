@@ -519,7 +519,7 @@ async def rain(message):
 		user_balance = balance['available']
 		if user_balance < amount:
 			await add_x_reaction(message)
-			await post_dm(ctx.message.author, INSUFFICIENT_FUNDS_TEXT)
+			await post_dm(message.author, INSUFFICIENT_FUNDS_TEXT)
 			return
 		# Distribute Tips
 		tip_amount = int(amount / len(users_to_tip))

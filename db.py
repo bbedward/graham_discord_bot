@@ -90,12 +90,10 @@ def update_tip_stats(user, tip):
 
 def update_pending(user_id, send=0, receive=0):
 	user = get_user_by_id(user_id)
-	if user is None:
-		return False
-	user.pending_send += send
-	user.pending_receive += receive
-	user.save()
-	return True
+	if user is not None:
+		user.pending_send += send
+		user.pending_receive += receive
+		user.save()
 
 def create_user(user_id, user_name, wallet_address):
 	user = User(user_id=user_id,
@@ -128,8 +126,7 @@ def create_transaction(src_usr, uuid, to_addr, amt, target_id=None, giveaway_id=
 			 giveawayid=giveaway_id
 			)
 	tx.save()
-	src_usr.pending_send += amt
-	src_usr.save()
+	update_pending(src_usr.user_id, send=amt)
 	if target_id is not None:
 		update_pending(target_id, receive=amt)
 	return tx
