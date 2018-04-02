@@ -580,9 +580,6 @@ async def entergiveaway(message):
 		db.ticket_spam_check(message.author.id)
 		await post_dm(message.author, TIPGIVEAWAY_NO_ACTIVE)
 		return
-	if message.author.id not in db.get_active_users(30):
-		await post_dm(message.author, ENTER_DUP)
-		return
 	spam = db.ticket_spam_check(message.author.id,increment=False)
 	entered = db.add_contestant(message.author.id, banned=spam)
 	if entered:
