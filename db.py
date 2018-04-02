@@ -29,10 +29,11 @@ def get_user_by_wallet_address(address):
 
 def get_active_users(since_minutes):
 	since_ts = datetime.datetime.now() - datetime.timedelta(minutes=since_minutes)
-	users = User.select(User.user_id).where(User.last_msg > since_ts)
+	users = User.select().where(User.last_msg > since_ts)
 	return_ids = []
 	for user in users:
-		return_ids.append(user.user_id)
+		if user.last_msg_count >= 5:
+			return_ids.append(user.user_id)
 	return return_ids
 
 def get_address(user_id):
@@ -107,6 +108,7 @@ def create_user(user_id, user_name, wallet_address):
 		    tip_count=0,
 		    created=datetime.datetime.now(),
 		    last_msg=datetime.datetime.now(),
+		    last_msg_count=0,
 		    top_tip='0',
 		    top_tip_ts=datetime.datetime.now(),
 		    ticket_count=0
@@ -335,7 +337,7 @@ def mark_transaction_processed(uuid, tranid, amt, source_id, target_id=None):
 # Return false if last message was < LAST_MSG_TIME
 # If > LAST_MSG_TIME, return True and update the user
 # Also return true, if user does not have a tip bot acct yet
-def last_msg_check(user_id):
+def last_msg_check(user_id, content, is_private):
 	user = get_user_by_id(user_id)
 	if user is None:
 		return True
@@ -344,18 +346,22 @@ def last_msg_check(user_id):
 	if since_last_msg_s < LAST_MSG_TIME:
 		return False
 	else:
-		update_last_msg(user)
+		update_last_msg(user, since_last_msg_s, content, is_private)
 	return True
 
-def update_last_msg(user):
-	if user is not None:
-		user.last_msg=datetime.datetime.now()
-		user.save()
+def update_last_msg(user, delta, content, is_private):
+	words = len(content.split(' '))
+	if delta >= 1800:
+		user.last_msg_count = 0
+	if words > 2 and not is_private:
+		user.last_msg_count += 1
+	user.last_msg=datetime.datetime.now()
+	user.save()
 	return
 
 # User table
 class User(Model):
-	user_id = CharField()
+	user_id = CharField(unique=True)
 	user_name = CharField()
 	wallet_address = CharField(unique=True)
 	tipped_amount = FloatField()
@@ -365,6 +371,7 @@ class User(Model):
 	tip_count = BigIntegerField()
 	created = DateTimeField()
 	last_msg = DateTimeField()
+	last_msg_count = IntegerField()
 	top_tip = CharField()
 	top_tip_ts = DateTimeField()
 	ticket_count = IntegerField()

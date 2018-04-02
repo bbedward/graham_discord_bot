@@ -19,7 +19,7 @@ import db
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "1.3"
+BOT_VERSION = "1.4"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -284,7 +284,7 @@ async def on_message(message):
 	if message.author.id == client.user.id:
 		return
 
-	if db.last_msg_check(message.author.id) == False:
+	if db.last_msg_check(message.author.id, message.content, message.channel.is_private) == False:
 		return
 
 	# Make sure cmd is supported
@@ -579,6 +579,9 @@ async def entergiveaway(message):
 	if not db.is_active_giveaway():
 		db.ticket_spam_check(message.author.id)
 		await post_dm(message.author, TIPGIVEAWAY_NO_ACTIVE)
+		return
+	if message.author.id not in db.get_active_users(30):
+		await post_dm(message.author, ENTER_DUP)
 		return
 	spam = db.ticket_spam_check(message.author.id,increment=False)
 	entered = db.add_contestant(message.author.id, banned=spam)
