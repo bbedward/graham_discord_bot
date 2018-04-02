@@ -207,6 +207,22 @@ def get_tipgiveaway_contributions(user_id):
 		tip_sum += int(tx.amount)
 	return tip_sum
 
+def is_banned(user_id):
+	banned = BannedUser.select().where(BannedUser.user_id == user_id).count()
+	return banned > 0
+
+def ban_user(user_id):
+	already_banned = is_banned(user_id)
+	if already_banned > 0:
+		return False
+	ban = BannedUser(user_id=user_id)
+	ban.save()
+	return True
+
+def unban_user(user_id):
+	deleted = BannedUser.delete().where(BannedUser.user_id == user_id).execute()
+	return deleted > 0
+
 # Returns winning user
 def finish_giveaway():
 	picker_query = Contestant.select().where(Contestant.banned == False).order_by(fn.Random())
@@ -237,11 +253,13 @@ def is_active_giveaway():
 		return True
 	return False
 
-# Return true if shadow banned
+# Return true if shadow banned, or banned in general
 def ticket_spam_check(user_id, increment=True):
 	user = get_user_by_id(user_id)
 	if user is None:
 		return False
+	if is_banned(user_id):
+		return True
 	if increment:
 		user.ticket_count += 1
 		user.save()
@@ -391,9 +409,16 @@ class Contestant(Model):
 	class Meta:
 		database = db
 
+# Banned List
+class BannedUser(Model):
+	user_id = CharField()
+
+	class Meta:
+		database = db
+
 def create_db():
 	db.connect()
-	db.create_tables([User, Transaction, Giveaway, Contestant], safe=True)
+	db.create_tables([User, Transaction, Giveaway, Contestant, BannedUser], safe=True)
 	logger.debug("DB Connected")
 
 create_db()

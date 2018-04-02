@@ -154,6 +154,10 @@ TIPGIVEAWAY_ENTERED="No need to pull a ticket to the giveaway, I've submitted yo
 TIPGIVEAWAY_ENTERED_FUTURE="Since you are such a generous donor, I'll automatically enter you into the next giveaway when it begins!"
 TOPTIP_SPAM="No more top tips for %d seconds"
 PAUSE_MSG="All transaction activity is currently suspended. Check back later."
+BAN_SUCCESS="User %s can no longer receive tips"
+BAN_DUP="User %s is already banned"
+UNBAN_SUCCESS="User %s has been unbanned"
+UNBAN_DUP="User %s is not banned"
 ### END Response Templates ###
 
 # Paused flag, indicates whether or not bot is paused
@@ -268,7 +272,7 @@ async def check_for_withdraw():
 		logger.exception(ex)
 
 # Command List
-commands=['help', 'man', 'deposit', 'register', 'withdraw', 'balance',  'tip', 'tipsplit', 'rain', 'givearai', 'sponsorgiveaway', 'tipgiveaway', 'leaderboard', 'toptips' ,'entergiveaway', 'ticket', 'donate', 'giveawaystats', 'goldenticket', 'tipstats', 'pause', 'unpause']
+commands=['help', 'man', 'deposit', 'register', 'withdraw', 'balance',  'tip', 'tipsplit', 'rain', 'givearai', 'sponsorgiveaway', 'tipgiveaway', 'leaderboard', 'toptips' ,'entergiveaway', 'ticket', 'donate', 'giveawaystats', 'goldenticket', 'tipstats', 'pause', 'unpause', 'tipban', 'tipunban']
 cmdlist=[COMMAND_PREFIX + c for c in commands]
 
 # Override on_message and do our spam check here
@@ -309,6 +313,10 @@ async def on_message(message):
 		await toptips(message)
 	elif cmd == 'tipstats':
 		await tipstats(message)
+	elif cmd == 'tipban' and (message.author.id in settings.admin_ids):
+		await tipban(message)
+	elif cmd == 'tipunban' and (message.author.id in settings.admin_ids):
+		await tipunban(message)
 	elif cmd == 'pause' and (message.author.id in settings.admin_ids):
 		paused = True
 	elif cmd == 'unpause' and (message.author.id in settings.admin_ids):
@@ -413,7 +421,7 @@ async def tip(message):
 		users_to_tip = []
 		for member in message.mentions:
 			# Disregard mentions of exempt users and self
-			if member.id not in settings.exempt_users and member.id != message.author.id:
+			if member.id not in settings.exempt_users and member.id != message.author.id and not db.is_banned(member.id) and not member.bot:
 				users_to_tip.append(member)
 		if len(users_to_tip) < 1:
 			raise util.TipBotException("no_valid_recipient")
@@ -463,7 +471,7 @@ async def tipsplit(message):
 		users_to_tip = []
 		for member in message.mentions:
 			# Disregard mentions of self and exempt users
-			if member.id not in settings.exempt_users and member.id != message.author.id:
+			if member.id not in settings.exempt_users and member.id != message.author.id and not db.is_banned(member.id) and not member.bot:
 				users_to_tip.append(member)
 		if len(users_to_tip) < 1:
 			raise util.TipBotException("no_valid_recipient")
@@ -518,7 +526,7 @@ async def rain(message):
 		for auid in active_user_ids:
 			dmember = message.server.get_member(auid)
 			if dmember is not None and (dmember.status == discord.Status.online or dmember.status == discord.Status.idle):
-				if dmember.id not in settings.exempt_users and dmember.id != message.author.id:
+				if dmember.id not in settings.exempt_users and dmember.id != message.author.id and not db.is_banned(dmember.id) and not dmember.bot:
 					users_to_tip.append(dmember)
 		users_to_tip = list(set(users_to_tip))
 		if len(users_to_tip) < 1:
@@ -746,6 +754,20 @@ async def tipstats(message):
 		await post_response(message, STATS_ACCT_NOT_FOUND_TEXT)
 		return
 	await post_response(message, STATS_TEXT, tip_stats['rank'], tip_stats['total'], tip_stats['average'],tip_stats['top'])
+
+async def tipban(message):
+	for member in message.mentions:
+		if db.ban_user(member.id):
+			await post_dm(message.author, BAN_SUCCESS, member.name)
+		else:
+			await post_dm(message.author, BAN_DUP, member.name)
+
+async def tipunban(message):
+	for member in message.mentions:
+		if db.unban_user(member.id):
+			await post_dm(message.author, UNBAN_SUCCESS, member.name)
+		else:
+			await post_dm(message.author, UNBAN_DUP, member.name)
 
 """
 @client.command(pass_context=True)
