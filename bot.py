@@ -313,13 +313,13 @@ async def on_message(message):
 		await toptips(message)
 	elif cmd == 'tipstats':
 		await tipstats(message)
-	elif cmd == 'tipban' and (message.author.id in settings.admin_ids):
+	elif cmd == 'tipban' and has_admin_role(message.author.roles):
 		await tipban(message)
-	elif cmd == 'tipunban' and (message.author.id in settings.admin_ids):
+	elif cmd == 'tipunban' and has_admin_role(message.author.roles):
 		await tipunban(message)
-	elif cmd == 'pause' and (message.author.id in settings.admin_ids):
+	elif cmd == 'pause' and has_admin_role(message.author.roles):
 		paused = True
-	elif cmd == 'unpause' and (message.author.id in settings.admin_ids):
+	elif cmd == 'unpause' and has_admin_role(message.author.roles):
 		paused = False
 	elif paused:
 		await post_dm(message.author, PAUSE_MSG)
@@ -340,6 +340,12 @@ async def on_message(message):
 		await givearai(message)
 	elif cmd == 'donate' or cmd == 'tipgiveaway':
 		await tipgiveaway(message)
+
+def has_admin_role(roles):
+	for r in roles:
+		if r.name in settings.admin_roles:
+			return True
+	return False
 
 ### Commands
 async def help(message):

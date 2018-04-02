@@ -20,5 +20,3 @@ giveaway_auto_amt=50000
 command_prefix='!'
 # Status
 playing_status='send me ' + command_prefix + 'help in private'
-# CHANGEME - This list of discord user IDs are able to access certain admin commands on the bot
-admin_ids = ['303599885800964097','232658001603985410']
