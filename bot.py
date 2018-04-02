@@ -343,7 +343,7 @@ async def on_message(message):
 
 def has_admin_role(roles):
 	for r in roles:
-		if r.name in settings.admin_roles:
+		if r.id in settings.admin_roles:
 			return True
 	return False
 

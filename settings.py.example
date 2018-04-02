@@ -6,7 +6,7 @@ wallet = '';
 # Exempt users list (these user IDs will not be able to receive tips
 exempt_users = [ discord_bot_id, '395828286548344834', '405250059240996864', '418425979942207499' ]
 # Restricted roles for certain commands
-admin_roles = ['Moderators', 'Core', 'Community Managers']
+admin_roles = ['403632523441209357' , '403632643897425921'] # These are IDs of moderator role and community manager role on nano discord by default
 # Minimum amount required for !rain
 rain_minimum = 10000
 # Minimum amount required to start a giveaway
