@@ -14,8 +14,6 @@ giveaway_minimum = 1000000
 # Giveaway Duration (default giveaway duration, max=60 minutes)
 # Giveaways above 500k go to 60 minutes regardless
 giveaway_duration=30
-# Auto Enter next giveaway by tipgiveaway this amount
-giveaway_auto_amt=50000
 # command prefix
 command_prefix='!'
 # Status

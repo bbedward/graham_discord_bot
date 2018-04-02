@@ -154,7 +154,7 @@ def process_giveaway_transactions(giveaway_id, winner_user_id):
 	update_pending(winner_user_id, receive=pending_receive)
 
 # Start Giveaway
-def start_giveaway(user_id, user_name, amount, end_time, channel):
+def start_giveaway(user_id, user_name, amount, end_time, channel, entry_fee = 0):
 	giveaway = Giveaway(started_by=user_id,
 			    started_by_name=user_name,
 			    active=True,
@@ -162,9 +162,17 @@ def start_giveaway(user_id, user_name, amount, end_time, channel):
 			    tip_amount = 0,
 			    end_time=end_time,
 			    channel_id = channel,
-			    winner_id = None
+			    winner_id = None,
+			    entry_fee = entry_fee
 			   )
 	giveaway.save()
+	# Delete contestants not meeting fee criteria
+	if entry_fee > 0:
+		entries = Contestant.select()
+		for c in entries:
+			donated = get_tipgiveaway_contributions(c.user_id)
+			if entry_fee > donated:
+				c.delete_instance()
 	tip_amt = update_giveaway_transactions(giveaway.id)
 	giveaway.tip_amount = tip_amt
 	giveaway.save()
@@ -201,10 +209,10 @@ def get_tipgiveaway_sum():
 	return tip_sum
 
 # Get tipgiveaway contributions
-def get_tipgiveaway_contributions(user_id):
+def get_tipgiveaway_contributions(user_id, giveawayid=-1):
 	tip_sum = 0
 	user = get_user_by_id(user_id)
-	txs = Transaction.select().where((Transaction.giveawayid == -1) & (Transaction.source_address == user.wallet_address))
+	txs = Transaction.select().where((Transaction.giveawayid == giveawayid) & (Transaction.source_address == user.wallet_address))
 	for tx in txs:
 		tip_sum += int(tx.amount)
 	return tip_sum
@@ -241,13 +249,21 @@ def finish_giveaway():
 	return giveaway
 
 # Returns True is contestant added, False if contestant already exists
-def add_contestant(user_id, banned=False):
-	exists = Contestant.select().where(Contestant.user_id == user_id).count()
-	if exists > 0:
+def add_contestant(user_id, banned=False, override_ban=False):
+	try:
+		c = Contestant.get(Contestant.user_id == user_id)
+		if c.banned and override_ban:
+			c.banned=False
+			c.save()
 		return False
-	contestant = Contestant(user_id=user_id,banned=banned)
-	contestant.save()
-	return True
+	except Contestant.DoesNotExist:
+		contestant = Contestant(user_id=user_id,banned=banned)
+		contestant.save()
+		return True
+
+def contestant_exists(user_id):
+	c = Contestant.select().where(Contestant.user_id == user_id).count()
+	return c > 0
 
 def is_active_giveaway():
 	giveaway = Giveaway.select().where(Giveaway.active==True).count()
@@ -272,7 +288,7 @@ def get_giveaway_stats():
 	try:
 		giveaway = Giveaway.get(active=True)
 		entries = Contestant.select().count()
-		return {"amount":giveaway.amount + giveaway.tip_amount, "started_by":giveaway.started_by_name, "entries":entries, "end":giveaway.end_time}
+		return {"amount":giveaway.amount + giveaway.tip_amount, "started_by":giveaway.started_by_name, "entries":entries, "end":giveaway.end_time,"fee":giveaway.entry_fee}
 	except Giveaway.DoesNotExist:
 		return None
 
@@ -404,6 +420,7 @@ class Giveaway(Model):
 	end_time = DateTimeField()
 	channel_id = CharField() # The channel to post the results
 	winner_id = CharField(null = True)
+	entry_fee = IntegerField()
 
 	class Meta:
 		database = db
