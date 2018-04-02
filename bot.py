@@ -145,7 +145,7 @@ GIVEAWAY_EXISTS="There's already an active giveaway"
 GIVEAWAY_USAGE="Usage:\n```" + START_GIVEAWAY_INFO + "```"
 GIVEAWAY_STARTED="%s has sponsored a giveaway of %.6f NANO! Use `" + COMMAND_PREFIX + "ticket` to enter and `" + COMMAND_PREFIX + "donate` to increase the pot!"
 GIVEAWAY_STARTED_FEE="%s has sponsored a giveaway of %.6f NANO! The entry fee is %d naneroo. Use `" + COMMAND_PREFIX + "ticket %d` to buy your ticket and `" + COMMAND_PREFIX + "donate` to increase the pot!"
-GIVEAWAY_MAX_FEE="Giveaway entry fee cannot be more than 10% of the prize pool"
+GIVEAWAY_MAX_FEE="Giveaway entry fee cannot be more than 5% of the prize pool"
 GIVEAWAY_ENDED="Congratulations! <@%s> was the winner of the giveaway! They have been sent %.6f NANO!"
 GIVEAWAY_STATS="There are %d entries to win %.6f NANO ending in %s - sponsored by %s.\nUse `" + COMMAND_PREFIX + "ticket` to enter and `" + COMMAND_PREFIX + "donate` to add to the pot"
 GIVEAWAY_STATS_FEE="There are %d entries to win %.6f NANO ending in %s - sponsored by %s.\nEntry fee: %d naneroo. Use `" + COMMAND_PREFIX + "ticket %d` to enter and `" + COMMAND_PREFIX + "donate` to add to the pot!"
@@ -615,7 +615,7 @@ async def givearai(message):
 			raise util.TipBotException("usage_error")
 		if amount < GIVEAWAY_MINIMUM:
 			raise util.TipBotException("usage_error")
-		max_fee = int(0.10 * amount)
+		max_fee = int(0.05 * amount)
 		if fee > max_fee:
 			await post_response(message, GIVEAWAY_MAX_FEE)
 			return
