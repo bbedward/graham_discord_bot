@@ -198,27 +198,27 @@ class SendProcessor(Thread):
 					'amount': int(raw_withdraw_amt),
 					'id': uid
 				}
+				src_usr = db.get_user_by_wallet_address(source_address)
+				trg_usr = db.get_user_by_wallet_address(to_address)
+				source_id=None
+				target_id=None
+				pending_delta = int(amount) * -1
+				if src_usr is not None:
+					source_id=src_usr.user_id
+				if trg_usr is not None:
+					target_id=trg_usr.user_id
+				db.mark_transaction_sent(uid, pending_delta, source_id, target_id)
 				logger.debug("RPC Send")
 				try:
+
 					wallet_output = wallet.communicate_wallet(wallet_command)
 				except Exception as e:
 					logger.exception(e)
 					continue
 				logger.debug("RPC Response")
-				src_usr = db.get_user_by_wallet_address(source_address)
-				trg_usr = db.get_user_by_wallet_address(to_address)
-				if src_usr is not None:
-					source_id = src_usr.user_id
-				else:
- 					source_id = None
-				if trg_usr is not None:
-					target_id = trg_usr.user_id
-				else:
-					target_id = None
 				if 'block' in wallet_output:
 					txid = wallet_output['block']
-					pending_delta = int(amount) * -1 # To update users pending balances
-					db.mark_transaction_processed(uid, txid, pending_delta, source_id, target_id)
+					db.mark_transaction_processed(uid, txid)
 					logger.info('TX processed. UID: %s, TXID: %s', uid, txid)
 					if target_id is None:
 						withdrawq.put({'user_id':source_id, 'txid':txid})
@@ -226,7 +226,7 @@ class SendProcessor(Thread):
 					# Not sure what happen but we'll retry a few times
 					if attempts >= MAX_TX_RETRIES:
 						logger.info("Max Retires Exceeded for TX UID: %s", uid)
-						db.mark_transaction_processed(uid, 'invalid', int(amount) * -1, source_id, target_id)
+						db.mark_transaction_processed(uid, 'invalid')
 					else:
 						db.inc_tx_attempts(uid)
 			if self.stopped():

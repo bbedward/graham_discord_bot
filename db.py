@@ -340,17 +340,22 @@ def get_top_tips():
 
 	return result
 
-# This marks transactions in our local log as processed (sent to node0
-def mark_transaction_processed(uuid, tranid, amt, source_id, target_id=None):
+# Marks TX as sent
+def mark_transaction_sent(uuid, amt, source_id, target_id=None):
 	tx = Transaction.get(uid=uuid)
 	if tx is not None and not tx.processed:
 		tx.processed=True
-		tx.tran_id=tranid
 		tx.save()
-		queue_pending(source_id, send=amt)
+		queue_pending(source_id,send=amt)
 		if target_id is not None:
 			queue_pending(target_id, receive=amt)
-	return
+
+# This adds block to our TX
+def mark_transaction_processed(uuid, tranid):
+	tx = Transaction.get(uid=uuid)
+	if tx is not None:
+		tx.tran_id=tranid
+		tx.save()
 
 # Return false if last message was < LAST_MSG_TIME
 # If > LAST_MSG_TIME, return True and update the user
