@@ -382,7 +382,7 @@ def mark_user_active(user):
 	if user is None:
 		return
 	if LAST_MSG_RAIN_COUNT > user.last_msg_count:
-		user.last_msg_count = 5
+		user.last_msg_count = LAST_MSG_RAIN_COUNT
 		user.save()
 
 # User table
