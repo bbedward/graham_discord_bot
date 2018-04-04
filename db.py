@@ -6,6 +6,13 @@ from playhouse.sqliteq import SqliteQueueDatabase
 # (Seconds) how long a user must wait in between messaging the bot
 LAST_MSG_TIME = 1
 
+# How many messages consider a user rain eligible
+LAST_MSG_RAIN_COUNT = 5
+# (Seconds) How spaced out the messages must be
+LAST_MSG_RAIN_DELTA = 60
+# How many words messages must contain
+LAST_MSG_RAIN_WORDS = 3
+
 db = SqliteQueueDatabase('nanotipbot.db')
 
 logger = util.get_logger("db")
@@ -14,6 +21,7 @@ logger = util.get_logger("db")
 def get_user_by_id(user_id):
 	try:
 		user = User.get(user_id=user_id)
+		update_pending(user)
 		return user
 	except User.DoesNotExist:
 		# logger.debug('user %s does not exist !', user_id)
@@ -22,6 +30,7 @@ def get_user_by_id(user_id):
 def get_user_by_wallet_address(address):
 	try:
 		user = User.get(wallet_address=address)
+		update_pending(user)
 		return user
 	except User.DoesNotExist:
 		# logger.debug('wallet %s does not exist !', address)
@@ -32,7 +41,7 @@ def get_active_users(since_minutes):
 	users = User.select().where(User.last_msg > since_ts)
 	return_ids = []
 	for user in users:
-		if user.last_msg_count >= 5:
+		if user.last_msg_count >= LAST_MSG_RAIN_COUNT:
 			return_ids.append(user.user_id)
 	return return_ids
 
@@ -62,25 +71,8 @@ def get_tip_stats(user_id):
 		average = user.tipped_amount / user.tip_count
 	return {'rank':rank, 'total':user.tipped_amount, 'average':average,'top':float(user.top_tip) / 1000000}
 
-def update_tip_total(user_id, new_total):
-	user = get_user_by_id(user_id)
-	if user is None:
-		return
-	user.tipped_amount = new_total
-	user.save()
-	return
-
-def update_tip_count(user_id, new_count):
-	user = get_user_by_id(user_id)
-	if user is None:
-		return
-	user.tip_count = new_count
-	user.save()
-	return
-
 # Update tip stats
 def update_tip_stats(user, tip):
-	user = get_user_by_id(user.user_id)
 	if user is not None:
 		user.tipped_amount += tip / 1000000
 		user.tip_count += 1
@@ -90,12 +82,23 @@ def update_tip_stats(user, tip):
 		user.save()
 	return
 
-def update_pending(user_id, send=0, receive=0):
-	user = get_user_by_id(user_id)
+def update_pending(user):
 	if user is not None:
-		user.pending_send += send
-		user.pending_receive += receive
-		user.save()
+		pendings = PendingBalanceUpdate.select().where(PendingBalanceUpdate.user_id == user.user_id)
+		if pendings.count() > 0:
+			for p in pendings:
+				user.pending_send += p.pending_send
+				user.pending_receive += p.pending_receive
+				p.delete_instance()
+			user.save()
+
+def queue_pending(user_id, send=0, receive=0):
+	pbu = PendingBalanceUpdate(user_id=user_id,
+			     pending_send=send,
+			     pending_receive = receive
+			    )
+	pbu.save()
+	return pbu
 
 def create_user(user_id, user_name, wallet_address):
 	user = User(user_id=user_id,
@@ -108,6 +111,7 @@ def create_user(user_id, user_name, wallet_address):
 		    tip_count=0,
 		    created=datetime.datetime.now(),
 		    last_msg=datetime.datetime.now(),
+		    last_msg_rain=datetime.datetime.now(),
 		    last_msg_count=0,
 		    top_tip='0',
 		    top_tip_ts=datetime.datetime.now(),
@@ -129,9 +133,9 @@ def create_transaction(src_usr, uuid, to_addr, amt, target_id=None, giveaway_id=
 			 giveawayid=giveaway_id
 			)
 	tx.save()
-	update_pending(src_usr.user_id, send=amt)
+	queue_pending(src_usr.user_id, send=amt)
 	if target_id is not None:
-		update_pending(target_id, receive=amt)
+		queue_pending(target_id, receive=amt)
 	return tx
 
 def get_unprocessed_transactions():
@@ -151,7 +155,7 @@ def process_giveaway_transactions(giveaway_id, winner_user_id):
 		tx.giveawayid = 0
 		pending_receive += int(tx.amount)
 		tx.save()
-	update_pending(winner_user_id, receive=pending_receive)
+	queue_pending(winner_user_id, receive=pending_receive)
 
 # Start Giveaway
 def start_giveaway(user_id, user_name, amount, end_time, channel, entry_fee = 0):
@@ -336,18 +340,16 @@ def get_top_tips():
 
 	return result
 
-# You may think, this imposes serious double spend risks:
-#  ie. if a transaction actually has been processed, but has never been marked processed in the database
-#  This shouldn't happen even in that scenario, due to the id (uid here) field in nano node v10
+# This marks transactions in our local log as processed (sent to node0
 def mark_transaction_processed(uuid, tranid, amt, source_id, target_id=None):
 	tx = Transaction.get(uid=uuid)
 	if tx is not None and not tx.processed:
 		tx.processed=True
 		tx.tran_id=tranid
 		tx.save()
-		update_pending(source_id, send=amt)
+		queue_pending(source_id, send=amt)
 		if target_id is not None:
-			update_pending(target_id, receive=amt)
+			queue_pending(target_id, receive=amt)
 	return
 
 # Return false if last message was < LAST_MSG_TIME
@@ -369,11 +371,19 @@ def update_last_msg(user, delta, content, is_private):
 	words = len(content.split(' '))
 	if delta >= 1800:
 		user.last_msg_count = 0
-	if words > 2 and not is_private:
+	if words >= LAST_MSG_RAIN_WORDS and not is_private and (datetime.datetime.now() - user.last_msg_rain).total_seconds() > LAST_MSG_RAIN_DELTA:
 		user.last_msg_count += 1
+		user.last_msg_rain = datetime.datetime.now()
 	user.last_msg=datetime.datetime.now()
 	user.save()
 	return
+
+def mark_user_active(user):
+	if user is None:
+		return
+	if LAST_MSG_RAIN_COUNT > user.last_msg_count:
+		user.last_msg_count = 5
+		user.save()
 
 # User table
 class User(Model):
@@ -387,6 +397,7 @@ class User(Model):
 	tip_count = BigIntegerField()
 	created = DateTimeField()
 	last_msg = DateTimeField()
+	last_msg_rain = DateTimeField()
 	last_msg_count = IntegerField()
 	top_tip = CharField()
 	top_tip_ts = DateTimeField()
@@ -406,6 +417,16 @@ class Transaction(Model):
 	tran_id = CharField()
 	attempts = IntegerField()
 	giveawayid = IntegerField(null = True)
+
+	class Meta:
+		database = db
+
+# PendingBalanceUpdate table, written by SendProcessor and used to update User whenever one is retrieved
+class PendingBalanceUpdate(Model):
+	user_id = ForeignKeyField(User, backref='pendings')
+	pending_send = IntegerField(null = False, default = 0)
+	pending_receive = IntegerField(null = False, default = 0)
+
 
 	class Meta:
 		database = db
@@ -442,7 +463,7 @@ class BannedUser(Model):
 
 def create_db():
 	db.connect()
-	db.create_tables([User, Transaction, Giveaway, Contestant, BannedUser], safe=True)
+	db.create_tables([User, Transaction, PendingBalanceUpdate, Giveaway, Contestant, BannedUser], safe=True)
 	logger.debug("DB Connected")
 
 create_db()

@@ -19,7 +19,7 @@ import db
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "1.5"
+BOT_VERSION = "1.6"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -67,8 +67,10 @@ TIP_INFO=("%stip <amount> <*users>:\n Tip specified amount to mentioned user(s) 
 		"\n The recipient(s) will be notified of your tip via private message" +
 		"\n Successful tips will be deducted from your available balance immediately") % COMMAND_PREFIX
 TIPSPLIT_INFO="%stipsplit <amount> <*users>:\n Distribute <amount> evenly to all mentioned users" % COMMAND_PREFIX
-RAIN_INFO=("%srain <amount>:\n Distribute <amount> evenly to users who are eligible" +
-		"\n In order to be receive rains you must be online and actively contributing in server public channels" +
+RAIN_INFO=("%srain <amount>:\n Distribute <amount> evenly to users who are eligible. To receive rain:" +
+		"\n - You must be online" +
+		"\n - Must have used this tip bot before" +
+		"\n - Must be online and have contributed to public channels for an extended period of time" +
 		"\n Minimum rain amount: %d naneroo") % (COMMAND_PREFIX, RAIN_MINIMUM)
 START_GIVEAWAY_INFO=("%sgivearai or %ssponsorgiveaway <amount> <entry_fee>:\n Start a giveaway with given amount and entry fee (in naneroo)." +
 		"\n Entry costs are added to the total prize pool"
@@ -568,6 +570,7 @@ async def rain(message):
 		await react_to_message(message, amount)
 		await client.add_reaction(message, '\U0001F4A6') # Sweat Drops
 		db.update_tip_stats(user, real_amount)
+		db.mark_user_active(user)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(message.author, RAIN_USAGE)
@@ -672,7 +675,8 @@ async def tipgiveaway(message, ticket=False):
 		contributions = amount + db.get_tipgiveaway_contributions(message.author.id, giveawayid)
 		if ticket:
 			if fee > contributions:
-				await post_dm(message.author, "The fee to enter the giveaway is %d naneroo", (fee-contributions))
+				owed = fee - contributions
+				await post_dm(message.author, "You were NOT entered into the giveaway! The fee for this giveaway is %d naneroo, you may enter using `%sticket %d`", owed, COMMAND_PREFIX, owed)
 				return
 		uid = str(uuid.uuid4())
 		await wallet.make_transaction_to_address(user, amount, None, uid, giveaway_id=giveawayid)
@@ -680,6 +684,7 @@ async def tipgiveaway(message, ticket=False):
 			await react_to_message(message, amount)
 		# If eligible, add them to giveaway
 		if contributions >= fee:
+			db.mark_user_active(user)
 			entered = db.add_contestant(message.author.id, override_ban=True)
 			if entered:
 				if giveaway is None:

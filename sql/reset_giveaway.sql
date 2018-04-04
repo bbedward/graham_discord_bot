@@ -1,2 +1,2 @@
-drop table giveaway;
+update giveaway set active=0;
 delete from contestant;
