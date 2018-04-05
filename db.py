@@ -83,11 +83,11 @@ def update_tip_stats(user, tip):
 def update_pending(user):
 	if user is not None:
 		pendings = PendingBalanceUpdate.select().where(PendingBalanceUpdate.user_id == user.user_id)
-		PendingBalanceUpdate.delete().where(PendingBalanceUpdate.user_id == user.user_id).execute()
 		if pendings.count() > 0:
 			for p in pendings:
 				user.pending_send += p.pending_send
 				user.pending_receive += p.pending_receive
+				p.delete_instance()
 			user.save()
 
 def queue_pending(user_id, send=0, receive=0):

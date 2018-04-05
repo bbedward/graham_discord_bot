@@ -66,10 +66,9 @@ async def get_balance(user):
 		actual_balance = int(wallet_output['balance'])
 		pending_balance = int(wallet_output['pending'])
 		# Equiv to rai_from_raw
+		db.update_pending(user)
 		actual_balance = actual_balance / 1000000000000000000000000
 		pending_balance = pending_balance / 1000000000000000000000000
-		# Update pendings here
-		db.update_pending(user)
 		return {'actual':int(actual_balance),
 			'available': int(actual_balance) - user.pending_send,
 			'pending_send': user.pending_send,
