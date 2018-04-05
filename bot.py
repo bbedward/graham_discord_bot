@@ -281,9 +281,15 @@ commands=['help', 'man', 'deposit', 'register', 'withdraw', 'balance',  'tip', '
 cmdlist=[COMMAND_PREFIX + c for c in commands]
 
 # Override on_message and do our spam check here
+nickname_set = False
 @client.event
 async def on_message(message):
-	global paused
+	global paused,nickname_set
+
+#	if not nickname_set and settings.discord_bot_name is not None:
+#		bot_member = message.server.get_member(client.user.id)
+#		await client.change_nickname(bot_member, settings.discord_bot_name)
+#		nickname_set = True
 
 	# disregard messages sent by our own bot
 	if message.author.id == client.user.id:

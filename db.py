@@ -21,7 +21,6 @@ logger = util.get_logger("db")
 def get_user_by_id(user_id):
 	try:
 		user = User.get(user_id=user_id)
-		update_pending(user)
 		return user
 	except User.DoesNotExist:
 		# logger.debug('user %s does not exist !', user_id)
@@ -30,7 +29,6 @@ def get_user_by_id(user_id):
 def get_user_by_wallet_address(address):
 	try:
 		user = User.get(wallet_address=address)
-		update_pending(user)
 		return user
 	except User.DoesNotExist:
 		# logger.debug('wallet %s does not exist !', address)
@@ -85,11 +83,11 @@ def update_tip_stats(user, tip):
 def update_pending(user):
 	if user is not None:
 		pendings = PendingBalanceUpdate.select().where(PendingBalanceUpdate.user_id == user.user_id)
+		PendingBalanceUpdate.delete().where(PendingBalanceUpdate.user_id == user.user_id).execute()
 		if pendings.count() > 0:
 			for p in pendings:
 				user.pending_send += p.pending_send
 				user.pending_receive += p.pending_receive
-				p.delete_instance()
 			user.save()
 
 def queue_pending(user_id, send=0, receive=0):

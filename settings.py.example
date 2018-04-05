@@ -1,6 +1,8 @@
 # Discord
 discord_bot_id = '';
 discord_bot_token = '';
+# (Optional) bot name
+# discord_bot_name = 'NANO Tip Bot'
 # Nano node wallet ID
 wallet = '';
 # Exempt users list (these user IDs will not be able to receive tips
