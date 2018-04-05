@@ -89,6 +89,7 @@ def update_pending(user):
 				user.pending_receive += p.pending_receive
 				p.delete_instance()
 			user.save()
+		user = get_user_by_id(user.user_id)
 
 def queue_pending(user_id, send=0, receive=0):
 	pbu = PendingBalanceUpdate(user_id=user_id,

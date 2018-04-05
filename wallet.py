@@ -11,6 +11,7 @@ wallet = settings.wallet
 
 logger = util.get_logger('wallet')
 
+balLock = asyncio.Semaphore()
 
 def communicate_wallet(wallet_command):
 	buffer = BytesIO()
@@ -66,7 +67,11 @@ async def get_balance(user):
 		actual_balance = int(wallet_output['balance'])
 		pending_balance = int(wallet_output['pending'])
 		# Equiv to rai_from_raw
-		db.update_pending(user)
+		try:
+			balLock.acquire()
+			db.update_pending(user)
+		finally:
+			balLock.release()
 		actual_balance = actual_balance / 1000000000000000000000000
 		pending_balance = pending_balance / 1000000000000000000000000
 		return {'actual':int(actual_balance),
