@@ -324,13 +324,13 @@ async def on_message(message):
 		await toptips(message)
 	elif cmd == 'tipstats':
 		await tipstats(message)
-	elif cmd == 'tipban' and has_admin_role(message.author.roles):
+	elif cmd == 'tipban' and (has_admin_role(message.author.roles) or message.author.id in settings.admin_ids):
 		await tipban(message)
-	elif cmd == 'tipunban' and has_admin_role(message.author.roles):
+	elif cmd == 'tipunban' and (has_admin_role(message.author.roles) or message.author.id in settings.admin_ids):
 		await tipunban(message)
-	elif cmd == 'pause' and has_admin_role(message.author.roles):
+	elif cmd == 'pause' and (has_admin_role(message.author.roles) or message.author.id in settings.admin_ids):
 		paused = True
-	elif cmd == 'unpause' and has_admin_role(message.author.roles):
+	elif cmd == 'unpause' and (has_admin_role(message.author.roles) or message.author.id in settings.admin_ids):
 		paused = False
 	elif paused:
 		await post_dm(message.author, PAUSE_MSG)
@@ -867,7 +867,7 @@ async def post_response(message, template, *args, incl_mention=True):
 	response = template % tuple(args)
 	if not message.channel.is_private and incl_mention:
 		response = "<@" + message.author.id + "> \n" + response
-	logger.info("sending response: '%s' to message: %s", response, message.content)
+	logger.info("sending response: '%s' to message: %s to user: %s %s", response, message.content, message.author.id, message.author.name)
 	asyncio.sleep(0.05) # Slight delay to avoid discord bot responding above commands
 	return await client.send_message(message.channel, response)
 

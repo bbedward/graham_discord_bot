@@ -9,6 +9,8 @@ wallet = '';
 exempt_users = [ discord_bot_id, '395828286548344834', '405250059240996864', '418425979942207499' ]
 # Restricted roles for certain commands
 admin_roles = ['Moderators', 'Core', 'Community Managers']
+# Admin USer IDs
+admin_ids=['1234','5678']
 # Minimum amount required for !rain
 rain_minimum = 10000
 # Minimum amount required to start a giveaway
