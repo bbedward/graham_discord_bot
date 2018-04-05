@@ -19,7 +19,7 @@ import db
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "1.6"
+BOT_VERSION = "1.7"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -127,7 +127,7 @@ TIP_RECEIVED_TEXT="You were tipped %d naneroo by %s"
 TIP_USAGE="Usage:\n```" + TIP_INFO + "```"
 TIP_SELF="No valid recipients found in your tip.\n(You cannot tip yourself and certain other users are exempt from receiving tips)"
 WITHDRAW_SUCCESS_TEXT="Withdraw has been queued for processing, I'll send you a link to the transaction after I've broadcasted it to the network!"
-WITHDRAW_PROCESSED_TEXT="Withdraw processed:\nTransaction: https://www.nanode.co/block/%s"
+WITHDRAW_PROCESSED_TEXT="Withdraw processed:\nTransaction: https://www.nanode.co/block/%s\nIf you have an issue with a withdraw please wait 24 hours before contacting me, the issue will likely resolve itself."
 WITHDRAW_NO_BALANCE_TEXT="You have no NANO to withdraw"
 WITHDRAW_ADDRESS_NOT_FOUND_TEXT="Usage:\n```" + WITHDRAW_INFO + "```"
 WITHDRAW_INVALID_ADDRESS_TEXT="Withdraw address is not valid"
@@ -312,7 +312,7 @@ async def on_message(message):
 	cmd = cmd[1:]
 	if cmd == 'help' or cmd == 'man':
 		await help(message)
-	elif cmd == 'balance' and not paused:
+	elif cmd == 'balance':
 		await balance(message)
 	elif cmd == 'deposit' or cmd == 'register':
 		await deposit(message)
@@ -372,6 +372,7 @@ async def balance(message):
 		user = db.get_user_by_id(message.author.id)
 		if user is None:
 			return
+		bal_msg = await post_response(message, "Retrieving balance...")
 		balances = await wallet.get_balance(user)
 		actual = balances['actual']
 		actualnano = actual / 1000000
@@ -381,7 +382,7 @@ async def balance(message):
 		sendnano = send / 1000000
 		receive = balances['pending']
 		receivenano = receive / 1000000
-		await post_response(message, BALANCE_TEXT,	"{:,}".format(actual),
+		await post_edit(bal_msg, BALANCE_TEXT,		"{:,}".format(actual),
 								actualnano,
 								"{:,}".format(available),
 								availablenano,

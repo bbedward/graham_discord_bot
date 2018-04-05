@@ -71,33 +71,24 @@ def get_tip_stats(user_id):
 
 # Update tip stats
 def update_tip_stats(user, tip):
-	if user is not None:
-		user.tipped_amount += tip / 1000000
-		user.tip_count += 1
-		if tip > int(float(user.top_tip)):
-			user.top_tip = tip
-			user.top_tip_ts=datetime.datetime.now()
-		user.save()
-	return
+	(User.update(
+		tipped_amount=(User.tipped_amount + (tip / 1000000)),
+		tip_count = User.tip_count + 1
+		).where(User.user_id == user.user_id)
+		).execute()
+	if tip > int(float(user.top_tip)):
+		(User.update(
+			top_tip = tip,
+			top_tip_ts = datetime.datetime.now()
+			).where(User.user_id == user.user_id)
+			).execute()
 
-def update_pending(user):
-	if user is not None:
-		pendings = PendingBalanceUpdate.select().where(PendingBalanceUpdate.user_id == user.user_id)
-		if pendings.count() > 0:
-			for p in pendings:
-				user.pending_send += p.pending_send
-				user.pending_receive += p.pending_receive
-				p.delete_instance()
-			user.save()
-		user = get_user_by_id(user.user_id)
-
-def queue_pending(user_id, send=0, receive=0):
-	pbu = PendingBalanceUpdate(user_id=user_id,
-			     pending_send=send,
-			     pending_receive = receive
-			    )
-	pbu.save()
-	return pbu
+def update_pending(user_id, send=0, receive=0):
+	return (User.update(
+			pending_send = (User.pending_send + send),
+			pending_receive = (User.pending_receive + receive)
+		    ).where(User.user_id == user_id)
+		).execute()
 
 def create_user(user_id, user_name, wallet_address):
 	user = User(user_id=user_id,
@@ -132,9 +123,9 @@ def create_transaction(src_usr, uuid, to_addr, amt, target_id=None, giveaway_id=
 			 giveawayid=giveaway_id
 			)
 	tx.save()
-	queue_pending(src_usr.user_id, send=amt)
+	update_pending(src_usr.user_id, send=amt)
 	if target_id is not None:
-		queue_pending(target_id, receive=amt)
+		update_pending(target_id, receive=amt)
 	return tx
 
 def get_unprocessed_transactions():
@@ -150,12 +141,14 @@ def process_giveaway_transactions(giveaway_id, winner_user_id):
 	winner = get_user_by_id(winner_user_id);
 	pending_receive = 0
 	for tx in txs:
-		tx.to_address = winner.wallet_address
-		tx.giveawayid = 0
 		pending_receive += int(tx.amount)
-		tx.save()
-	queue_pending(winner_user_id, receive=pending_receive)
-
+	update_pending(winner_user_id, receive=pending_receive)
+	(Transaction.update(
+			to_address = winner.wallet_address,
+			giveawayid = 0
+		    ).where(
+			(Transaction.giveawayid == giveaway_id)
+	)).execute()
 # Start Giveaway
 def start_giveaway(user_id, user_name, amount, end_time, channel, entry_fee = 0):
 	giveaway = Giveaway(started_by=user_id,
@@ -181,16 +174,6 @@ def start_giveaway(user_id, user_name, amount, end_time, channel, entry_fee = 0)
 	giveaway.save()
 	return giveaway
 
-def update_giveaway_transactions(giveawayid):
-	tip_sum = 0
-	txs = Transaction.select().where(Transaction.giveawayid == -1)
-	for tx in txs:
-		tx.giveawayid = giveawayid
-		tip_sum += int(tx.amount)
-		tx.save()
-
-	return float(tip_sum)/ 1000000
-
 def get_giveaway():
 	try:
 		giveaway = Giveaway.get(active=True)
@@ -198,11 +181,25 @@ def get_giveaway():
 	except:
 		return None
 
+def update_giveaway_transactions(giveawayid):
+	tip_sum = 0
+	txs = Transaction.select().where(Transaction.giveawayid == -1)
+	for tx in txs:
+		tip_sum += int(tx.amount)
+	(Transaction.update(
+			giveawayid = giveawayid
+		    ).where(
+			(Transaction.giveawayid == -1)
+	)).execute()
+
+	return float(tip_sum)/ 1000000
+
 def add_tip_to_giveaway(amount):
-	giveaway = get_giveaway()
-	if giveaway is not None:
-		giveaway.tip_amount += amount
-		giveaway.save()
+	giveawayupdt = (Giveaway
+				.update(
+					tip_amount = (Giveaway.tip_amount + amount)
+				).where(Giveaway.active == True)
+			).execute()
 
 def get_tipgiveaway_sum():
 	tip_sum = 0
@@ -283,7 +280,10 @@ def ticket_spam_check(user_id, increment=True):
 		return True
 	if increment:
 		user.ticket_count += 1
-		user.save()
+		(User.update(
+			ticket_count = (User.ticket_count + 1)
+		     ).where(User.user_id == user_id)
+		).execute()
 	return user.ticket_count >= 3
 
 # Gets giveaway stats
@@ -341,20 +341,22 @@ def get_top_tips():
 
 # Marks TX as sent
 def mark_transaction_sent(uuid, amt, source_id, target_id=None):
-	tx = Transaction.get(uid=uuid)
-	if tx is not None and not tx.processed:
-		tx.processed=True
-		tx.save()
-		queue_pending(source_id,send=amt)
+	tu = (Transaction.update(
+			processed = True
+		    ).where(
+			(Transaction.uid == uuid) &
+			(Transaction.processed == False)
+	)).execute()
+	if tu > 0:
+		update_pending(source_id,send=amt)
 		if target_id is not None:
-			queue_pending(target_id, receive=amt)
+			update_pending(target_id, receive=amt)
 
 # This adds block to our TX
 def mark_transaction_processed(uuid, tranid):
-	tx = Transaction.get(uid=uuid)
-	if tx is not None:
-		tx.tran_id=tranid
-		tx.save()
+	(Transaction.update(
+		tran_id = tranid
+	).where(Transaction.uid == uuid)).execute()
 
 # Return false if last message was < LAST_MSG_TIME
 # If > LAST_MSG_TIME, return True and update the user
@@ -379,15 +381,22 @@ def update_last_msg(user, delta, content, is_private):
 		user.last_msg_count += 1
 		user.last_msg_rain = datetime.datetime.now()
 	user.last_msg=datetime.datetime.now()
-	user.save()
+	(User.update(
+		last_msg_count = user.last_msg_count,
+		last_msg_rain = user.last_msg_rain,
+		last_msg = user.last_msg
+	    ).where(User.user_id == user.user_id)
+	).execute()
 	return
 
 def mark_user_active(user):
 	if user is None:
 		return
 	if LAST_MSG_RAIN_COUNT > user.last_msg_count:
-		user.last_msg_count = LAST_MSG_RAIN_COUNT
-		user.save()
+		(User.update(
+			last_msg_count = LAST_MSG_RAIN_COUNT
+		    ).where(User.user_id == user.user_id)
+		).execute()
 
 # User table
 class User(Model):
@@ -425,16 +434,6 @@ class Transaction(Model):
 	class Meta:
 		database = db
 
-# PendingBalanceUpdate table, written by SendProcessor and used to update User whenever one is retrieved
-class PendingBalanceUpdate(Model):
-	user_id = ForeignKeyField(User, backref='pendings')
-	pending_send = IntegerField(null = False, default = 0)
-	pending_receive = IntegerField(null = False, default = 0)
-
-
-	class Meta:
-		database = db
-
 # Giveaway table, keep track of current giveaway
 class Giveaway(Model):
 	started_by = CharField() # User ID
@@ -467,7 +466,7 @@ class BannedUser(Model):
 
 def create_db():
 	db.connect()
-	db.create_tables([User, Transaction, PendingBalanceUpdate, Giveaway, Contestant, BannedUser], safe=True)
+	db.create_tables([User, Transaction, Giveaway, Contestant, BannedUser], safe=True)
 	logger.debug("DB Connected")
 
 create_db()
