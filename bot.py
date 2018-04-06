@@ -19,10 +19,12 @@ import db
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "1.7"
+BOT_VERSION = "1.8"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
+# How many previous giveaway winners to display
+WINNERS_COUNT=10
 # Minimum Amount for !rain
 RAIN_MINIMUM = settings.rain_minimum
 # Minimum amount for !startgiveaway
@@ -33,6 +35,8 @@ GIVEAWAY_DURATION = 60
 RAIN_DELTA=30
 # Spam Threshold (Seconds) - how long to output certain commands (e.g. bigtippers)
 SPAM_THRESHOLD=60
+# Withdraw Cooldown (Seconds) - how long a user must wait between withdraws
+WITHDRAW_COOLDOWN=300
 # MAX TX_Retries - If wallet does not indicate a successful send for whatever reason, retry this many times
 MAX_TX_RETRIES=3
 # Change command prefix to whatever you want to begin commands with
@@ -46,8 +50,10 @@ TIPGIVEAWAY_AUTO_ENTRY=int(.01 * GIVEAWAY_MINIMUM)
 client = discord.Client()
 
 # Spam prevention
-last_big_tippers=datetime.datetime.now()
-last_top_tips=datetime.datetime.now()
+spam_delta=datetime.datetime.now() - datetime.timedelta(seconds=SPAM_THRESHOLD)
+last_big_tippers=spam_delta
+last_top_tips=spam_delta
+last_winners=spam_delta
 
 ### Response Templates ###
 COMMAND_NOT_FOUND="I don't understand what you're saying, try %shelp" % COMMAND_PREFIX
@@ -61,16 +67,17 @@ BALANCE_INFO=("%sbalance:\n Displays the balance of your tip account (in naneroo
 DEPOSIT_INFO=("%sdeposit or %sregister:\n Displays your tip bot account address along with a QR code" +
 		"\n Send NANO to this address to increase your tip bot balance" +
 		"\n If you do not have a tip bot account yet, this command will create one for you") % (COMMAND_PREFIX, COMMAND_PREFIX)
-WITHDRAW_INFO="%swithdraw <address>:\n Withdraws your entire tip account balance to the specified address" % COMMAND_PREFIX
+WITHDRAW_INFO="%swithdraw <address> <(optional) amount>:\n Withdraws specified amount to specified address, if amount isn't specified your entire tip account balance will be withdrawn" % COMMAND_PREFIX
 TIP_INFO=("%stip <amount> <*users>:\n Tip specified amount to mentioned user(s) (minimum tip is 1 naneroo)" +
 		"\n Tip units are in 1/1000000th of NANO. 1 naneroo = 0.000001 NANO" +
 		"\n The recipient(s) will be notified of your tip via private message" +
 		"\n Successful tips will be deducted from your available balance immediately") % COMMAND_PREFIX
 TIPSPLIT_INFO="%stipsplit <amount> <*users>:\n Distribute <amount> evenly to all mentioned users" % COMMAND_PREFIX
-RAIN_INFO=("%srain <amount>:\n Distribute <amount> evenly to users who are eligible. To receive rain:" +
-		"\n - You must be online" +
-		"\n - Must have used this tip bot before" +
-		"\n - Must be online and have contributed to public channels for an extended period of time" +
+RAIN_INFO=("%srain <amount>:\n Distribute <amount> evenly to users who are eligible." +
+		"\n To receive rain you must:" +
+		"\n - Have used this tip bot before" +
+		"\n - Must be online and have been actively contributing around the time a rain occurs" +
+		"\n Note: Spamming messages in a short period of time does not make you rain eligible" +
 		"\n Minimum rain amount: %d naneroo") % (COMMAND_PREFIX, RAIN_MINIMUM)
 START_GIVEAWAY_INFO=("%sgivearai or %ssponsorgiveaway <amount> <entry_fee>:\n Start a giveaway with given amount and entry fee (in naneroo)." +
 		"\n Entry costs are added to the total prize pool"
@@ -78,7 +85,9 @@ START_GIVEAWAY_INFO=("%sgivearai or %ssponsorgiveaway <amount> <entry_fee>:\n St
 		"\n Giveaway will end and choose random winner after 60 minutes") % (COMMAND_PREFIX, COMMAND_PREFIX, GIVEAWAY_MINIMUM)
 ENTER_INFO="%sticket or %sentergiveaway:\n Enter the current giveaway, if there is one" % (COMMAND_PREFIX, COMMAND_PREFIX)
 TIPGIVEAWAY_INFO="%stipgiveaway or %sdonate <amount>\n Add <amount> to the current giveaway pool\n If there is no giveaway, one will be started when minimum is reached.\n Tips >= %d naneroo automatically enter you for giveaways sponsored by the community (Not for giveaways sponsored by individuals)" % (COMMAND_PREFIX, COMMAND_PREFIX, TIPGIVEAWAY_AUTO_ENTRY)
+TICKETSTATUS_INFO="%sticketstatus\n Check your current entry status for the current or future giveaway" % COMMAND_PREFIX
 GIVEAWAY_STATS_INFO="%sgiveawaystats or %sgoldenticket:\n Display statistics relevant to the current giveaway" % (COMMAND_PREFIX, COMMAND_PREFIX)
+WINNERS_INFO="%swinners:\n Display previous giveaway winners" % COMMAND_PREFIX
 LEADERBOARD_INFO="%sleaderboard:\n Display the all-time tip leaderboard" % COMMAND_PREFIX
 TOPTIPS_INFO="%stoptips:\n Display the single largest tips for the past 24 hours, current month, and all time" % COMMAND_PREFIX
 STATS_INFO="%stipstats:\n Display your personal tipping stats (rank, total tipped, and average tip)" % COMMAND_PREFIX
@@ -102,7 +111,8 @@ HELP_TEXT_3=("Tip Commands:\n" +
 		RAIN_INFO + "\n\n" +
 		START_GIVEAWAY_INFO + "\n\n" +
 		ENTER_INFO + "\n\n" +
-		TIPGIVEAWAY_INFO + "\n\n"
+		TIPGIVEAWAY_INFO + "\n\n" +
+		TICKETSTATUS_INFO + "\n\n"
 		"```");
 HELP_TEXT_4=("Stats Commands:\n" +
 		"```" +
@@ -111,7 +121,8 @@ HELP_TEXT_4=("Stats Commands:\n" +
 		TOPTIPS_INFO + "\n\n" +
 #              SETTIP_INFO + "\n\n" +
 #              SETCOUN_INFO +
-		GIVEAWAY_STATS_INFO +
+		GIVEAWAY_STATS_INFO + "\n\n" +
+		WINNERS_INFO +
                 "\n\n\nsend node```" +
                 "Source code: https://github.com/bbedward/NANO-Tip-Bot")
 BALANCE_TEXT=(	"```Actual Balance   : %s naneroo (%.6f NANO)\n" +
@@ -132,6 +143,8 @@ WITHDRAW_NO_BALANCE_TEXT="You have no NANO to withdraw"
 WITHDRAW_ADDRESS_NOT_FOUND_TEXT="Usage:\n```" + WITHDRAW_INFO + "```"
 WITHDRAW_INVALID_ADDRESS_TEXT="Withdraw address is not valid"
 WITHDRAW_ERROR_TEXT="Something went wrong ! :thermometer_face: "
+WITHDRAW_COOLDOWN_TEXT="You need to wait %d seconds before making another withdraw"
+WITHDRAW_INSUFFICIENT_BALANCE="Your balance isn't high enough to withdraw that much"
 TOP_HEADER_TEXT="Here are the top %d tippers :clap:"
 TOP_HEADER_EMPTY_TEXT="The leaderboard is empty!"
 TOP_SPAM="No more big tippers for %d seconds"
@@ -145,24 +158,27 @@ RAIN_USAGE="Usage:\n```" + RAIN_INFO + "```"
 RAIN_NOBODY="I couldn't find anybody eligible to receive rain"
 GIVEAWAY_EXISTS="There's already an active giveaway"
 GIVEAWAY_USAGE="Usage:\n```" + START_GIVEAWAY_INFO + "```"
-GIVEAWAY_STARTED="%s has sponsored a giveaway of %.6f NANO! Use `" + COMMAND_PREFIX + "ticket` to enter and `" + COMMAND_PREFIX + "donate` to increase the pot!"
-GIVEAWAY_STARTED_FEE="%s has sponsored a giveaway of %.6f NANO! The entry fee is %d naneroo. Use `" + COMMAND_PREFIX + "ticket %d` to buy your ticket and `" + COMMAND_PREFIX + "donate` to increase the pot!"
+GIVEAWAY_STARTED="%s has sponsored a giveaway of %.6f NANO! Use:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "donate` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
+GIVEAWAY_STARTED_FEE="%s has sponsored a giveaway of %.6f NANO! The entry fee is %d naneroo. Use:\n - `" + COMMAND_PREFIX + "ticket %d` to buy your ticket\n - `" + COMMAND_PREFIX + "donate` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
 GIVEAWAY_MAX_FEE="Giveaway entry fee cannot be more than 5% of the prize pool"
 GIVEAWAY_ENDED="Congratulations! <@%s> was the winner of the giveaway! They have been sent %.6f NANO!"
-GIVEAWAY_STATS="There are %d entries to win %.6f NANO ending in %s - sponsored by %s.\nUse `" + COMMAND_PREFIX + "ticket` to enter and `" + COMMAND_PREFIX + "donate` to add to the pot"
-GIVEAWAY_STATS_FEE="There are %d entries to win %.6f NANO ending in %s - sponsored by %s.\nEntry fee: %d naneroo. Use `" + COMMAND_PREFIX + "ticket %d` to enter and `" + COMMAND_PREFIX + "donate` to add to the pot!"
+GIVEAWAY_STATS="There are %d entries to win %.6f NANO ending in %s - sponsored by %s.\nUse:\n - `" + COMMAND_PREFIX + "ticket` to enter\n -`" + COMMAND_PREFIX + "donate` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check status of your entry"
+GIVEAWAY_STATS_FEE="There are %d entries to win %.6f NANO ending in %s - sponsored by %s.\nEntry fee: %d naneroo. Use:\n - `" + COMMAND_PREFIX + "ticket %d` to enter\n - `" + COMMAND_PREFIX + "donate` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
 GIVEAWAY_STATS_INACTIVE="There are no active giveaways\n%d naneroo required to to automatically start one! Donate to the pot using `" + COMMAND_PREFIX + "donate`. You can also sponsor one using `" + COMMAND_PREFIX + "givearai`"
 ENTER_ADDED="You've been successfully entered into the giveaway"
 ENTER_DUP="You've already entered the giveaway"
 TIPGIVEAWAY_USAGE="Usage:\n```" + TIPGIVEAWAY_INFO + "```"
 TIPGIVEAWAY_NO_ACTIVE="There are no active giveaways. Check giveaway status using `%sgiveawaystats`, or donate to the next one using `%stipgiveaway`" % (COMMAND_PREFIX, COMMAND_PREFIX)
-TIPGIVEAWAY_ENTERED_FUTURE="Your generous donation makes you eligible for the next community sponsored giveaway!"
+TIPGIVEAWAY_ENTERED_FUTURE="With your gorgeous donation I have reserved your ticket for the next community sponsored giveaway!"
 TOPTIP_SPAM="No more top tips for %d seconds"
 PAUSE_MSG="All transaction activity is currently suspended. Check back later."
 BAN_SUCCESS="User %s can no longer receive tips"
 BAN_DUP="User %s is already banned"
 UNBAN_SUCCESS="User %s has been unbanned"
 UNBAN_DUP="User %s is not banned"
+WINNERS_HEADER="Here are the previous %d giveaway winners! :trophy:" % WINNERS_COUNT
+WINNERS_EMPTY="There are no previous giveaway winners"
+WINNERS_SPAM="No more winners for %d seconds"
 ### END Response Templates ###
 
 # Paused flag, indicates whether or not bot is paused
@@ -277,7 +293,7 @@ async def check_for_withdraw():
 		logger.exception(ex)
 
 # Command List
-commands=['help', 'man', 'deposit', 'register', 'withdraw', 'balance',  'tip', 'tipsplit', 'rain', 'givearai', 'sponsorgiveaway', 'tipgiveaway', 'leaderboard', 'toptips' ,'entergiveaway', 'ticket', 'donate', 'giveawaystats', 'goldenticket', 'tipstats', 'pause', 'unpause', 'tipban', 'tipunban']
+commands=['help', 'man', 'deposit', 'register', 'withdraw', 'balance',  'tip', 'tipsplit', 'rain', 'givearai', 'sponsorgiveaway', 'tipgiveaway', 'leaderboard', 'toptips' ,'entergiveaway', 'ticket', 'donate', 'giveawaystats', 'goldenticket', 'tipstats', 'pause', 'unpause', 'tipban', 'tipunban', 'ticketstatus', 'winners', 'banned']
 cmdlist=[COMMAND_PREFIX + c for c in commands]
 
 # Override on_message and do our spam check here
@@ -318,12 +334,20 @@ async def on_message(message):
 		await deposit(message)
 	elif cmd == 'giveawaystats' or cmd == 'goldenticket':
 		await giveawaystats(message)
+	elif cmd == 'winners':
+		await winners(message)
 	elif cmd == 'leaderboard':
 		await leaderboard(message)
 	elif cmd == 'toptips':
 		await toptips(message)
 	elif cmd == 'tipstats':
 		await tipstats(message)
+	elif cmd == 'ticketstatus':
+		await ticketstatus(message)
+		if not message.channel.is_private:
+			await remove_message(message)
+	elif cmd == 'banned' and (message.author.id in settings.admin_ids):
+		await banned(message)
 	elif cmd == 'tipban' and (has_admin_role(message.author.roles) or message.author.id in settings.admin_ids):
 		await tipban(message)
 	elif cmd == 'tipunban' and (has_admin_role(message.author.roles) or message.author.id in settings.admin_ids):
@@ -402,19 +426,33 @@ async def deposit(message):
 async def withdraw(message):
 	if message.channel.is_private:
 		try:
+			withdraw_amount = find_amount(message.content)
+		except util.TipBotException as e:
+			withdraw_amount = 0
+		try:
 			withdraw_address = find_address(message.content)
 			user = db.get_user_by_id(message.author.id)
 			if user is None:
+				return
+			last_withdraw_delta = db.get_last_withdraw_delta(user.user_id)
+			if WITHDRAW_COOLDOWN > last_withdraw_delta:
+				await post_response(message, WITHDRAW_COOLDOWN_TEXT, (WITHDRAW_COOLDOWN - last_withdraw_delta))
 				return
 			source_id = user.user_id
 			source_address = user.wallet_address
 			balance = await wallet.get_balance(user)
 			amount = balance['available']
+			if withdraw_amount == 0:
+				withdraw_amount = amount
+			else:
+				withdraw_amount = abs(withdraw_amount)
 			if amount == 0:
-				await post_response(message, WITHDRAW_NO_BALANCE_TEXT);
+				await post_response(message, WITHDRAW_NO_BALANCE_TEXT)
+			elif withdraw_amount > amount:
+				await post_response(message, WITHDRAW_INSUFFICIENT_BALANCE)
 			else:
 				uid = str(uuid.uuid4())
-				await wallet.make_transaction_to_address(user, amount, withdraw_address, uid,verify_address = True)
+				await wallet.make_transaction_to_address(user, withdraw_amount, withdraw_address, uid,verify_address = True)
 				await post_response(message, WITHDRAW_SUCCESS_TEXT)
 		except util.TipBotException as e:
 			if e.error_type == "address_not_found":
@@ -604,6 +642,8 @@ async def entergiveaway(message):
 		else:
 			await post_dm(message.author, ENTER_DUP)
 	else:
+		if db.is_banned(message.author.id):
+			return
 		if db.contestant_exists(message.author.id):
 			await post_dm(message.author, ENTER_DUP)
 		else:
@@ -657,7 +697,7 @@ async def givearai(message):
 			await post_dm(message.author, GIVEAWAY_USAGE)
 
 async def tipgiveaway(message, ticket=False):
-	if message.channel.is_private:
+	if message.channel.is_private and not ticket:
 		return
 	try:
 		giveaway = db.get_giveaway()
@@ -691,7 +731,8 @@ async def tipgiveaway(message, ticket=False):
 			await react_to_message(message, amount)
 		# If eligible, add them to giveaway
 		if contributions >= fee:
-			db.mark_user_active(user)
+			if contributions >= (fee * 4):
+				db.mark_user_active(user)
 			entered = db.add_contestant(message.author.id, override_ban=True)
 			if entered:
 				if giveaway is None:
@@ -718,6 +759,11 @@ async def tipgiveaway(message, ticket=False):
 				await post_dm(message.author, "Usage: `%sticket (fee)`", COMMAND_PREFIX)
 			else:
 				await post_dm(message.author, TIPGIVEAWAY_USAGE)
+
+async def ticketstatus(message):
+	user = db.get_user_by_id(message.author.id)
+	if user is not None:
+		await post_dm(message.author, db.get_ticket_status(message.author.id))
 
 async def giveawaystats(message):
 	stats = db.get_giveaway_stats()
@@ -753,6 +799,42 @@ async def finish_giveaway(delay):
 		response = GIVEAWAY_ENDED % (giveaway.winner_id, giveaway.amount + giveaway.tip_amount)
 		await client.send_message(channel, response)
 		await post_dm(await client.get_user_info(giveaway.winner_id), response)
+
+async def winners(message):
+	# Check spam
+	global last_winners
+	if not message.channel.is_private:
+		tdelta = datetime.datetime.now() - last_winners
+		if SPAM_THRESHOLD > tdelta.seconds:
+			await post_response(message, WINNERS_SPAM, (SPAM_THRESHOLD - tdelta.seconds))
+			return
+		last_winners = datetime.datetime.now()
+	winners = db.get_giveaway_winners(WINNERS_COUNT)
+	if len(winners) == 0:
+		await post_response(message, WINNERS_EMPTY)
+	else:
+		response = WINNERS_HEADER
+		response += "```"
+		max_l = 0
+		winner_nms = []
+		for winner in winners:
+			if winner['index'] >= 10:
+				winner_nm = '%d: %s ' % (winner['index'], winner['name'])
+			else:
+				winner_nm = '%d:  %s ' % (winner['index'], winner['name'])
+			if len(winner_nm) > max_l:
+				max_l = len(winner_nm)
+			winner_nms.append(winner_nm)
+
+		for winner in winners:
+			winner_nm = winner_nms[winner['index'] - 1]
+			padding = " " * ((max_l - len(winner_nm)) + 1)
+			response += winner_nm
+			response += padding
+			response += 'won %.6f NANO' % winner['amount']
+			response += '\n'
+		response += "```"
+		await post_response(message, response)
 
 async def leaderboard(message):
 	# Check spam
@@ -810,12 +892,16 @@ async def tipstats(message):
 		return
 	await post_response(message, STATS_TEXT, tip_stats['rank'], tip_stats['total'], tip_stats['average'],tip_stats['top'])
 
+async def banned(message):
+	await post_dm(message.author, db.get_banned())
+
 async def tipban(message):
 	for member in message.mentions:
-		if db.ban_user(member.id):
-			await post_dm(message.author, BAN_SUCCESS, member.name)
-		else:
-			await post_dm(message.author, BAN_DUP, member.name)
+		if member.id not in settings.admin_ids and not has_admin_role(member.roles):
+			if db.ban_user(member.id):
+				await post_dm(message.author, BAN_SUCCESS, member.name)
+			else:
+				await post_dm(message.author, BAN_DUP, member.name)
 
 async def tipunban(message):
 	for member in message.mentions:
