@@ -929,7 +929,7 @@ async def tipunban(ctx):
 async def settiptotal(ctx, amount: float = -1.0, user: discord.Member = None):
 	if is_admin(ctx.message.author):
 		if user is None or amount < 0:
-			await post_response(ctx.message, SET_TOTAL_USAGE)
+			await post_dm(ctx.message.author, SET_TOTAL_USAGE)
 			return
 		db.update_tip_total(user.id, amount)
 
@@ -937,7 +937,7 @@ async def settiptotal(ctx, amount: float = -1.0, user: discord.Member = None):
 async def settipcount(ctx, cnt: int = -1, user: discord.Member = None):
 	if is_admin(ctx.message.author):
 		if user is None or cnt < 0:
-			await post_response(ctx.message, SET_COUNT_USAGE)
+			await post_dm(ctx.message.author, SET_COUNT_USAGE)
 			return
 		db.update_tip_count(user.id, cnt)
 

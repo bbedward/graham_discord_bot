@@ -93,6 +93,14 @@ def update_tip_stats(user, tip):
 			).where(User.user_id == user.user_id)
 			).execute()
 
+def update_tip_total(user_id, new_total):
+	User.update(tipped_amount = new_total).where(User.user_id == user_id).execute()
+	return
+
+def update_tip_count(user_id, new_count):
+	User.update(tip_count = new_count).where(User.user_id == user_id).execute()
+	return
+
 def update_pending(user_id, send=0, receive=0):
 	return (User.update(
 			pending_send = (User.pending_send + send),
