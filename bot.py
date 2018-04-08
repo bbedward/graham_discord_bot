@@ -670,7 +670,7 @@ async def givearai(ctx):
 
 @client.command(pass_context=True, aliases=['tipgiveaway'])
 async def donate(ctx):
-	await tip_giveaway(message)
+	await tip_giveaway(ctx.message)
 
 async def tip_giveaway(message, ticket=False):
 	if message.channel.is_private and not ticket:
