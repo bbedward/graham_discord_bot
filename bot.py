@@ -1,4 +1,6 @@
 import discord
+from discord.ext import commands
+from discord.ext.commands import Bot
 import threading
 from threading import Thread
 from queue import Queue
@@ -46,9 +48,6 @@ WITHDRAW_CHECK_JOB=15
 # Pool giveaway auto amount (1%)
 TIPGIVEAWAY_AUTO_ENTRY=int(.01 * GIVEAWAY_MINIMUM)
 
-# Create discord client
-client = discord.Client()
-
 # Spam prevention
 spam_delta=datetime.datetime.now() - datetime.timedelta(seconds=SPAM_THRESHOLD)
 last_big_tippers=spam_delta
@@ -57,7 +56,6 @@ last_winners=spam_delta
 
 ### Response Templates ###
 COMMAND_NOT_FOUND="I don't understand what you're saying, try %shelp" % COMMAND_PREFIX
-HELP_INFO="%shelp or %sman:\n Display this message" % (COMMAND_PREFIX, COMMAND_PREFIX)
 BALANCE_INFO=("%sbalance:\n Displays the balance of your tip account (in naneroo) as described:" +
 		"\n - Actual Balance: The actual balance in your tip account" +
 		"\n - Available Balance: The balance you are able to tip with (Actual - Pending Send)" +
@@ -66,7 +64,7 @@ BALANCE_INFO=("%sbalance:\n Displays the balance of your tip account (in naneroo
 		"\n Pending funds will be available for tip/withdraw after the transactions have been processed") % COMMAND_PREFIX
 DEPOSIT_INFO=("%sdeposit or %sregister:\n Displays your tip bot account address along with a QR code" +
 		"\n Send NANO to this address to increase your tip bot balance" +
-		"\n If you do not have a tip bot account yet, this command will create one for you") % (COMMAND_PREFIX, COMMAND_PREFIX)
+		"\n If you do not have a tip bot account yet, this command will create one for you") % (COMMAND_PREFIX,COMMAND_PREFIX)
 WITHDRAW_INFO="%swithdraw <address> <(optional) amount>:\n Withdraws specified amount to specified address, if amount isn't specified your entire tip account balance will be withdrawn" % COMMAND_PREFIX
 TIP_INFO=("%stip <amount> <*users>:\n Tip specified amount to mentioned user(s) (minimum tip is 1 naneroo)" +
 		"\n Tip units are in 1/1000000th of NANO. 1 naneroo = 0.000001 NANO" +
@@ -99,7 +97,6 @@ HELP_TEXT_1=("NanoTipBot v%s - An open source NANO tip bot for Discord\n" +
 		"Developed by <@303599885800964097> - Feel free to send suggestions, ideas, and/or tips\n")
 HELP_TEXT_2=("Account Commands:\n" +
 		"```" +
-		HELP_INFO + "\n\n" +
 		BALANCE_INFO + "\n\n" +
 		DEPOSIT_INFO + "\n\n" +
 		WITHDRAW_INFO + "\n\n" +
@@ -125,6 +122,9 @@ HELP_TEXT_4=("Stats Commands:\n" +
 		WINNERS_INFO +
                 "\n\n\nsend node```" +
                 "Source code: https://github.com/bbedward/NANO-Tip-Bot")
+BOT_DESCRIPTION=("NanoTipBot v%s - An open source NANO tip bot for Discord\n" +
+		"Developed by <@303599885800964097> - Feel free to send suggestions, ideas, and/or tips\n" +
+		"Source: Source code: https://github.com/bbedward/NANO-Tip-Bot")
 BALANCE_TEXT=(	"```Actual Balance   : %s naneroo (%.6f NANO)\n" +
 		"Available Balance: %s naneroo (%.6f NANO)\n" +
 		"Pending Send     : %s naneroo (%.6f NANO)\n" +
@@ -183,6 +183,10 @@ WINNERS_SPAM="No more winners for %d seconds"
 
 # Paused flag, indicates whether or not bot is paused
 paused = False
+
+# Create discord client
+client = Bot(command_prefix=COMMAND_PREFIX, description=BOT_DESCRIPTION)
+client.remove_command('help')
 
 # Thread to process send transactions
 # Queue is used to communicate back to main thread
@@ -292,89 +296,17 @@ async def check_for_withdraw():
 	except Exception as ex:
 		logger.exception(ex)
 
-# Command List
-commands=['help', 'man', 'deposit', 'register', 'withdraw', 'balance',  'tip', 'tipsplit', 'rain', 'givearai', 'sponsorgiveaway', 'tipgiveaway', 'leaderboard', 'toptips' ,'entergiveaway', 'ticket', 'donate', 'giveawaystats', 'goldenticket', 'tipstats', 'pause', 'unpause', 'tipban', 'tipunban', 'ticketstatus', 'winners', 'banned']
-cmdlist=[COMMAND_PREFIX + c for c in commands]
-
 # Override on_message and do our spam check here
-nickname_set = False
 @client.event
 async def on_message(message):
-	global paused,nickname_set
-
-#	if not nickname_set and settings.discord_bot_name is not None:
-#		bot_member = message.server.get_member(client.user.id)
-#		await client.change_nickname(bot_member, settings.discord_bot_name)
-#		nickname_set = True
-
 	# disregard messages sent by our own bot
 	if message.author.id == client.user.id:
 		return
 
 	if db.last_msg_check(message.author.id, message.content, message.channel.is_private) == False:
 		return
+	await client.process_commands(message)
 
-	# Make sure cmd is supported
-	content = message.content
-	if len(content.split()) >= 1:
-		cmd = message.content.split(' ', 1)[0]
-	else:
-		return
-	if cmd not in cmdlist:
-		if message.channel.is_private:
-			await post_response(message, COMMAND_NOT_FOUND)
-		return
-	# Strip prefix from command
-	cmd = cmd[1:]
-	if cmd == 'help' or cmd == 'man':
-		await help(message)
-	elif cmd == 'balance':
-		await balance(message)
-	elif cmd == 'deposit' or cmd == 'register':
-		await deposit(message)
-	elif cmd == 'giveawaystats' or cmd == 'goldenticket':
-		await giveawaystats(message)
-	elif cmd == 'winners':
-		await winners(message)
-	elif cmd == 'leaderboard':
-		await leaderboard(message)
-	elif cmd == 'toptips':
-		await toptips(message)
-	elif cmd == 'tipstats':
-		await tipstats(message)
-	elif cmd == 'ticketstatus':
-		await ticketstatus(message)
-		if not message.channel.is_private:
-			await remove_message(message)
-	elif cmd == 'banned' and (message.author.id in settings.admin_ids):
-		await banned(message)
-	elif cmd == 'tipban' and (has_admin_role(message.author.roles) or message.author.id in settings.admin_ids):
-		await tipban(message)
-	elif cmd == 'tipunban' and (has_admin_role(message.author.roles) or message.author.id in settings.admin_ids):
-		await tipunban(message)
-	elif cmd == 'pause' and (has_admin_role(message.author.roles) or message.author.id in settings.admin_ids):
-		paused = True
-	elif cmd == 'unpause' and (has_admin_role(message.author.roles) or message.author.id in settings.admin_ids):
-		paused = False
-	elif paused:
-		await post_dm(message.author, PAUSE_MSG)
-		return
-	elif cmd == 'withdraw':
-		await withdraw(message)
-	elif cmd == 'tip':
-		await tip(message)
-	elif cmd == 'tipsplit':
-		await tipsplit(message)
-	elif cmd == 'rain':
-		await rain(message)
-	elif cmd == 'ticket' or cmd == 'entergiveaway':
-		await entergiveaway(message)
-		if not message.channel.is_private:
-			await remove_message(message)
-	elif cmd == 'givearai' or cmd == 'sponsorgiveaway':
-		await givearai(message)
-	elif cmd == 'donate' or cmd == 'tipgiveaway':
-		await tipgiveaway(message)
 
 def has_admin_role(roles):
 	for r in roles:
@@ -382,8 +314,17 @@ def has_admin_role(roles):
 			return True
 	return False
 
+async def pause_msg(message):
+	if paused:
+		await post_dm(message.author, PAUSE_MSG)
+
+async def is_admin(user):
+	return (has_admin_role(user.roles) or user.id in settings.admin_ids)
+
 ### Commands
-async def help(message):
+@client.command(pass_context=True)
+async def help(ctx):
+	message = ctx.message
 	if message.channel.is_private:
 		# Four messages because discord API responds in error with our really long help text
 		await post_response(message, HELP_TEXT_1, BOT_VERSION)
@@ -391,7 +332,9 @@ async def help(message):
 		await post_response(message, HELP_TEXT_3)
 		await post_response(message, HELP_TEXT_4)
 
-async def balance(message):
+@client.command(pass_context=True)
+async def balance(ctx):
+	message = ctx.message
 	if message.channel.is_private:
 		user = db.get_user_by_id(message.author.id)
 		if user is None:
@@ -415,7 +358,9 @@ async def balance(message):
 								"{:,}".format(receive),
 								receivenano)
 
-async def deposit(message):
+@client.command(pass_context=True, aliases=['register'])
+async def deposit(ctx):
+	message = ctx.message
 	if message.channel.is_private:
 		user = await wallet.create_or_fetch_user(message.author.id, message.author.name)
 		user_deposit_address = user.wallet_address
@@ -423,7 +368,12 @@ async def deposit(message):
 		await post_response(message, DEPOSIT_TEXT_2, user_deposit_address)
 		await post_response(message, DEPOSIT_TEXT_3, get_qr_url(user_deposit_address))
 
-async def withdraw(message):
+@client.command(pass_context=True)
+async def withdraw(ctx):
+	message = ctx.message
+	if paused:
+		await pause_msg(message)
+		return
 	if message.channel.is_private:
 		try:
 			withdraw_amount = find_amount(message.content)
@@ -464,8 +414,13 @@ async def withdraw(message):
 			elif e.error_type == "error":
 				await post_response(message, WITHDRAW_ERROR_TEXT)
 
-async def tip(message):
+@client.command(pass_context=True)
+async def tip(ctx):
+	message = ctx.message
 	if message.channel.is_private:
+		return
+	elif paused:
+		await pause_msg(message)
 		return
 
 	try:
@@ -513,9 +468,13 @@ async def tip(message):
 		else:
 			await post_response(message, TIP_ERROR_TEXT)
 
-async def tipsplit(message):
+@client.command(pass_context=True)
+async def tipsplit(ctx):
+	message = ctx.message
 	if message.channel.is_private:
 		return
+	elif paused:
+		await pause_msg(message)
 	try:
 		amount = find_amount(message.content)
 		# Make sure amount is valid and at least 1 user is mentioned
@@ -567,8 +526,13 @@ async def tipsplit(message):
 		else:
 			await post_response(message, TIP_ERROR_TEXT)
 
-async def rain(message):
+@client.command(pass_context=True)
+async def rain(ctx):
+	message = ctx.message
 	if message.channel.is_private:
+		return
+	elif paused:
+		await pause_msg(message)
 		return
 	try:
 		amount = find_amount(message.content)
@@ -626,7 +590,10 @@ async def rain(message):
 		else:
 			await post_response(message, TIP_ERROR_TEXT)
 
-async def entergiveaway(message):
+@client.command(pass_context=True, aliases=['entergiveaway'])
+async def ticket(ctx):
+	message = ctx.message
+	await remove_message(ctx.message)
 	if not db.is_active_giveaway():
 		db.ticket_spam_check(message.author.id)
 		await post_dm(message.author, TIPGIVEAWAY_NO_ACTIVE)
@@ -647,10 +614,15 @@ async def entergiveaway(message):
 		if db.contestant_exists(message.author.id):
 			await post_dm(message.author, ENTER_DUP)
 		else:
-			await tipgiveaway(message,ticket=True)
+			await tip_giveaway(message,ticket=True)
 
-async def givearai(message):
+@client.command(pass_context=True, aliases=['sponsorgiveaway'])
+async def givearai(ctx):
+	message = ctx.message
 	if message.channel.is_private:
+		return
+	elif paused:
+		await pause_msg(message)
 		return
 	try:
 		# One giveaway at a time
@@ -696,8 +668,15 @@ async def givearai(message):
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_dm(message.author, GIVEAWAY_USAGE)
 
-async def tipgiveaway(message, ticket=False):
+@client.command(pass_context=True, aliases=['tipgiveaway'])
+async def donate(ctx):
+	await tip_giveaway(message)
+
+async def tip_giveaway(message, ticket=False):
 	if message.channel.is_private and not ticket:
+		return
+	elif paused:
+		await pause_msg(message)
 		return
 	try:
 		giveaway = db.get_giveaway()
@@ -760,12 +739,17 @@ async def tipgiveaway(message, ticket=False):
 			else:
 				await post_dm(message.author, TIPGIVEAWAY_USAGE)
 
-async def ticketstatus(message):
+@client.command(pass_context=True)
+async def ticketstatus(ctx):
+	message = ctx.message
+	await remove_message(ctx.message)
 	user = db.get_user_by_id(message.author.id)
 	if user is not None:
 		await post_dm(message.author, db.get_ticket_status(message.author.id))
 
-async def giveawaystats(message):
+@client.command(pass_context=True)
+async def giveawaystats(ctx):
+	message = ctx.message
 	stats = db.get_giveaway_stats()
 	if stats is None:
 		for_next = GIVEAWAY_MINIMUM - db.get_tipgiveaway_sum()
@@ -800,7 +784,9 @@ async def finish_giveaway(delay):
 		await client.send_message(channel, response)
 		await post_dm(await client.get_user_info(giveaway.winner_id), response)
 
-async def winners(message):
+@client.command(pass_context=True)
+async def winners(ctx):
+	message = ctx.message
 	# Check spam
 	global last_winners
 	if not message.channel.is_private:
@@ -836,7 +822,9 @@ async def winners(message):
 		response += "```"
 		await post_response(message, response)
 
-async def leaderboard(message):
+@client.command(pass_context=True, aliases=['bigtippers'])
+async def leaderboard(ctx):
+	message = ctx.message
 	# Check spam
 	global last_big_tippers
 	if not message.channel.is_private:
@@ -873,7 +861,9 @@ async def leaderboard(message):
 		response += "```"
 		await post_response(message, response)
 
-async def toptips(message):
+@client.command(pass_context=True)
+async def toptips(ctx):
+	message = ctx.message
 	# Check spam
 	global last_top_tips
 	if not message.channel.is_private:
@@ -885,48 +875,71 @@ async def toptips(message):
 	top_tips_msg = db.get_top_tips()
 	await post_response(message, top_tips_msg)
 
-async def tipstats(message):
+@client.command(pass_context=True)
+async def tipstats(ctx):
+	message = ctx.message
 	tip_stats = db.get_tip_stats(message.author.id)
 	if tip_stats is None or len(tip_stats) == 0:
 		await post_response(message, STATS_ACCT_NOT_FOUND_TEXT)
 		return
 	await post_response(message, STATS_TEXT, tip_stats['rank'], tip_stats['total'], tip_stats['average'],tip_stats['top'])
 
-async def banned(message):
-	await post_dm(message.author, db.get_banned())
+@client.command(pass_context=True)
+async def banned(ctx):
+	message = ctx.message
+	if is_admin(message.author):
+		await post_dm(message.author, db.get_banned())
 
-async def tipban(message):
-	for member in message.mentions:
-		if member.id not in settings.admin_ids and not has_admin_role(member.roles):
-			if db.ban_user(member.id):
-				await post_dm(message.author, BAN_SUCCESS, member.name)
+@client.command(pass_context=True)
+async def pause(ctx):
+	message = ctx.message
+	if is_admin(message.author):
+		global paused
+		paused = True
+
+@client.command(pass_context=True)
+async def unpause(ctx):
+	message = ctx.message
+	if is_admin(message.author):
+		global paused
+		paused = True
+
+@client.command(pass_context=True)
+async def tipban(ctx):
+	message = ctx.message
+	if is_admin(message.author):
+		for member in message.mentions:
+			if member.id not in settings.admin_ids and not has_admin_role(member.roles):
+				if db.ban_user(member.id):
+					await post_dm(message.author, BAN_SUCCESS, member.name)
+				else:
+					await post_dm(message.author, BAN_DUP, member.name)
+
+@client.command(pass_context=True)
+async def tipunban(ctx):
+	message = ctx.message
+	if is_admin(message.author):
+		for member in message.mentions:
+			if db.unban_user(member.id):
+				await post_dm(message.author, UNBAN_SUCCESS, member.name)
 			else:
-				await post_dm(message.author, BAN_DUP, member.name)
+				await post_dm(message.author, UNBAN_DUP, member.name)
 
-async def tipunban(message):
-	for member in message.mentions:
-		if db.unban_user(member.id):
-			await post_dm(message.author, UNBAN_SUCCESS, member.name)
-		else:
-			await post_dm(message.author, UNBAN_DUP, member.name)
-
-"""
 @client.command(pass_context=True)
-@commands.has_any_role(*settings.admin_roles)
 async def settiptotal(ctx, amount: float = -1.0, user: discord.Member = None):
-	if user is None or amount < 0:
-		await post_response(ctx.message, SET_TOTAL_USAGE)
-		return
-	db.update_tip_total(user.id, amount)
+	if is_admin(ctx.message.author):
+		if user is None or amount < 0:
+			await post_response(ctx.message, SET_TOTAL_USAGE)
+			return
+		db.update_tip_total(user.id, amount)
 
 @client.command(pass_context=True)
-@commands.has_any_role(*settings.admin_roles)
 async def settipcount(ctx, cnt: int = -1, user: discord.Member = None):
-	if user is None or cnt < 0:
-		await post_response(ctx.message, SET_COUNT_USAGE)
-		return
-	db.update_tip_count(user.id, cnt)
-"""
+	if is_admin(ctx.message.author):
+		if user is None or cnt < 0:
+			await post_response(ctx.message, SET_COUNT_USAGE)
+			return
+		db.update_tip_count(user.id, cnt)
 
 ### Utility Functions
 def get_qr_url(text):
