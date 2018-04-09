@@ -593,10 +593,10 @@ async def rain(ctx):
 @client.command(pass_context=True, aliases=['entergiveaway'])
 async def ticket(ctx):
 	message = ctx.message
-	await remove_message(ctx.message)
 	if not db.is_active_giveaway():
 		db.ticket_spam_check(message.author.id)
 		await post_dm(message.author, TIPGIVEAWAY_NO_ACTIVE)
+		await remove_message(message)
 		return
 	giveaway = db.get_giveaway()
 	if giveaway.entry_fee == 0:
@@ -610,11 +610,13 @@ async def ticket(ctx):
 			await post_dm(message.author, ENTER_DUP)
 	else:
 		if db.is_banned(message.author.id):
+			await remove_message(message)
 			return
 		if db.contestant_exists(message.author.id):
 			await post_dm(message.author, ENTER_DUP)
 		else:
 			await tip_giveaway(message,ticket=True)
+	await remove_message(message)
 
 @client.command(pass_context=True, aliases=['sponsorgiveaway'])
 async def givearai(ctx):
@@ -742,10 +744,10 @@ async def tip_giveaway(message, ticket=False):
 @client.command(pass_context=True)
 async def ticketstatus(ctx):
 	message = ctx.message
-	await remove_message(ctx.message)
 	user = db.get_user_by_id(message.author.id)
 	if user is not None:
 		await post_dm(message.author, db.get_ticket_status(message.author.id))
+	await remove_message(message)
 
 @client.command(pass_context=True)
 async def giveawaystats(ctx):

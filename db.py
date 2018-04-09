@@ -2,6 +2,7 @@ import re
 import datetime
 import util
 import settings
+from random import randint
 from peewee import *
 from playhouse.sqliteq import SqliteQueueDatabase
 
@@ -296,8 +297,15 @@ def get_banned():
 
 # Returns winning user
 def finish_giveaway():
-	picker_query = Contestant.select().where(Contestant.banned == False).order_by(fn.Random())
-	winner = get_user_by_id(picker_query.get().user_id)
+	contestants = Contestant.select().where(Contestant.banned == False).order_by(Contestant.user_id)
+	offset = randint(0, contestants.count() - 1)
+	i = 0
+	for c in contestants:
+		if offset == i:
+			winner = get_user_by_id(c.user_id)
+			break
+		else:
+			i += 1
 	Contestant.delete().execute()
 	giveaway = Giveaway.get(active=True)
 	giveaway.active=False
