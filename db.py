@@ -540,7 +540,6 @@ class User(Model):
 	user_name = CharField()
 	wallet_address = CharField(unique=True)
 	tipped_amount = FloatField(default=0.0)
-	wallet_balance = FloatField(default=0.0)
 	pending_receive = IntegerField(default=0)
 	pending_send = IntegerField(default=0)
 	tip_count = BigIntegerField(default=0)
