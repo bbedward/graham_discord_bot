@@ -1015,6 +1015,8 @@ async def post_edit(message, template, *args):
 	return await client.edit_message(message, response)
 
 async def remove_message(message):
+	if message.channel.is_private:
+		return
 	client_member = message.server.get_member(client.user.id)
 	if client_member.permissions_in(message.channel).manage_messages:
 		await client.delete_message(message)
