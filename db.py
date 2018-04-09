@@ -16,7 +16,7 @@ LAST_MSG_RAIN_DELTA = 60
 # How many words messages must contain
 LAST_MSG_RAIN_WORDS = 3
 
-db = SqliteDatabase('nanotipbot.db')
+db = SqliteQueueDatabase('nanotipbot.db')
 
 logger = util.get_logger("db")
 
