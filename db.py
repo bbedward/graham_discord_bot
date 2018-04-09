@@ -543,7 +543,7 @@ class User(Model):
 	last_msg_rain = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
 	last_msg_count = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
 	top_tip = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
-	top_tip_ts = DateTimeField(default=datetime.datetime.now())
+	top_tip_ts = DateTimeField(default=datetime.datetime.now(),constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
 	ticket_count = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
 	last_withdraw = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
 	stats_ban = BooleanField(default=False, constraints=[SQL('DEFAULT 0')])
