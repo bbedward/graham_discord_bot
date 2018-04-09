@@ -133,22 +133,6 @@ def create_user(user_id, user_name, wallet_address):
 	user = User(user_id=user_id,
 		    user_name=user_name,
 		    wallet_address=wallet_address,
-		    tipped_amount=0.0,
-		    wallet_balance=0.0,
-		    pending_receive=0.0,
-		    pending_send=0.0,
-		    tip_count=0,
-		    created=datetime.datetime.now(),
-		    last_msg=datetime.datetime.now(),
-		    last_msg_rain=datetime.datetime.now(),
-		    last_msg_count=0,
-		    top_tip='0',
-		    top_tip_ts=datetime.datetime.now(),
-		    ticket_count=0,
-		    last_withdraw=datetime.datetime.now(),
-		    stats_ban=False,
-		    rain_amount = 0.0,
-		    giveaway_amount = 0.0
 		    )
 	user.save()
 	return user
@@ -177,10 +161,6 @@ def create_transaction(src_usr, uuid, to_addr, amt, target_id=None, giveaway_id=
 			 source_address=src_usr.wallet_address,
 			 to_address=to_addr,
 			 amount=amt,
-			 processed=False,
-			 created=datetime.datetime.now(),
-			 tran_id='',
-			 attempts=0,
 			 giveawayid=giveaway_id
 			)
 	tx.save()
@@ -559,22 +539,22 @@ class User(Model):
 	user_id = CharField(unique=True)
 	user_name = CharField()
 	wallet_address = CharField(unique=True)
-	tipped_amount = FloatField()
-	wallet_balance = FloatField()
-	pending_receive = IntegerField()
-	pending_send = IntegerField()
-	tip_count = BigIntegerField()
-	created = DateTimeField()
-	last_msg = DateTimeField()
-	last_msg_rain = DateTimeField()
-	last_msg_count = IntegerField()
-	top_tip = CharField()
-	top_tip_ts = DateTimeField()
-	ticket_count = IntegerField()
-	last_withdraw = DateTimeField()
-	stats_ban = BooleanField()
-	rain_amount = FloatField()
-	giveaway_amount = FloatField()
+	tipped_amount = FloatField(default=0.0)
+	wallet_balance = FloatField(default=0.0)
+	pending_receive = IntegerField(default=0)
+	pending_send = IntegerField(default=0)
+	tip_count = BigIntegerField(default=0)
+	created = DateTimeField(default=datetime.datetime.now())
+	last_msg = DateTimeField(default=datetime.datetime.now())
+	last_msg_rain = DateTimeField(default=datetime.datetime.now())
+	last_msg_count = IntegerField(default=0)
+	top_tip = CharField(default='0')
+	top_tip_ts = DateTimeField(default=datetime.datetime.now())
+	ticket_count = IntegerField(default=0)
+	last_withdraw = DateTimeField(default=datetime.datetime.now())
+	stats_ban = BooleanField(default=False)
+	rain_amount = FloatField(default=0.0)
+	giveaway_amount = FloatField(default=0.0)
 
 	class Meta:
 		database = db
@@ -585,10 +565,10 @@ class Transaction(Model):
 	source_address = CharField()
 	to_address = CharField(null = True)
 	amount = CharField()
-	processed = BooleanField()
-	created = DateTimeField()
-	tran_id = CharField()
-	attempts = IntegerField()
+	processed = BooleanField(default=False)
+	created = DateTimeField(default=datetime.datetime.now())
+	tran_id = CharField(default='')
+	attempts = IntegerField(default=0)
 	giveawayid = IntegerField(null = True)
 
 	class Meta:
