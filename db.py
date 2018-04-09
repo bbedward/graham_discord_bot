@@ -16,7 +16,7 @@ LAST_MSG_RAIN_DELTA = 60
 # How many words messages must contain
 LAST_MSG_RAIN_WORDS = 3
 
-db = SqliteQueueDatabase('nanotipbot.db')
+db = SqliteDatabase('nanotipbot.db')
 
 logger = util.get_logger("db")
 
@@ -446,10 +446,11 @@ def get_top_tips():
 
 	return result
 
-# Marks TX as sent
-def mark_transaction_sent(uuid, amt, source_id, target_id=None):
+# Marks TX as processed
+def mark_transaction_processed(uuid, amt, source_id, target_id=None, tranid=None):
 	tu = (Transaction.update(
-			processed = True
+			processed = True,
+			tran_id = tranid
 		    ).where(
 			(Transaction.uid == uuid) &
 			(Transaction.processed == False)
@@ -458,12 +459,6 @@ def mark_transaction_sent(uuid, amt, source_id, target_id=None):
 		update_pending(source_id,send=amt)
 		if target_id is not None:
 			update_pending(target_id, receive=amt)
-
-# This adds block to our TX
-def mark_transaction_processed(uuid, tranid):
-	(Transaction.update(
-		tran_id = tranid
-	).where(Transaction.uid == uuid)).execute()
 
 # Return false if last message was < LAST_MSG_TIME
 # If > LAST_MSG_TIME, return True and update the user
@@ -542,7 +537,7 @@ class User(Model):
 	tipped_amount = FloatField(default=0.0, constraints=[SQL('DEFAULT 0.0')])
 	pending_receive = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
 	pending_send = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
-	tip_count = BigIntegerField(default=0, constraints=[SQL('DEFAULT 0')])
+	tip_count = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
 	created = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
 	last_msg = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
 	last_msg_rain = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
