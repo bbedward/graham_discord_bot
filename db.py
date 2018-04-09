@@ -555,7 +555,7 @@ class User(Model):
 
 # Transaction table, keep trac of sends to process
 class Transaction(Model):
-	uid = CharField()
+	uid = CharField(unique=True)
 	source_address = CharField()
 	to_address = CharField(null = True)
 	amount = CharField()
