@@ -55,7 +55,7 @@ def get_address(user_id):
 		return user.wallet_address
 
 def get_top_users(count):
-	users = User.select().where(User.tipped_amount > 0).order_by(User.tipped_amount.desc()).limit(count)
+	users = User.select().where((User.tipped_amount > 0) & (User.stats_ban == False)).order_by(User.tipped_amount.desc()).limit(count)
 	return_data = []
 	for idx, user in enumerate(users):
 		return_data.append({'index': idx + 1, 'name': user.user_name, 'amount': user.tipped_amount})
@@ -74,14 +74,22 @@ def get_tip_stats(user_id):
 	if user is None:
 		return None
 	rank = User.select().where(User.tipped_amount > user.tipped_amount).count() + 1
-	if user.tip_count == 0:
+	if not user.stats_ban:
+		tipped_amount = user.tipped_amount
+		tip_count = user.tip_count
+		top_tip = user.top_tip
+	else:
+		tipped_amount = 0
+		tip_count = 0
+		top_tip = 0
+	if tip_count == 0:
 		average = 0
 	else:
-		average = user.tipped_amount / user.tip_count
-	return {'rank':rank, 'total':user.tipped_amount, 'average':average,'top':float(user.top_tip) / 1000000}
+		average = tipped_amount / tip_count
+	return {'rank':rank, 'total':tipped_amount, 'average':average,'top':float(top_tip) / 1000000}
 
 # Update tip stats
-def update_tip_stats(user, tip):
+def update_tip_stats(user, tip, rain=False, giveaway=False):
 	(User.update(
 		tipped_amount=(User.tipped_amount + (tip / 1000000)),
 		tip_count = User.tip_count + 1
@@ -93,6 +101,18 @@ def update_tip_stats(user, tip):
 			top_tip_ts = datetime.datetime.now()
 			).where(User.user_id == user.user_id)
 			).execute()
+	if rain:
+		(User.update(
+			rain_amount = User.rain_amount + (tip / 1000000)
+			)
+			.where(User.user_id == user.user_id)
+		).execute()
+	elif giveaway:
+		(User.update(
+			giveaway_amount = User.giveaway_amount + (tip / 1000000)
+			)
+			.where(User.user_id == user.user_id)
+		).execute()
 
 def update_tip_total(user_id, new_total):
 	User.update(tipped_amount = new_total).where(User.user_id == user_id).execute()
@@ -125,7 +145,10 @@ def create_user(user_id, user_name, wallet_address):
 		    top_tip='0',
 		    top_tip_ts=datetime.datetime.now(),
 		    ticket_count=0,
-		    last_withdraw=datetime.datetime.now()
+		    last_withdraw=datetime.datetime.now(),
+		    stats_ban=False,
+		    rain_amount = 0.0,
+		    giveaway_amount = 0.0
 		    )
 	user.save()
 	return user
@@ -280,9 +303,17 @@ def ban_user(user_id):
 	ban.save()
 	return True
 
+def statsban_user(user_id):
+	banned = User.update(stats_ban = True).where(User.user_id == user_id).execute()
+	return banned > 0
+
 def unban_user(user_id):
 	deleted = BannedUser.delete().where(BannedUser.user_id == user_id).execute()
 	return deleted > 0
+
+def statsunban_user(user_id):
+	unbanned = User.update(stats_ban = False).where(User.user_id == user_id).execute()
+	return unbanned > 0
 
 def get_banned():
 	banned = BannedUser.select(BannedUser.user_id)
@@ -291,7 +322,17 @@ def get_banned():
 		return "```Nobody Banned```"
 	ret = "```"
 	for idx,user in enumerate(users):
-		ret += "%d: %s\n" % (idx,user.user_name)
+		ret += "%d: %s\n" % (idx+1,user.user_name)
+	ret += "```"
+	return ret
+
+def get_statsbanned():
+	statsbanned = User.select().where(User.stats_ban == True)
+	if statsbanned.count() == 0:
+		return "```No stats bans```"
+	ret = "```"
+	for idx,user in enumerate(statsbanned):
+		ret += "%d: %s\n" % (idx+1,user.user_name)
 	ret += "```"
 	return ret
 
@@ -394,9 +435,9 @@ def get_top_tips():
 	month_str = dt.strftime("%B")
 	month_num = "%02d" % dt.month # Sqlite uses 2 digit month (with leading 0)
 	amount = fn.MAX(User.top_tip.cast('integer')).alias('amount')
-	top_24h = User.select(amount, User.user_name).where(User.top_tip_ts > past_dt).order_by(User.top_tip_ts).limit(1)
-	top_month = User.select(amount, User.user_name).where(fn.strftime("%m", User.top_tip_ts) == month_num).order_by(User.top_tip_ts).limit(1)
-	top_at = User.select(amount, User.user_name).order_by(User.top_tip_ts).limit(1)
+	top_24h = User.select(amount, User.user_name).where((User.top_tip_ts > past_dt) & (User.stats_ban == False)).order_by(User.top_tip_ts).limit(1)
+	top_month = User.select(amount, User.user_name).where((fn.strftime("%m", User.top_tip_ts) == month_num) & (User.stats_ban == False)).order_by(User.top_tip_ts).limit(1)
+	top_at = User.select(amount, User.user_name).where(User.stats_ban == False).order_by(User.top_tip_ts).limit(1)
 	# Formatted output
 	user24h = None
 	monthuser = None
@@ -531,6 +572,9 @@ class User(Model):
 	top_tip_ts = DateTimeField()
 	ticket_count = IntegerField()
 	last_withdraw = DateTimeField()
+	stats_ban = BooleanField()
+	rain_amount = FloatField()
+	giveaway_amount = FloatField()
 
 	class Meta:
 		database = db

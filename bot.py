@@ -21,7 +21,7 @@ import db
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "1.8"
+BOT_VERSION = "1.8.1"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -176,6 +176,10 @@ BAN_SUCCESS="User %s can no longer receive tips"
 BAN_DUP="User %s is already banned"
 UNBAN_SUCCESS="User %s has been unbanned"
 UNBAN_DUP="User %s is not banned"
+STATSBAN_SUCCESS="User %s is no longer considered in tip statistics"
+STATSBAN_DUP="User %s is already stats banned"
+STATSUNBAN_SUCCESS="User %s is now considered in tip statistics"
+STATSUNBAN_DUP="User %s is not stats banned"
 WINNERS_HEADER="Here are the previous %d giveaway winners! :trophy:" % WINNERS_COUNT
 WINNERS_EMPTY="There are no previous giveaway winners"
 WINNERS_SPAM="No more winners for %d seconds"
@@ -578,7 +582,7 @@ async def rain(ctx):
 		# Message React
 		await react_to_message(message, amount)
 		await client.add_reaction(message, '\U0001F4A6') # Sweat Drops
-		db.update_tip_stats(user, real_amount)
+		db.update_tip_stats(user, real_amount,rain=True)
 		db.mark_user_active(user)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
@@ -664,7 +668,7 @@ async def givearai(ctx):
 		else:
 			await post_response(message, GIVEAWAY_STARTED, message.author.name, nano_amt)
 		asyncio.get_event_loop().create_task(start_giveaway_timer())
-		db.update_tip_stats(user, amount)
+		db.update_tip_stats(user, amount, giveaway=True)
 		db.add_contestant(message.author.id, override_ban=True)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
@@ -733,7 +737,7 @@ async def tip_giveaway(message, ticket=False):
 				await post_response(message, GIVEAWAY_STARTED_FEE, client.user.name, nano_amt, fee, fee)
 				asyncio.get_event_loop().create_task(start_giveaway_timer())
 		# Update top tip
-		db.update_tip_stats(user, amount)
+		db.update_tip_stats(user, amount, giveaway=True)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			if ticket:
@@ -893,6 +897,12 @@ async def banned(ctx):
 		await post_dm(message.author, db.get_banned())
 
 @client.command(pass_context=True)
+async def statsbanned(ctx):
+	message = ctx.message
+	if is_admin(message.author):
+		await post_dm(message.author, db.get_statsbanned())
+
+@client.command(pass_context=True)
 async def pause(ctx):
 	message = ctx.message
 	if is_admin(message.author):
@@ -918,6 +928,16 @@ async def tipban(ctx):
 					await post_dm(message.author, BAN_DUP, member.name)
 
 @client.command(pass_context=True)
+async def statsban(ctx):
+	message = ctx.message
+	if is_admin(message.author):
+		for member in message.mentions:
+			if db.statsban_user(member.id):
+				await post_dm(message.author, STATSBAN_SUCCESS, member.name)
+			else:
+				await post_dm(message.author, STATSBAN_DUP, member.name)
+
+@client.command(pass_context=True)
 async def tipunban(ctx):
 	message = ctx.message
 	if is_admin(message.author):
@@ -926,6 +946,16 @@ async def tipunban(ctx):
 				await post_dm(message.author, UNBAN_SUCCESS, member.name)
 			else:
 				await post_dm(message.author, UNBAN_DUP, member.name)
+
+@client.command(pass_context=True)
+async def statsunban(ctx):
+	message = ctx.message
+	if is_admin(message.author):
+		for member in message.mentions:
+			if db.statsunban_user(member.id):
+				await post_dm(message.author, STATSUNBAN_SUCCESS, member.name)
+			else:
+				await post_dm(message.author, STATSUNBAN_DUP, member.name)
 
 @client.command(pass_context=True)
 async def settiptotal(ctx, amount: float = -1.0, user: discord.Member = None):

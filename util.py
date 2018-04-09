@@ -11,11 +11,11 @@ class TipBotException(Exception):
 		return repr(self.error_type)
 
 
-def get_logger(name):
+def get_logger(name, log_file='debug.log'):
 	formatter = logging.Formatter('%(asctime)s [%(name)s] -%(levelname)s- %(message)s')
 	logger = logging.getLogger(name)
 	logger.setLevel(logging.DEBUG)
-	file_handler = logging.handlers.TimedRotatingFileHandler('debug.log', when='midnight', backupCount=0)
+	file_handler = logging.handlers.TimedRotatingFileHandler(log_file, when='midnight', backupCount=0)
 	file_handler.setLevel(logging.DEBUG)
 	file_handler.setFormatter(formatter)
 	logger.handlers = []
@@ -25,5 +25,3 @@ def get_logger(name):
 	logger.addHandler(console_handler)
 	logger.propagate = False
 	return logger
-
-

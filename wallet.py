@@ -10,6 +10,7 @@ import asyncio
 wallet = settings.wallet
 
 logger = util.get_logger('wallet')
+logger_newuser = util.get_logger('usr', log_file='user_creation.log')
 
 def communicate_wallet(wallet_command):
 	buffer = BytesIO()
@@ -39,6 +40,7 @@ async def create_or_fetch_user(user_id, user_name):
 		user = db.create_user(user_id=user_id, user_name=user_name,
 							  wallet_address=address)
 		logger.info('user %s created.', user_id)
+		logger_newuser.info('user_id: %s, user_name: %s, wallet_address: %s', user_id, user_name, address)
 		return user
 	else:
 		logger.info('user %s fetched.', user_id)
