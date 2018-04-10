@@ -3,6 +3,7 @@ import datetime
 import util
 import settings
 from random import randint
+from random import shuffle
 from peewee import *
 from playhouse.sqliteq import SqliteQueueDatabase
 
@@ -318,15 +319,12 @@ def get_statsbanned():
 
 # Returns winning user
 def finish_giveaway():
-	contestants = Contestant.select().where(Contestant.banned == False).order_by(fn.Random())
+	contestants = Contestant.select(Contestant.user_id).where(Contestant.banned == False).order_by(fn.Random())
 	offset = randint(0, contestants.count() - 1)
-	i = 0
+	contestant_ids = []
 	for c in contestants:
-		if offset == i:
-			winner = get_user_by_id(c.user_id)
-			break
-		else:
-			i += 1
+		contestant_ids.append(c.user_id)
+	winner = get_user_by_id(shuffle(contestant_ids)[offset])
 	Contestant.delete().execute()
 	giveaway = Giveaway.get(active=True)
 	giveaway.active=False
