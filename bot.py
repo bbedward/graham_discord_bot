@@ -320,7 +320,7 @@ async def pause_msg(message):
 	if paused:
 		await post_dm(message.author, PAUSE_MSG)
 
-async def is_admin(user):
+def is_admin(user):
 	return (has_admin_role(user.roles) or user.id in settings.admin_ids)
 
 ### Commands
