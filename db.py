@@ -448,10 +448,10 @@ def get_top_tips():
 # Marks TX as sent
 def mark_transaction_sent(uuid, amt, source_id, target_id=None):
 	tu = (Transaction.update(
-			processed = True
+			sent = True
 		    ).where(
 			(Transaction.uid == uuid) &
-			(Transaction.processed == False)
+			(Transaction.sent == False)
 	)).execute()
 	if tu > 0:
 		update_pending(source_id,send=amt)
@@ -461,7 +461,8 @@ def mark_transaction_sent(uuid, amt, source_id, target_id=None):
 # This adds block to our TX
 def mark_transaction_processed(uuid, tranid):
 	(Transaction.update(
-		tran_id = tranid
+		tran_id = tranid,
+		processed = True
 	).where(Transaction.uid == uuid)).execute()
 
 # Return false if last message was < LAST_MSG_TIME
@@ -563,6 +564,7 @@ class Transaction(Model):
 	source_address = CharField(constraints=[SQL('FOREIGN KEY (source_address) REFERENCES user(wallet_addrress)')])
 	to_address = CharField(null = True)
 	amount = CharField()
+	sent = BooleanField(default=False, constraints=[SQL('DEFAULT 0')])
 	processed = BooleanField(default=False, constraints=[SQL('DEFAULT 0')])
 	created = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
 	tran_id = CharField(default='', null=True)

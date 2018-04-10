@@ -21,7 +21,7 @@ import db
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "1.8.2"
+BOT_VERSION = "1.8.3"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
