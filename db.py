@@ -445,11 +445,10 @@ def get_top_tips():
 
 	return result
 
-# Marks TX as processed
-def mark_transaction_processed(uuid, amt, source_id, target_id=None, tranid=None):
+# Marks TX as sent
+def mark_transaction_sent(uuid, amt, source_id, target_id=None):
 	tu = (Transaction.update(
-			processed = True,
-			tran_id = tranid
+			processed = True
 		    ).where(
 			(Transaction.uid == uuid) &
 			(Transaction.processed == False)
@@ -458,6 +457,12 @@ def mark_transaction_processed(uuid, amt, source_id, target_id=None, tranid=None
 		update_pending(source_id,send=amt)
 		if target_id is not None:
 			update_pending(target_id, receive=amt)
+
+# This adds block to our TX
+def mark_transaction_processed(uuid, tranid):
+	(Transaction.update(
+		tran_id = tranid
+	).where(Transaction.uid == uuid)).execute()
 
 # Return false if last message was < LAST_MSG_TIME
 # If > LAST_MSG_TIME, return True and update the user
@@ -555,7 +560,7 @@ class User(Model):
 # Transaction table, keep trac of sends to process
 class Transaction(Model):
 	uid = CharField(unique=True)
-	source_address = CharField()
+	source_address = CharField(constraints=[SQL('FOREIGN KEY (source_address) REFERENCES user(wallet_addrress)')])
 	to_address = CharField(null = True)
 	amount = CharField()
 	processed = BooleanField(default=False, constraints=[SQL('DEFAULT 0')])
@@ -569,7 +574,7 @@ class Transaction(Model):
 
 # Giveaway table, keep track of current giveaway
 class Giveaway(Model):
-	started_by = CharField() # User ID
+	started_by = CharField(constraints=[SQL('FOREIGN KEY (started_by) REFERENCES user(user_id)')]) # User ID
 	started_by_name = CharField() # User Name
 	active = BooleanField()
 	amount = FloatField()
@@ -584,7 +589,7 @@ class Giveaway(Model):
 
 # Giveaway Entrants
 class Contestant(Model):
-	user_id = CharField()
+	user_id = CharField(constraints=[SQL('FOREIGN KEY (user_id) REFERENCES user(user_id)')])
 	banned = BooleanField()
 
 	class Meta:
@@ -592,7 +597,7 @@ class Contestant(Model):
 
 # Banned List
 class BannedUser(Model):
-	user_id = CharField()
+	user_id = CharField(constraints=[SQL('FOREIGN KEY (user_id) REFERENCES user(user_id)')])
 
 	class Meta:
 		database = db

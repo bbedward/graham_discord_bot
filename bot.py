@@ -231,8 +231,10 @@ class SendProcessor(Thread):
 					source_id=src_usr.user_id
 				if trg_usr is not None:
 					target_id=trg_usr.user_id
+				db.mark_transaction_sent(uid, pending_delta, source_id, target_id)
 				logger.debug("RPC Send")
 				try:
+
 					wallet_output = wallet.communicate_wallet(wallet_command)
 				except Exception as e:
 					logger.exception(e)
@@ -240,7 +242,7 @@ class SendProcessor(Thread):
 				logger.debug("RPC Response")
 				if 'block' in wallet_output:
 					txid = wallet_output['block']
-					db.mark_transaction_processed(uid, pending_delta, source_id,target_id,tranid=txid)
+					db.mark_transaction_processed(uid, txid)
 					logger.info('TX processed. UID: %s, TXID: %s', uid, txid)
 					if target_id is None:
 						withdrawq.put({'user_id':source_id, 'txid':txid})
@@ -248,7 +250,7 @@ class SendProcessor(Thread):
 					# Not sure what happen but we'll retry a few times
 					if attempts >= MAX_TX_RETRIES:
 						logger.info("Max Retires Exceeded for TX UID: %s", uid)
-						db.mark_transaction_processed(uid, pending_delta, source_id,target_id, tranid='invalid')
+						db.mark_transaction_processed(uid, 'invalid')
 					else:
 						db.inc_tx_attempts(uid)
 			if self.stopped():
@@ -713,7 +715,7 @@ async def tip_giveaway(message, ticket=False):
 		if not ticket:
 			await react_to_message(message, amount)
 		# If eligible, add them to giveaway
-		if contributions >= fee:
+		if contributions >= fee and not db.is_banned(message.author.id):
 			if contributions >= (fee * 4):
 				db.mark_user_active(user)
 			entered = db.add_contestant(message.author.id, override_ban=True)
