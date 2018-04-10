@@ -318,7 +318,7 @@ def get_statsbanned():
 
 # Returns winning user
 def finish_giveaway():
-	contestants = Contestant.select().where(Contestant.banned == False).order_by(Contestant.user_id)
+	contestants = Contestant.select().where(Contestant.banned == False).order_by(fn.Random())
 	offset = randint(0, contestants.count() - 1)
 	i = 0
 	for c in contestants:
