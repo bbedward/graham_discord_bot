@@ -963,13 +963,13 @@ async def tipstats(ctx):
 @client.command(pass_context=True)
 async def banned(ctx):
 	message = ctx.message
-	if is_admin(message.author):
+	if is_admin(message.author) or message.channel.is_private:
 		await post_dm(message.author, db.get_banned())
 
 @client.command(pass_context=True)
 async def statsbanned(ctx):
 	message = ctx.message
-	if is_admin(message.author):
+	if is_admin(message.author) or message.channel.is_private:
 		await post_dm(message.author, db.get_statsbanned())
 
 @client.command(pass_context=True)
@@ -984,7 +984,7 @@ async def unpause(ctx):
 	message = ctx.message
 	if is_admin(message.author):
 		global paused
-		paused = True
+		paused = False
 
 @client.command(pass_context=True)
 async def tipban(ctx):
