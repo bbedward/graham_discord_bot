@@ -617,7 +617,10 @@ async def do_tip(message, random=False):
 		db.update_tip_stats(user, required_amt)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
-			await post_usage(message, TIP_CMD, TIP_INFO)
+			if random:
+				await post_usage(message, TIPRANDOM_CMD, TIPRANDOM_INFO)
+			else:
+				await post_usage(message, TIP_CMD, TIP_INFO)
 		elif e.error_type == "no_valid_recipient":
 			await post_dm(message.author, TIP_SELF)
 		else:
@@ -708,7 +711,10 @@ async def do_tipsplit(message, user_list=None):
 		db.update_tip_stats(user, real_amount)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
-			await post_usage(message, TIPSPLIT_CMD, TIPSPLIT_INFO)
+			if user_list is None:
+				await post_usage(message, TIPSPLIT_CMD, TIPSPLIT_INFO)
+			else:
+				await post_usage(message, TIP_FAVORITES_CMD, TIP_FAVORITES_INFO)
 		elif e.error_type == "invalid_tipsplit":
 			await post_dm(message.author, TIPSPLIT_SMALL)
 		elif e.error_type == "no_valid_recipient":
@@ -751,9 +757,11 @@ async def rain(ctx):
 		if len(active_user_ids) < 1:
 			raise util.TipBotException("no_valid_recipient")
 		for auid in active_user_ids:
-			dmember = message.guild.get_member(auid)
+			dmember = message.guild.get_member(int(auid))
 			if dmember is not None and (dmember.status == discord.Status.online or dmember.status == discord.Status.idle):
-				if dmember.id not in settings.exempt_users and dmember.id != message.author.id and not db.is_banned(dmember.id) and not dmember.bot:
+				logger.debug("DMEMBER NOT NONE")
+				if str(dmember.id) not in settings.exempt_users and dmember.id != message.author.id and not db.is_banned(dmember.id) and not dmember.bot:
+					logger.debug("DMEMBER ADDED")
 					users_to_tip.append(dmember)
 		users_to_tip = list(set(users_to_tip))
 		if len(users_to_tip) < 1:
@@ -1021,7 +1029,7 @@ async def finish_giveaway(delay):
 	if giveaway is not None:
 		channel = client.get_channel(int(giveaway.channel_id))
 		response = GIVEAWAY_ENDED % (giveaway.winner_id, giveaway.amount + giveaway.tip_amount)
-		await client.send_message(channel, response)
+		await channel.send_message(response)
 		await post_dm(await client.get_user_info(int(giveaway.winner_id)), response)
 
 @client.command()

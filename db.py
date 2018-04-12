@@ -280,7 +280,6 @@ def get_tipgiveaway_sum():
 
 # Get tipgiveaway contributions
 def get_tipgiveaway_contributions(user_id, giveawayid=-1):
-	user_id = str(user_id)
 	tip_sum = 0
 	user = get_user_by_id(user_id)
 	txs = Transaction.select().where((Transaction.giveawayid == giveawayid) & (Transaction.source_address == user.wallet_address))
