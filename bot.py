@@ -564,6 +564,9 @@ async def do_tip(message, random=False):
 
 	try:
 		amount = find_amount(message.content)
+		if random and amount < 1000:
+			await post_dm(message.author, "At least 1000 naneroo required to tip random")
+			return
 		# Make sure amount is valid and at least 1 user is mentioned
 		if amount < 1 or (len(message.mentions) < 1 and not random):
 			raise util.TipBotException("usage_error")
@@ -759,9 +762,7 @@ async def rain(ctx):
 		for auid in active_user_ids:
 			dmember = message.guild.get_member(int(auid))
 			if dmember is not None and (dmember.status == discord.Status.online or dmember.status == discord.Status.idle):
-				logger.debug("DMEMBER NOT NONE")
 				if str(dmember.id) not in settings.exempt_users and dmember.id != message.author.id and not db.is_banned(dmember.id) and not dmember.bot:
-					logger.debug("DMEMBER ADDED")
 					users_to_tip.append(dmember)
 		users_to_tip = list(set(users_to_tip))
 		if len(users_to_tip) < 1:
@@ -1028,7 +1029,7 @@ async def finish_giveaway(delay):
 	if giveaway is not None:
 		channel = client.get_channel(int(giveaway.channel_id))
 		response = GIVEAWAY_ENDED % (giveaway.winner_id, giveaway.amount + giveaway.tip_amount)
-		await channel.send_message(response)
+		await channel.send(response)
 		await post_dm(await client.get_user_info(int(giveaway.winner_id)), response)
 
 @client.command()
@@ -1192,8 +1193,8 @@ async def favorites(ctx):
 	embed.description=("Here are your favorites! " +
 			   "You can tip everyone in this list at the same time using `%stipfavorites amount`")
 	for fav in favorites:
-		discord_user = await client.get_user_info(int(fav['user_id']))
-		name = str(fav['id']) + ": " + discord_user.name
+		fav_user = db.get_user_by_id(fav['user_id'])
+		name = str(fav['id']) + ": " + fav_user.user_name
 		value = "You can remove this favorite with `%sremovefavorite %d`" % (COMMAND_PREFIX, fav['id'])
 		embed.add_field(name=name,value=value,inline=False)
 
