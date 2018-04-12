@@ -973,7 +973,7 @@ async def tip_giveaway(message, ticket=False):
 			tipgiveaway_sum = db.get_tipgiveaway_sum()
 			nano_amt = float(tipgiveaway_sum)/ 1000000
 			if tipgiveaway_sum >= GIVEAWAY_MINIMUM:
-				end_time = datetime.datetime.now() + datetime.timedelta(minutes=GIVEAWAY_AUTOR_DURATION)
+				end_time = datetime.datetime.now() + datetime.timedelta(minutes=GIVEAWAY_AUTO_DURATION)
 				db.start_giveaway(client.user.id, client.user.name, 0, end_time, message.channel.id,entry_fee=fee)
 				await post_response(message, GIVEAWAY_STARTED_FEE, client.user.name, nano_amt, fee, fee)
 				asyncio.get_event_loop().create_task(start_giveaway_timer())
