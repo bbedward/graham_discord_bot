@@ -973,12 +973,11 @@ async def tip_giveaway(message, ticket=False):
 			tipgiveaway_sum = db.get_tipgiveaway_sum()
 			nano_amt = float(tipgiveaway_sum)/ 1000000
 			if tipgiveaway_sum >= GIVEAWAY_MINIMUM:
-				duration = int(GIVEAWAY_DURATION / 2)
-				end_time = datetime.datetime.now() + datetime.timedelta(minutes=duration)
+				end_time = datetime.datetime.now() + datetime.timedelta(minutes=GIVEAWAY_AUTOR_DURATION)
 				db.start_giveaway(client.user.id, client.user.name, 0, end_time, message.channel.id,entry_fee=fee)
 				await post_response(message, GIVEAWAY_STARTED_FEE, client.user.name, nano_amt, fee, fee)
 				asyncio.get_event_loop().create_task(start_giveaway_timer())
-		# Update top tip
+		# Update top tipY
 		db.update_tip_stats(user, amount, giveaway=True)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
