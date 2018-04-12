@@ -1,8 +1,9 @@
-# Original file taken from: https://github.com/Phxntxm/Bonfire
-# This version is modified by http://github.com/bbedward to:
-# 1) Have rainbow colors
-# 2) Take specific classes as Pages
-# 3) Some other things
+# Based on: https://github.com/Phxntxm/Bonfire/blob/master/cogs/utils/paginator.py
+# This version is modified by http://github.com/bbedward in following ways:
+# 1) Work with discord.py rewrite
+# 2) Detect reaction_remove, so pages move on 1 click
+# 3) Have rainbow colors
+# 4) Take an array of Page objects instead of functions
 
 import asyncio
 import discord
@@ -11,7 +12,7 @@ class CannotPaginate(Exception):
 	pass
 
 class Page:
-	def __init__(self, entries, title=discord.Embed.Empty, description=discord.Embed.Empty, author=discord.Embed.Empty):
+	def __init__(self, entries=[], title=discord.Embed.Empty, description=discord.Embed.Empty, author=discord.Embed.Empty):
 		self.entries = entries
 		self.title = title
 		self.description = description
@@ -50,7 +51,7 @@ class Paginator:
 			('\N{INFORMATION SOURCE}', self.show_help),
 		]
 
-		server = self.message.server
+		server = self.message.guild
 		if server is not None:
 			self.permissions = self.message.channel.permissions_for(server.me)
 		else:
@@ -66,7 +67,7 @@ class Paginator:
 		self.current_page = page
 		content = self.get_page(page)
 
-		# Rainbow pages
+		# Rainbow page, logic is just to make colors repeat
 		if page > len(self.colors):
 			multiplier = int(page / len(self.colors))
 			color_idx = page - multiplier * len(self.colors)
@@ -92,7 +93,7 @@ class Paginator:
 			self.embed.clear_fields()
 			for entry in content.entries:
 				self.embed.add_field(name=entry.name, value=entry.value, inline=False)
-			return await self.bot.send_message(self.message.channel, embed=self.embed)
+			return await self.message.channel.send(embed=self.embed)
 
 		if not first:
 			if content.title != discord.Embed.Empty:
@@ -110,7 +111,7 @@ class Paginator:
 			self.embed.clear_fields()
 			for entry in content.entries:
 				self.embed.add_field(name=entry.name, value=entry.value, inline=False)
-			await self.bot.edit_message(self.message, embed=self.embed)
+			await self.message.edit(embed=self.embed)
 			return
 
 		# verify we can actually use the pagination session
@@ -141,9 +142,9 @@ class Paginator:
 		else:
 			self.embed.description = help_txt
 		if self.as_dm:
-			self.message = await self.bot.send_message(self.author, embed=self.embed)
+			self.message = await self.author.send(embed=self.embed)
 		else:
-			self.message = await self.bot.send_message(self.message.channel, embed=self.embed)
+			self.message = await self.message.channel.send(embed=self.embed)
 		for (reaction, _) in self.reaction_emojis:
 			if self.maximum_pages == 2 and reaction in ('\u23ed', '\u23ee'):
 				# no |<< or >>| buttons if we only have two pages
@@ -151,7 +152,7 @@ class Paginator:
 				# it from the default set
 				continue
 			try:
-				await self.bot.add_reaction(self.message, reaction)
+				await self.message.add_reaction(reaction)
 			except discord.NotFound:
 				# If the message isn't found, we don't care about clearing anything
 				return
@@ -193,7 +194,7 @@ class Paginator:
 		e.description = '\n'.join(messages)
 		e.colour =	0x738bd7 # blurple
 		e.set_footer(text='We were on page %s before this message.' % self.current_page)
-		await self.bot.edit_message(self.message, embed=e)
+		await self.message.edit(embed=e)
 
 		async def go_back_to_current_page():
 			await asyncio.sleep(60.0)
@@ -203,11 +204,13 @@ class Paginator:
 
 	async def stop_pages(self):
 		"""stops the interactive pagination session"""
-		await self.bot.delete_message(self.message)
+		await self.message.delete()
 		self.paginating = False
 
 	def react_check(self, reaction, user):
 		if user is None or user.id != self.author.id:
+			return False
+		elif reaction.message.id != self.message.id:
 			return False
 
 		for (emoji, func) in self.reaction_emojis:
@@ -216,24 +219,38 @@ class Paginator:
 				return True
 		return False
 
+
 	async def paginate(self, start_page=1):
 		"""Actually paginate the entries and run the interactive loop if necessary."""
 		await self.show_page(start_page, first=True)
 
 		while self.paginating:
-			react = await self.bot.wait_for_reaction(message=self.message, check=self.react_check, timeout=120.0)
+			react = await self.wait_first(self.wait_for_reaction_add(),self.wait_for_reaction_remove())
 			if react is None:
 				self.paginating = False
 				try:
-					await self.bot.clear_reactions(self.message)
+					self.embed.set_footer(text="session timed out")
+					await self.message.edit(embed=self.embed)
+					await self.message.clear_reactions()
 				except:
 					pass
 				finally:
 					break
 
-			try:
-				await self.bot.remove_reaction(self.message, react.reaction.emoji, react.user)
-			except:
-				pass # can't remove it so don't bother doing so
-
 			await self.match()
+
+	async def wait_first(self, *futures):
+		done, pending = await asyncio.wait(futures,return_when=asyncio.FIRST_COMPLETED)
+		gather = asyncio.gather(*pending)
+		gather.cancel()
+		try:
+			await gather
+		except asyncio.CancelledError:
+			pass
+		return done.pop().result()
+
+	async def wait_for_reaction_add(self):
+		return await self.bot.wait_for('reaction_add', check=self.react_check, timeout=120.0)
+
+	async def wait_for_reaction_remove(self):
+		return await self.bot.wait_for('reaction_remove', check=self.react_check, timeout=120.0)
