@@ -22,7 +22,7 @@ giveaway_max_duration=60
 # Default giveaway duration for giveaways started by bot
 giveaway_auto_duration=30
 # Reboot node script on timeout
-reboot_script_path=".scripts/reboot_node.sh"
+reboot_script_path="./scripts/reboot_node.sh"
 # command prefix
 command_prefix='!'
 # Status
