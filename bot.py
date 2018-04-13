@@ -587,6 +587,11 @@ async def do_tip(message, random=False):
 				return
 			if str(message.author.id) in active:
 				active.remove(str(message.author.id))
+			# Remove bots from consideration
+			for a in active:
+				dmember = message.guild.get_member(int(a))
+				if dmember.bot:
+					active.remove(a)
 			shuffle(active)
 			offset = randint(0, len(active) - 1)
 			users_to_tip.append(message.guild.get_member(int(active[offset])))
