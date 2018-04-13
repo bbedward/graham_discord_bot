@@ -80,7 +80,7 @@ WITHDRAW_CMD="%swithdraw, takes: address (optional amount)" % COMMAND_PREFIX
 WITHDRAW_OVERVIEW="Allows you to withdraw from your tip account"
 WITHDRAW_INFO=("Withdraws specified amount to specified address, " +
 		"if amount isn't specified your entire tip account balance will be withdrawn" +
-		"\nExample: `withdraw xrb_111111111111111111111111111111111111111111111111111hifc8npp 1000` - Withdraws 1000 naneroo")
+		"\nExample: `withdraw xrb_1234address5678 1000` - Withdraws 1000 naneroo")
 TIP_CMD="%stip, takes: amount <*users>" % COMMAND_PREFIX
 TIP_OVERVIEW="Send a tip to mentioned users"
 TIP_INFO=("Tip specified amount to mentioned user(s) (minimum tip is 1 naneroo)" +
@@ -94,7 +94,7 @@ TIPSPLIT_INFO="Distributes a tip evenly to all mentioned users.\nExample: `tipsp
 TIPRANDOM_CMD="%stiprandom, takes: amount" % COMMAND_PREFIX
 TIPRANDOM_OVERVIEW="Tips a random active user"
 TIPRANDOM_INFO=("Tips amount to a random active user. Active user list picked using same logic as rain" +
-		"\n***Minimum tiprandom amount: %d naneroo") % settings.tiprandom_minimum
+		"\n**Minimum tiprandom amount: %d naneroo**") % settings.tiprandom_minimum
 RAIN_CMD="%srain, takes: amount" % COMMAND_PREFIX
 RAIN_OVERVIEW="Split tip among all active* users"
 RAIN_INFO=("Distribute <amount> evenly to users who are eligible.\n" +

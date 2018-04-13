@@ -106,3 +106,8 @@ venv.bak/
 # NANO tip bot stuff
 nanotipbot.db
 settings.py
+nohup.out
+*.log*
+backups/
+*.db-wal
+*.db-shm

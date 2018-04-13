@@ -1,0 +1,15 @@
+#!/bin/bash
+# NANO Tip Bot Database backup
+# Easiest way to start backing up your database, update backup_folder and database_path and stick it in /etc/cron.hourly or daily, etc.
+
+### CHANGE THESE
+backup_folder="/path/to/store/backups"
+database_path="/path/to/graham_tip_bot/nanotipbot.db"
+### CHANGE THESE
+
+# Don't change me
+backup_file="${backup_folder}/$(date +%Y-%m-%d_%H_%M_%S).bak"
+sqlite3 $database_path .dump > $backup_file
+zip -m "${backup_file}.zip" $backup_file
+# Delete backups older than 7 days
+find $backup_folder -type f -mtime +7 -name '*.zip' -execdir rm -- '{}' \;

@@ -40,10 +40,16 @@ nohup python3 bot.py &
 
 Optionally update `scripts/reboot_node.sh` with commands you would like automatically executed when tip bot encounters timeouts when doing RPC sends.
 
+** WARNING **
+
+There exists a script in scripts/cron called `nanotipbotbackup`. Highly recommend you use this or something better to backup the tip bot database.
+
+Simply toss the script in cron.hourly, crontab, cron.daily, whatever - and update the backup path and database path.
+
 ## Dependencies (install using pip)
 
 - Python 3.5+
-- NANO Node v10+
+- NANO Node v10+ (see: https://github.com/nanocurrency/raiblocks/wiki/Docker-node)
 - SQLite
 - `discord.py 1.0+ (rewrite)`
 - `peewee`
