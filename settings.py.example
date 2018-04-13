@@ -13,6 +13,8 @@ admin_roles = ['Moderators', 'Core', 'Community Managers']
 admin_ids=['1234','5678']
 # Minimum amount required for !rain
 rain_minimum = 10000
+# Minimum amount required to tiprandom
+tiprandom_minimum = 1000
 # Minimum amount required to start a giveaway
 giveaway_minimum = 1000000
 # Giveaway Duration (default giveaway duration, max=60 minutes)

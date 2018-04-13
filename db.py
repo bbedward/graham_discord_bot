@@ -47,6 +47,8 @@ def get_active_users(since_minutes):
 	return_ids = []
 	for user in users:
 		if user.last_msg_count >= LAST_MSG_RAIN_COUNT:
+			if is_banned(user.user_id):
+				continue
 			return_ids.append(user.user_id)
 	return return_ids
 
@@ -177,8 +179,6 @@ def create_transaction(src_usr, uuid, to_addr, amt, target_id=None, giveaway_id=
 	update_pending(src_usr.user_id, send=amt)
 	if target_id is not None:
 		update_pending(target_id, receive=amt)
-	else:
-		update_last_withdraw(src_usr.user_id)
 	return tx
 
 def update_last_withdraw(user_id):
@@ -580,24 +580,28 @@ def add_favorite(user_id, favorite_id):
 		return True
 	return False
 
-# Returns number of favorites deleted
+# Returns true if favorite deleted
 def remove_favorite(user_id, favorite_id=None,identifier=None):
 
 	if favorite_id is None and identifier is None:
-		return 0
+		return False
 	user_id=str(user_id)
-	favorite_id=str(favorite_id)
-	deleted = 0
-	if user_id is not None:
-		deleted += UserFavorite.delete().where((UserFavorite.user_id == user_id) & (UserFavorite.favorite_id == favorite_id)).execute()
-	if identifier is not None:
-		deleted += UserFavorite.delete().where((UserFavorite.user_id == user_id) & (UserFavorite.identifier == identifier)).execute()
-	return deleted
+	if favorite_id is not None:
+		favorite_id = str(favorite_id)
+		return UserFavorite.delete().where((UserFavorite.user_id == user_id) & (UserFavorite.favorite_id == favorite_id)).execute() > 0
+	elif identifier is not None:
+		return UserFavorite.delete().where((UserFavorite.user_id == user_id) & (UserFavorite.identifier == identifier)).execute() > 0
 
 # Returns list of favorites for user ID
 def get_favorites_list(user_id):
 	user_id = str(user_id)
 	favorites = UserFavorite.select().where(UserFavorite.user_id==user_id).order_by(UserFavorite.identifier)
+	idx = 1
+	# Normalize identifiers
+	for fav in favorites:
+		fav.identifier = idx
+		UserFavorite.update(identifier=idx).where((UserFavorite.user_id==user_id) & (UserFavorite.favorite_id == fav.favorite_id)).execute()
+		idx += 1
 	return_data = []
 	for fav in favorites:
 		return_data.append({'user_id':fav.favorite_id,'id': fav.identifier})

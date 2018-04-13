@@ -60,6 +60,18 @@ class Paginator:
 		if not self.permissions.embed_links:
 			raise CannotPaginate('Bot does not have embed links permission.')
 
+	def format_pages(entries, author=discord.Embed.Empty, title=discord.Embed.Empty,description=discord.Embed.Empty,per_page=10):
+		'''Returns an array of paginator.Page objects based on # of entires and per_page'''
+		L = len(entries)
+		if per_page >= L:
+			return [Page(entries=entries,title=title,author=author,description=description)]
+		entries_div = [entries[i * per_page:(i + 1) * per_page] for i in range((len(entries) + per_page - 1) // per_page)]
+		pages = []
+		for e in entries_div:
+			pages.append(Page(entries=e,title=title,author=author,description=description))
+		return pages
+
+
 	def get_page(self, page):
 		return self.page_list[page - 1]
 
@@ -85,7 +97,7 @@ class Paginator:
 			if content.author != discord.Embed.Empty:
 				self.embed.set_author(name=content.author)
 			else:
-				self.embed.set_author(name=discord.Embed.Empty)
+				self.embed.set_author(name='\u200b')
 			if content.description != discord.Embed.Empty:
 				self.embed.description = content.description
 			else:
@@ -103,7 +115,7 @@ class Paginator:
 			if content.author != discord.Embed.Empty:
 				self.embed.set_author(name=content.author)
 			else:
-				self.embed.set_author(name=discord.Embed.Empty)
+				self.embed.set_author(name='\u200b')
 			if content.description != discord.Embed.Empty:
 				self.embed.description = content.description
 			else:
@@ -128,7 +140,7 @@ class Paginator:
 		if content.author != discord.Embed.Empty:
 			self.embed.set_author(name=content.author)
 		else:
-			self.embed.set_author(name=discord.Embed.Empty)
+			self.embed.set_author(name='\u200b')
 		if content.description != discord.Embed.Empty:
 			self.embed.description = content.description
 		else:
@@ -136,11 +148,7 @@ class Paginator:
 		self.embed.clear_fields()
 		for entry in content.entries:
 			self.embed.add_field(name=entry.name, value=entry.value, inline=False)
-		help_txt = '\nConfused? React with \N{INFORMATION SOURCE} for more info.'
-		if self.embed.description != discord.Embed.Empty:
-			self.embed.description += help_txt
-		else:
-			self.embed.description = help_txt
+
 		if self.as_dm:
 			self.message = await self.author.send(embed=self.embed)
 		else:
@@ -225,13 +233,17 @@ class Paginator:
 		await self.show_page(start_page, first=True)
 
 		while self.paginating:
-			react = await self.wait_first(self.wait_for_reaction_add(),self.wait_for_reaction_remove())
+			try:
+				react = await self.wait_first(self.wait_for_reaction_add(),self.wait_for_reaction_remove())
+			except:
+				react = None
 			if react is None:
 				self.paginating = False
 				try:
-					self.embed.set_footer(text="session timed out")
+					self.embed.set_footer(text="Session Timed Out")
 					await self.message.edit(embed=self.embed)
-					await self.message.clear_reactions()
+					for (emoji, func) in self.reaction_emojis:
+						await self.message.remove_reaction(emoji, self.bot.user)
 				except:
 					pass
 				finally:

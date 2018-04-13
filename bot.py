@@ -25,7 +25,7 @@ import paginator
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "2.0"
+BOT_VERSION = "2.0.1"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -62,15 +62,15 @@ last_winners=spam_delta
 
 ### Response Templates ###
 COMMAND_NOT_FOUND="I don't understand what you're saying, try %shelp" % COMMAND_PREFIX
-AUTHOR_HEADER="Graham v%s (a NANO Tip Bot)" % BOT_VERSION
+AUTHOR_HEADER="Graham v%s (NANO Tip Bot)" % BOT_VERSION
 BALANCE_CMD="%sbalance" % COMMAND_PREFIX
 BALANCE_OVERVIEW="Display balance of your account"
 BALANCE_INFO=("Displays the balance of your tip account (in naneroo) as described:" +
-		"\n**Actual Balance**: The actual balance in your tip account" +
-		"\n**Available Balance**: The balance you are able to tip with (Actual - Pending Send)" +
-		"\n**Pending Send**: Tips you have sent, but have not yet been broadcasted to network" +
-		"\n**Pending Receipt**: Tips that have been sent to you, but have not yet been pocketed by the node. " +
-		"\n*Pending funds will be available for tip/withdraw after they have been pocketed by the node*")
+		"\nActual Balance: The actual balance in your tip account" +
+		"\nAvailable Balance: The balance you are able to tip with (Actual - Pending Send)" +
+		"\nPending Send: Tips you have sent, but have not yet been broadcasted to network" +
+		"\nPending Receipt: Tips that have been sent to you, but have not yet been pocketed by the node. " +
+		"\nPending funds will be available for tip/withdraw after they have been pocketed by the node")
 DEPOSIT_CMD="%sdeposit or %sregister" % (COMMAND_PREFIX, COMMAND_PREFIX)
 DEPOSIT_OVERVIEW="Shows your account address"
 DEPOSIT_INFO=("Displays your tip bot account address along with a QR code" +
@@ -90,10 +90,11 @@ TIP_INFO=("Tip specified amount to mentioned user(s) (minimum tip is 1 naneroo)"
 		"\nExample: `tip 2 @user1 @user2` would send 2 to user1 and 2 to user2")
 TIPSPLIT_CMD="%stipsplit, takes: amount, <*users>" % COMMAND_PREFIX
 TIPSPLIT_OVERVIEW="Split a tip among mentioned uses"
-TIPSPLIT_INFO="`Distributes a tip evenly to all mentioned users.\nExample: `tipsplit 2 @user1 @user2` would send 1 to user1 and 1 to user2"
+TIPSPLIT_INFO="Distributes a tip evenly to all mentioned users.\nExample: `tipsplit 2 @user1 @user2` would send 1 to user1 and 1 to user2"
 TIPRANDOM_CMD="%stiprandom, takes: amount" % COMMAND_PREFIX
 TIPRANDOM_OVERVIEW="Tips a random active user"
-TIPRANDOM_INFO="Tips amount to a random active user. Active user list picked using same logic as rain"
+TIPRANDOM_INFO=("Tips amount to a random active user. Active user list picked using same logic as rain" +
+		"\n***Minimum tiprandom amount: %d naneroo") % settings.tiprandom_minimum
 RAIN_CMD="%srain, takes: amount" % COMMAND_PREFIX
 RAIN_OVERVIEW="Split tip among all active* users"
 RAIN_INFO=("Distribute <amount> evenly to users who are eligible.\n" +
@@ -361,7 +362,7 @@ async def pause_msg(message):
 		await post_dm(message.author, PAUSE_MSG)
 
 def is_admin(user):
-	if user.id in settings.admin_ids:
+	if str(user.id) in settings.admin_ids:
 		return True
 	return has_admin_role(user.roles)
 
@@ -388,7 +389,6 @@ def build_help(page):
 		entries.append(paginator.Entry(LEADERBOARD_CMD,LEADERBOARD_OVERVIEW))
 		entries.append(paginator.Entry(TOPTIPS_CMD,TOPTIPS_OVERVIEW))
 		entries.append(paginator.Entry(STATS_CMD,STATS_OVERVIEW))
-		entries.append(paginator.Entry(TIP_AUTHOR_CMD,TIP_AUTHOR_OVERVIEW))
 		author=AUTHOR_HEADER
 		title="Command Overview"
 		return paginator.Page(entries=entries, title=title,author=author)
@@ -398,7 +398,7 @@ def build_help(page):
 		entries.append(paginator.Entry(DEPOSIT_CMD,DEPOSIT_INFO))
 		entries.append(paginator.Entry(WITHDRAW_CMD,WITHDRAW_INFO))
 		author="Account Commands"
-		description="Check accont balance, withdraw, or deposit"
+		description="Check account balance, withdraw, or deposit"
 		return paginator.Page(entries=entries, author=author,description=description)
 	elif page == 2:
 		entries = []
@@ -537,6 +537,7 @@ async def withdraw(ctx):
 				uid = str(uuid.uuid4())
 				await wallet.make_transaction_to_address(user, withdraw_amount, withdraw_address, uid,verify_address = True)
 				await post_response(message, WITHDRAW_SUCCESS_TEXT)
+				db.update_last_withdraw(user.user_id)
 		except util.TipBotException as e:
 			if e.error_type == "address_not_found":
 				await post_response(message, WITHDRAW_ADDRESS_NOT_FOUND_TEXT)
@@ -564,9 +565,8 @@ async def do_tip(message, random=False):
 
 	try:
 		amount = find_amount(message.content)
-		if random and amount < 1000:
-			await post_dm(message.author, "At least 1000 naneroo required to tip random")
-			return
+		if random and amount < settings.tiprandom_minimum:
+			raise util.TipBotException("usage_error")
 		# Make sure amount is valid and at least 1 user is mentioned
 		if amount < 1 or (len(message.mentions) < 1 and not random):
 			raise util.TipBotException("usage_error")
@@ -585,9 +585,11 @@ async def do_tip(message, random=False):
 			if len(active) == 0:
 				await post_dm(message.author, "I couldn't find any active user to tip")
 				return
+			if str(message.author.id) in active:
+				active.remove(str(message.author.id))
 			shuffle(active)
 			offset = randint(0, len(active) - 1)
-			users_to_tip.append(await client.get_user_info(active[offset]))
+			users_to_tip.append(message.guild.get_member(int(active[offset])))
 		# Cut out duplicate mentions
 		users_to_tip = list(set(users_to_tip))
 		# Make sure this user has enough in their balance to complete this tip
@@ -612,12 +614,13 @@ async def do_tip(message, random=False):
 				msg = TIP_RECEIVED_TEXT
 				if random:
 					msg += ". You were randomly chosen by %s's `tiprandom`" % message.author.name
-					await post_dm(message.author, "%s was the recipient of your random %d naneroo tip", member.name, actual_amt)
-				await post_dm(member, msg, actual_amt, message.author.name)
+					await post_dm(message.author, "%s was the recipient of your random %d naneroo tip", member.name, actual_amt, skip_dnd=True)
+				await post_dm(member, msg, actual_amt, message.author.name, skip_dnd=True)
 		# Post message reactions
 		await react_to_message(message, required_amt)
 		# Update tip stats
-		db.update_tip_stats(user, required_amt)
+		if message.channel.id != 416306340848336896:
+			db.update_tip_stats(user, required_amt)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			if random:
@@ -709,9 +712,10 @@ async def do_tipsplit(message, user_list=None):
 			if actual_amt == 0:
 				amount -= tip_amount
 			else:
-				await post_dm(member, TIP_RECEIVED_TEXT, tip_amount, message.author.name)
+				await post_dm(member, TIP_RECEIVED_TEXT, tip_amount, message.author.name, skip_dnd=True)
 		await react_to_message(message, amount)
-		db.update_tip_stats(user, real_amount)
+		if message.channel.id != 416306340848336896:
+			db.update_tip_stats(user, real_amount)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			if user_list is None:
@@ -725,7 +729,7 @@ async def do_tipsplit(message, user_list=None):
 		else:
 			await post_response(message, TIP_ERROR_TEXT)
 
-@client.command()
+@client.command(aliases=['tipfavorite', 'tipfavourite', 'tipfavourites'])
 async def tipfavorites(ctx):
 	message = ctx.message
 	user = db.get_user_by_id(message.author.id)
@@ -737,7 +741,7 @@ async def tipfavorites(ctx):
 		return
 	user_list = []
 	for fav in favorites:
-		discord_user = await client.get_user_info(int(fav['user_id']))
+		discord_user = message.guild.get_member(int(fav['user_id']))
 		if discord_user is not None:
 			user_list.append(discord_user)
 	await do_tipsplit(message, user_list=user_list)
@@ -958,8 +962,8 @@ async def tip_giveaway(message, ticket=False):
 		if not ticket:
 			await react_to_message(message, amount)
 		# If eligible, add them to giveaway
-		if contributions >= fee and not db.is_banned(message.author.id):
-			if contributions >= (fee * 4):
+		if (amount + contributions) >= fee and not db.is_banned(message.author.id):
+			if (amount + contributions) >= (fee * 4):
 				db.mark_user_active(user)
 			entered = db.add_contestant(message.author.id, override_ban=True)
 			if entered:
@@ -1132,7 +1136,7 @@ async def tipstats(ctx):
 		return
 	await post_response(message, STATS_TEXT, tip_stats['rank'], tip_stats['total'], tip_stats['average'],tip_stats['top'])
 
-@client.command()
+@client.command(aliases=['addfavourite', 'addfavorites', 'addfavourites'])
 async def addfavorite(ctx):
 	message = ctx.message
 	user = db.get_user_by_id(message.author.id)
@@ -1140,14 +1144,15 @@ async def addfavorite(ctx):
 		return
 	added_count = 0
 	for mention in message.mentions:
-		if db.add_favorite(user.user_id,mention.id):
-			added_count += 1
+		if mention.id != message.author.id and not mention.bot:
+			if db.add_favorite(user.user_id,mention.id):
+				added_count += 1
 	if added_count > 0:
 		await post_dm(message.author, "%d users added to your favorites!", added_count)
 	else:
 		await post_dm(message.author, "I couldn't find any users to add as favorites in your message! They may already be in your favorites or they may not have accounts with me")
 
-@client.command()
+@client.command(aliases=['removefavourite', 'removefavorites', 'removefavourites'])
 async def removefavorite(ctx):
 	message = ctx.message
 	user = db.get_user_by_id(message.author.id)
@@ -1164,7 +1169,7 @@ async def removefavorite(ctx):
 	remove_ids = []
 	for c in message.content.split(' '):
 		try:
-			id=int(c)
+			id=int(c.strip())
 			remove_ids.append(id)
 		except ValueError as e:
 			pass
@@ -1176,29 +1181,41 @@ async def removefavorite(ctx):
 	else:
 		await post_dm(message.author, "I couldn't find anybody in your message to remove from your favorites!")
 
-@client.command()
+@client.command(aliases=['favourites'])
 async def favorites(ctx):
 	message = ctx.message
 	user = db.get_user_by_id(message.author.id)
 	if user is None:
 		return
 	favorites = db.get_favorites_list(message.author.id)
-	embed = discord.Embed(colour=discord.Colour.green())
 	if len(favorites) == 0:
+		embed = discord.Embed(colour=discord.Colour.red())
 		embed.title="No Favorites"
 		embed.description="Your favorites list is empty. Add to it with `%saddfavorite`" % COMMAND_PREFIX
-		await post_dm(message.author, embed=embed)
+		await message.author.send(embed=embed)
 		return
-	embed.title="Favorites List"
-	embed.description=("Here are your favorites! " +
-			   "You can tip everyone in this list at the same time using `%stipfavorites amount`")
+	title="Favorites List"
+	description=("Here are your favorites! " +
+			   "You can tip everyone in this list at the same time using `%stipfavorites amount`") % COMMAND_PREFIX
+	entries = []
 	for fav in favorites:
 		fav_user = db.get_user_by_id(fav['user_id'])
 		name = str(fav['id']) + ": " + fav_user.user_name
 		value = "You can remove this favorite with `%sremovefavorite %d`" % (COMMAND_PREFIX, fav['id'])
-		embed.add_field(name=name,value=value,inline=False)
+		entries.append(paginator.Entry(name,value))
 
-	await message.author.send(embed=embed)
+	# Do paginator for favorites > 10
+	if len(entries) > 10:
+		pages = paginator.Paginator.format_pages(entries=entries,title=title,description=description)
+		p = paginator.Paginator(client,message=message,page_list=pages,as_dm=True)
+		await p.paginate(start_page=1)
+	else:
+		embed = discord.Embed(colour=discord.Colour.teal())
+		embed.title = title
+		embed.description = description
+		for e in entries:
+			embed.add_field(name=e.name,value=e.value,inline=False)
+		await message.author.send(embed=embed)
 
 @client.command()
 async def banned(ctx):
@@ -1271,7 +1288,7 @@ async def statsunban(ctx):
 async def settiptotal(ctx, amount: float = -1.0, user: discord.Member = None):
 	if is_admin(ctx.message.author):
 		if user is None or amount < 0:
-			await post_dm(ctx.message.author, SET_TOTAL_USAGE)
+			await post_dm(ctx.message.author, "Usage: settiptotal amount user")
 			return
 		db.update_tip_total(user.id, amount)
 
@@ -1279,7 +1296,7 @@ async def settiptotal(ctx, amount: float = -1.0, user: discord.Member = None):
 async def settipcount(ctx, cnt: int = -1, user: discord.Member = None):
 	if is_admin(ctx.message.author):
 		if user is None or cnt < 0:
-			await post_dm(ctx.message.author, SET_COUNT_USAGE)
+			await post_dm(ctx.message.author, "Usage settipcount amount user")
 			return
 		db.update_tip_count(user.id, cnt)
 
@@ -1318,11 +1335,13 @@ async def post_usage(message, command, description):
 	embed.add_field(name=command, value=description,inline=False)
 	await message.author.send(embed=embed)
 
-async def post_dm(member, template, *args):
+async def post_dm(member, template, *args, skip_dnd=False):
 	response = template % tuple(args)
 	logger.info("sending dm: '%s' to user: %s", response, member.id)
 	try:
 		asyncio.sleep(0.05)
+		if skip_dnd and member.status == discord.Status.dnd:
+			return None
 		return await member.send(response)
 	except:
 		return None
