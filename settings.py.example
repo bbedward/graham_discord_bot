@@ -17,9 +17,12 @@ rain_minimum = 10000
 tiprandom_minimum = 1000
 # Minimum amount required to start a giveaway
 giveaway_minimum = 1000000
-# Giveaway Duration (default giveaway duration, max=60 minutes)
-# Giveaways above 500k go to 60 minutes regardless
-giveaway_duration=30
+# Max giveaway duration in minutes
+giveaway_max_duration=60
+# Default giveaway duration for giveaways started by bot
+giveaway_auto_duration=30
+# Reboot node script on timeout
+reboot_script_path=".scripts/reboot_node.sh"
 # command prefix
 command_prefix='!'
 # Status
