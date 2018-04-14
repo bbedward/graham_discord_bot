@@ -16,6 +16,7 @@ import errno
 import asyncio
 import uuid
 import datetime
+import pycurl
 
 import wallet
 import util
@@ -266,7 +267,7 @@ class SendProcessor(Thread):
 				logger.debug("RPC Send")
 				try:
 					wallet_output = wallet.communicate_wallet(wallet_command)
-				except:
+				except pycurl.error as e:
 					# NANO node has just flat out stopped generating work on me at least once per day
 					# No matter what I do, it just flat out stops generating work.
 					# Transactions will stay unpocketed forever, RPC sends will timeout forever
