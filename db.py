@@ -103,12 +103,29 @@ def update_tip_stats(user, tip, rain=False, giveaway=False):
 		tip_count = User.tip_count + 1
 		).where(User.user_id == user.user_id)
 		).execute()
+	# Update all time tip if necessary
 	if tip > int(float(user.top_tip)):
 		(User.update(
 			top_tip = tip,
 			top_tip_ts = datetime.datetime.now()
 			).where(User.user_id == user.user_id)
 			).execute()
+	# Update monthly tip if necessary
+	if user.top_tip_month_ts.month != datetime.datetime.now().month or tip > int(float(user.top_tip_month)):
+		(User.update(
+			top_tip_month = tip,
+			top_tip_month_ts = datetime.datetime.now()
+			).where(User.user_id == user.user_id)
+			).execute()
+	# Update 24H tip if necessary
+	delta = datetime.datetime.now() - user.top_tip_day_ts
+	if delta.total_seconds() > 86400 or tip > int(float(user.top_tip_day)):
+		(User.update(
+			top_tip_day = tip,
+			top_tip_day_ts = datetime.datetime.now()
+			).where(User.user_id == user.user_id)
+			).execute()
+	# Update rain or giveaway stats
 	if rain:
 		(User.update(
 			rain_amount = User.rain_amount + (tip / 1000000)
@@ -439,8 +456,10 @@ def get_top_tips():
 	month_str = dt.strftime("%B")
 	month_num = "%02d" % dt.month # Sqlite uses 2 digit month (with leading 0)
 	amount = fn.MAX(User.top_tip).alias('amount')
-	top_24h = User.select(amount, User.user_name).where((User.top_tip_ts > past_dt) & (User.stats_ban == False)).order_by(User.top_tip_ts).limit(1)
-	top_month = User.select(amount, User.user_name).where((fn.strftime("%m", User.top_tip_ts) == month_num) & (User.stats_ban == False)).order_by(User.top_tip_ts).limit(1)
+	amount_day = fn.MAX(User.top_tip_day).alias('amount')
+	amount_month = fn.MAX(User.top_tip_month).alias('amount')
+	top_24h = User.select(amount_day, User.user_name).where((User.top_tip_day_ts > past_dt) & (User.stats_ban == False)).order_by(User.top_tip_day_ts).limit(1)
+	top_month = User.select(amount_month, User.user_name).where((fn.strftime("%m", User.top_tip_month_ts) == month_num) & (User.stats_ban == False)).order_by(User.top_tip_month_ts).limit(1)
 	top_at = User.select(amount, User.user_name).where(User.stats_ban == False).order_by(User.top_tip_ts).limit(1)
 	# Formatted output
 	user24h = None
@@ -607,6 +626,37 @@ def get_favorites_list(user_id):
 		return_data.append({'user_id':fav.favorite_id,'id': fav.identifier})
 	return return_data
 
+# Returns list of muted for user id
+def get_muted(user_id):
+	user_id = str(user_id)
+	muted = MutedList.select().where(MutedList.user_id==user_id)
+	return_data = []
+	for m in muted:
+		return_data.append({'name':m.muted_name, 'id': m.muted_id})
+	return return_data
+
+# Return True if muted
+def muted(source_user, target_user):
+	source_user = str(source_user)
+	target_user = str(target_user)
+	return MutedList.select().where((MutedList.user_id==source_user) & (MutedList.muted_id==target_user)).count() > 0
+
+# Return false if already muted, True if muted
+def mute(source_user, target_user, target_name):
+	if muted(source_user, target_user):
+		return False
+	source_user = str(source_user)
+	target_user = str(target_user)
+	mute = MutedList(user_id=source_user,muted_id=target_user,muted_name=target_name)
+	mute.save()
+	return True
+
+# Return a number > 0 if user was unmuted
+def unmute(source_user, target_user):
+	source_user = str(source_user)
+	target_user = str(target_user)
+	return MutedList.delete().where((MutedList.user_id==source_user) & (MutedList.muted_id==target_user)).execute()
+
 # User table
 class User(Model):
 	user_id = CharField(unique=True)
@@ -622,6 +672,10 @@ class User(Model):
 	last_msg_count = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
 	top_tip = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
 	top_tip_ts = DateTimeField(default=datetime.datetime.now(),constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
+	top_tip_month = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
+	top_tip_month_ts = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
+	top_tip_day = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
+	top_tip_day_ts = DateTimeField(default=datetime.datetime.now(),constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
 	ticket_count = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
 	last_withdraw = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
 	stats_ban = BooleanField(default=False, constraints=[SQL('DEFAULT 0')])
@@ -687,9 +741,19 @@ class UserFavorite(Model):
 	class Meta:
 		database = db
 
+# Muted management
+class MutedList(Model):
+	user_id = CharField()
+	muted_id = CharField()
+	muted_name = CharField()
+	created = DateTimeField(default=datetime.datetime.now(),constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
+
+	class Meta:
+		database = db
+
 def create_db():
 	db.connect()
-	db.create_tables([User, Transaction, Giveaway, Contestant, BannedUser, UserFavorite], safe=True)
+	db.create_tables([User, Transaction, Giveaway, Contestant, BannedUser, UserFavorite, MutedList], safe=True)
 	logger.debug("DB Connected")
 
 create_db()

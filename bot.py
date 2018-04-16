@@ -26,7 +26,7 @@ import paginator
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "2.0.1"
+BOT_VERSION = "2.1"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -161,6 +161,15 @@ TIP_FAVORITES_INFO=("Tip everybody in your favorites list specified amount" +
 		"\nExample: `tipfavorites 1000` Distributes 1000 to your entire favorites list (similar to tipsplit)")
 TIP_AUTHOR_CMD="%stipauthor, takes: amount" % COMMAND_PREFIX
 TIP_AUTHOR_OVERVIEW="Donate to the author of this bot :heart:"
+MUTE_CMD="%smute, takes: user id" % COMMAND_PREFIX
+MUTE_OVERVIEW="Block tip notifications when sent by this user"
+MUTE_INFO=MUTE_OVERVIEW
+UNMUTE_CMD="%sunmute, takes: user id" % COMMAND_PREFIX
+UNMUTE_OVERVIEW="Unblock tip notificaitons sent by this user"
+UNMUTE_INFO=UNMUTE_OVERVIEW
+MUTED_CMD="%smuted" % COMMAND_PREFIX
+MUTED_OVERVIEW="View list of users you have muted"
+MUTED_INFO=MUTED_OVERVIEW
 BOT_DESCRIPTION=("Graham v%s - An open source NANO tip bot for Discord\n" +
 		"Developed by bbedward - Feel free to send suggestions, ideas, and/or tips\n") % BOT_VERSION
 BALANCE_TEXT=(	"```Actual Balance   : %s naneroo (%.6f NANO)\n" +
@@ -172,7 +181,7 @@ DEPOSIT_TEXT_2="%s"
 DEPOSIT_TEXT_3="QR: %s"
 INSUFFICIENT_FUNDS_TEXT="You don't have enough nano in your available balance!"
 TIP_ERROR_TEXT="Something went wrong with the tip. I wrote to logs."
-TIP_RECEIVED_TEXT="You were tipped %d naneroo by %s"
+TIP_RECEIVED_TEXT="You were tipped %d naneroo by %s. You can mute tip notifications from this person using `" + COMMAND_PREFIX + "mute %d`"
 TIP_SELF="No valid recipients found in your tip.\n(You cannot tip yourself and certain other users are exempt from receiving tips)"
 WITHDRAW_SUCCESS_TEXT="Withdraw has been queued for processing, I'll send you a link to the transaction after I've broadcasted it to the network!"
 WITHDRAW_PROCESSED_TEXT="Withdraw processed:\nTransaction: https://www.nanode.co/block/%s\nIf you have an issue with a withdraw please wait 24 hours before contacting me, the issue will likely resolve itself."
@@ -439,6 +448,14 @@ def build_help(page):
 		return paginator.Page(entries=entries, author=author,description=description)
 	elif page == 6:
 		entries = []
+		entries.append(paginator.Entry(MUTE_CMD, MUTE_INFO))
+		entries.append(paginator.Entry(UNMUTE_CMD, UNMUTE_INFO))
+		entries.append(paginator.Entry(MUTED_CMD, MUTED_INFO))
+		author="Notification Settings"
+		description="Handle how tip bot gives you notifications"
+		return paginator.Page(entries=entries, author=author, description=description)
+	elif page == 7:
+		entries = []
 		entries.append(paginator.Entry(TIP_AUTHOR_CMD,TIP_AUTHOR_OVERVIEW))
 		author=AUTHOR_HEADER + " - by bbedward"
 		description=("**Reviews**:\n" + "'10/10 True Masterpiece' - NANO Core Team" +
@@ -460,20 +477,20 @@ async def help(ctx):
 	pages.append(build_help(4))
 	pages.append(build_help(5))
 	pages.append(build_help(6))
+	pages.append(build_help(7))
 	try:
 		pages = paginator.Paginator(client, message=message, page_list=pages,as_dm=True)
 		await pages.paginate(start_page=1)
 	except paginator.CannotPaginate as e:
 		logger.exception(str(e))
 
-@client.command()
+@client.command(aliases=['bal','$','b'])
 async def balance(ctx):
 	message = ctx.message
 	if is_private(message.channel):
 		user = db.get_user_by_id(message.author.id)
 		if user is None:
 			return
-		bal_msg = await post_response(message, "Retrieving balance...")
 		balances = await wallet.get_balance(user)
 		actual = balances['actual']
 		actualnano = actual / 1000000
@@ -483,7 +500,7 @@ async def balance(ctx):
 		sendnano = send / 1000000
 		receive = balances['pending']
 		receivenano = receive / 1000000
-		await post_edit(bal_msg, BALANCE_TEXT,		"{:,}".format(actual),
+		await post_response(message, BALANCE_TEXT,	"{:,}".format(actual),
 								actualnano,
 								"{:,}".format(available),
 								availablenano,
@@ -549,11 +566,11 @@ async def withdraw(ctx):
 			elif e.error_type == "error":
 				await post_response(message, WITHDRAW_ERROR_TEXT)
 
-@client.command()
+@client.command(aliases=['t'])
 async def tip(ctx):
 	await do_tip(ctx.message)
 
-@client.command()
+@client.command(aliases=['tr', 'tiprando', 'trando'])
 async def tiprandom(ctx):
 	await do_tip(ctx.message, random=True)
 
@@ -591,7 +608,7 @@ async def do_tip(message, random=False):
 			# Remove bots from consideration
 			for a in active:
 				dmember = message.guild.get_member(int(a))
-				if dmember.bot:
+				if dmember is None or dmember.bot:
 					active.remove(a)
 			shuffle(active)
 			offset = randint(0, len(active) - 1)
@@ -621,7 +638,8 @@ async def do_tip(message, random=False):
 				if random:
 					msg += ". You were randomly chosen by %s's `tiprandom`" % message.author.name
 					await post_dm(message.author, "%s was the recipient of your random %d naneroo tip", member.name, actual_amt, skip_dnd=True)
-				await post_dm(member, msg, actual_amt, message.author.name, skip_dnd=True)
+				if not db.muted(member.id, message.author.id):
+					await post_dm(member, msg, actual_amt, message.author.name, message.author.id, skip_dnd=True)
 		# Post message reactions
 		await react_to_message(message, required_amt)
 		# Update tip stats
@@ -665,7 +683,7 @@ async def tipauthor(ctx):
 	except util.TipBotException as e:
 		pass
 
-@client.command()
+@client.command(aliases=['ts'])
 async def tipsplit(ctx):
 	await do_tipsplit(ctx.message)
 
@@ -718,7 +736,8 @@ async def do_tipsplit(message, user_list=None):
 			if actual_amt == 0:
 				amount -= tip_amount
 			else:
-				await post_dm(member, TIP_RECEIVED_TEXT, tip_amount, message.author.name, skip_dnd=True)
+				if not db.muted(member.id, message.author.id):
+					await post_dm(member, TIP_RECEIVED_TEXT, tip_amount, message.author.name, message.author.id, skip_dnd=True)
 		await react_to_message(message, amount)
 		if message.channel.id != 416306340848336896:
 			db.update_tip_stats(user, real_amount)
@@ -735,7 +754,7 @@ async def do_tipsplit(message, user_list=None):
 		else:
 			await post_response(message, TIP_ERROR_TEXT)
 
-@client.command(aliases=['tipfavorite', 'tipfavourite', 'tipfavourites'])
+@client.command(aliases=['tipfavorite', 'tipfavourite', 'tipfavourites', 'tf', 'tipfavs', 'tipfav'])
 async def tipfavorites(ctx):
 	message = ctx.message
 	user = db.get_user_by_id(message.author.id)
@@ -752,7 +771,7 @@ async def tipfavorites(ctx):
 			user_list.append(discord_user)
 	await do_tipsplit(message, user_list=user_list)
 
-@client.command()
+@client.command(aliases=['r'])
 async def rain(ctx):
 	message = ctx.message
 	if is_private(message.channel):
@@ -799,7 +818,8 @@ async def rain(ctx):
 			if actual_amt == 0:
 				amount -= tip_amount
 			else:
-				await post_dm(member, TIP_RECEIVED_TEXT, actual_amt, message.author.name)
+				if not db.muted(member.id, message.author.id):
+					await post_dm(member, TIP_RECEIVED_TEXT, actual_amt, message.author.name, message.author.id)
 
 		# Message React
 		await react_to_message(message, amount)
@@ -816,7 +836,7 @@ async def rain(ctx):
 		else:
 			await post_response(message, TIP_ERROR_TEXT)
 
-@client.command(aliases=['entergiveaway'])
+@client.command(aliases=['entergiveaway', 'enter', 'e'])
 async def ticket(ctx):
 	message = ctx.message
 	if not db.is_active_giveaway():
@@ -844,7 +864,7 @@ async def ticket(ctx):
 			await tip_giveaway(message,ticket=True)
 	await remove_message(message)
 
-@client.command(aliases=['sponsorgiveaway'])
+@client.command(aliases=['sponsorgiveaway', 'giveaway'])
 async def givearai(ctx):
 	message = ctx.message
 	if is_private(message.channel):
@@ -921,7 +941,7 @@ async def givearai(ctx):
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_usage(message, START_GIVEAWAY_CMD, START_GIVEAWAY_INFO)
 
-@client.command(aliases=['tipgiveaway'])
+@client.command(aliases=['tipgiveaway', 'd', 'tg'])
 async def donate(ctx):
 	await tip_giveaway(ctx.message)
 
@@ -1005,7 +1025,7 @@ async def ticketstatus(ctx):
 		await post_dm(message.author, db.get_ticket_status(message.author.id))
 	await remove_message(message)
 
-@client.command(aliases=['goldenticket'])
+@client.command(aliases=['goldenticket', 'gstats', 'giveawaystatus', 'gstatus'])
 async def giveawaystats(ctx):
 	message = ctx.message
 	stats = db.get_giveaway_stats()
@@ -1142,7 +1162,7 @@ async def tipstats(ctx):
 		return
 	await post_response(message, STATS_TEXT, tip_stats['rank'], tip_stats['total'], tip_stats['average'],tip_stats['top'])
 
-@client.command(aliases=['addfavourite', 'addfavorites', 'addfavourites'])
+@client.command(aliases=['addfavourite', 'addfavorites', 'addfavourites', 'addfav'])
 async def addfavorite(ctx):
 	message = ctx.message
 	user = db.get_user_by_id(message.author.id)
@@ -1158,7 +1178,7 @@ async def addfavorite(ctx):
 	else:
 		await post_dm(message.author, "I couldn't find any users to add as favorites in your message! They may already be in your favorites or they may not have accounts with me")
 
-@client.command(aliases=['removefavourite', 'removefavorites', 'removefavourites'])
+@client.command(aliases=['removefavourite', 'removefavorites', 'removefavourites', 'removefav'])
 async def removefavorite(ctx):
 	message = ctx.message
 	user = db.get_user_by_id(message.author.id)
@@ -1187,7 +1207,7 @@ async def removefavorite(ctx):
 	else:
 		await post_dm(message.author, "I couldn't find anybody in your message to remove from your favorites!")
 
-@client.command(aliases=['favourites'])
+@client.command(aliases=['favourites', 'favs'])
 async def favorites(ctx):
 	message = ctx.message
 	user = db.get_user_by_id(message.author.id)
@@ -1222,6 +1242,92 @@ async def favorites(ctx):
 		for e in entries:
 			embed.add_field(name=e.name,value=e.value,inline=False)
 		await message.author.send(embed=embed)
+
+@client.command()
+async def muted(ctx):
+	message = ctx.message
+	user = db.get_user_by_id(message.author.id)
+	if user is None:
+		return
+	muted = db.get_muted(message.author.id)
+	if len(muted) == 0:
+		embed = discord.Embed(colour=discord.Colour.red())
+		embed.title="Nobody Muted"
+		embed.description="Nobody is muted. You can mute people with `%smute discord_id`" % COMMAND_PREFIX
+		await message.author.send(embed=embed)
+		return
+	title="Muted List"
+	description=("This is your muted list. You can still receive tips from these people, but the bot will not PM you " +
+			   "when you receive a tip from them.")
+	entries = []
+	idx = 1
+	for m in muted:
+		name = str(idx) + ": " + m['name']
+		value = "You can unmute with person with `%sunmute %s`" % (COMMAND_PREFIX, m['id'])
+		entries.append(paginator.Entry(name,value))
+		idx += 1
+
+	# Do paginator for favorites > 10
+	if len(entries) > 10:
+		pages = paginator.Paginator.format_pages(entries=entries,title=title,description=description)
+		p = paginator.Paginator(client,message=message,page_list=pages,as_dm=True)
+		await p.paginate(start_page=1)
+	else:
+		embed = discord.Embed(colour=discord.Colour.teal())
+		embed.title = title
+		embed.description = description
+		for e in entries:
+			embed.add_field(name=e.name,value=e.value,inline=False)
+		await message.author.send(embed=embed)
+
+@client.command()
+async def mute(ctx):
+	message = ctx.message
+	if not is_private(message.channel):
+		return
+	user = db.get_user_by_id(message.author.id)
+	if user is None:
+		return
+	muted_count = 0
+	mute_ids = []
+	for c in message.content.split(' '):
+		try:
+			id=int(c.strip())
+			mute_ids.append(id)
+		except ValueError as e:
+			pass
+	for id in mute_ids:
+		target = db.get_user_by_id(id)
+		if target is not None and db.mute(user.user_id, target.user_id, target.user_name):
+			muted_count += 1
+	if muted_count > 0:
+		await post_dm(message.author, "%d users have been muted!", muted_count)
+	else:
+		await post_dm(message.author, "I couldn't find any users to mute in your message. They probably are already muted or they aren't registered with me")
+
+@client.command()
+async def unmute(ctx):
+	message = ctx.message
+	if not is_private(message.channel):
+		return
+	user = db.get_user_by_id(message.author.id)
+	if user is None:
+		return
+	unmute_count = 0
+	unmute_ids = []
+	for c in message.content.split(' '):
+		try:
+			id=int(c.strip())
+			unmute_ids.append(id)
+		except ValueError as e:
+			pass
+	for id in unmute_ids:
+		if db.unmute(user.user_id,id) > 0:
+			unmute_count += 1
+	if unmute_count > 0:
+		await post_dm(message.author, "%d users have been unmuted!", unmute_count)
+	else:
+		await post_dm(message.author, "I couldn't find anybody in your message to unmut!")
 
 @client.command()
 async def banned(ctx):
