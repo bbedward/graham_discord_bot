@@ -399,6 +399,9 @@ def build_help(page):
 		entries.append(paginator.Entry(LEADERBOARD_CMD,LEADERBOARD_OVERVIEW))
 		entries.append(paginator.Entry(TOPTIPS_CMD,TOPTIPS_OVERVIEW))
 		entries.append(paginator.Entry(STATS_CMD,STATS_OVERVIEW))
+		entries.append(paginator.Entry(MUTE_CMD, MUTE_OVERVIEW))
+		entries.append(paginator.Entry(UNMUTE_CMD, UNMUTE_OVERVIEW))
+		entries.append(paginator.Entry(MUTED_CMD, MUTED_OVERVIEW))
 		author=AUTHOR_HEADER
 		title="Command Overview"
 		return paginator.Page(entries=entries, title=title,author=author)
