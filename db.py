@@ -17,6 +17,11 @@ LAST_MSG_RAIN_DELTA = 60
 # How many words messages must contain
 LAST_MSG_RAIN_WORDS = 3
 
+# (Seconds) How long user must wait between tiprandom
+TIP_RANDOM_WAIT = 30
+# (Seconds) How long user mus wait between tipfavorites
+TIP_FAVORITES_WAIT = 150
+
 db = SqliteQueueDatabase('nanotipbot.db')
 
 logger = util.get_logger("db")
@@ -657,6 +662,24 @@ def unmute(source_user, target_user):
 	target_user = str(target_user)
 	return MutedList.delete().where((MutedList.user_id==source_user) & (MutedList.muted_id==target_user)).execute()
 
+
+# Returns seconds user must wait to tiprandom again
+def tiprandom_check(user):
+	delta = (datetime.datetime.now() - user.last_random).total_seconds()
+	if TIP_RANDOM_WAIT > delta:
+		return (TIP_RANDOM_WAIT - delta)
+	else:
+		User.update(last_random=datetime.datetime.now()).where(User.user_id == user.user_id).execute()
+		return 0
+
+# Returns seconds user must wait to tipfavorites again
+def tipfavorites_check(user):
+	delta = (datetime.datetime.now() -user.last_favorites).total_seconds()
+	if TIP_FAVORITES_WAIT > delta:
+		return (TIP_FAVORITES_WAIT - delta)
+	else:
+		User.update(last_favorites=datetime.datetime.now()).where(User.user_id == user.user_id).execute()
+		return 0
 # User table
 class User(Model):
 	user_id = CharField(unique=True)
@@ -681,6 +704,8 @@ class User(Model):
 	stats_ban = BooleanField(default=False, constraints=[SQL('DEFAULT 0')])
 	rain_amount = FloatField(default=0.0, constraints=[SQL('DEFAULT 0.0')])
 	giveaway_amount = FloatField(default=0.0, constraints=[SQL('DEFAULT 0.0')])
+	last_random = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
+	last_favorites = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
 
 	class Meta:
 		database = db

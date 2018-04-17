@@ -26,7 +26,7 @@ import paginator
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "2.1"
+BOT_VERSION = "2.1.1"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -585,6 +585,9 @@ async def do_tip(message, random=False):
 		return
 
 	try:
+		user = db.get_user_by_id(message.author.id)
+		if user is None:
+			return
 		amount = find_amount(message.content)
 		if random and amount < settings.tiprandom_minimum:
 			raise util.TipBotException("usage_error")
@@ -601,6 +604,12 @@ async def do_tip(message, random=False):
 			if len(users_to_tip) < 1:
 				raise util.TipBotException("no_valid_recipient")
 		else:
+			# Spam Check
+			spam = db.tiprandom_check(user)
+			if spam > 0:
+				await post_dm(message.author, "You need to wait %d seconds before you can tiprandom again", spam)
+				await add_x_reaction(message)
+				return
 			# Pick a random active user
 			active = db.get_active_users(RAIN_DELTA)
 			if len(active) == 0:
@@ -620,9 +629,6 @@ async def do_tip(message, random=False):
 		users_to_tip = list(set(users_to_tip))
 		# Make sure this user has enough in their balance to complete this tip
 		required_amt = amount * len(users_to_tip)
-		user = db.get_user_by_id(message.author.id)
-		if user is None:
-			return
 		balance = await wallet.get_balance(user)
 		user_balance = balance['available']
 		if user_balance < required_amt:
@@ -762,6 +768,12 @@ async def tipfavorites(ctx):
 	message = ctx.message
 	user = db.get_user_by_id(message.author.id)
 	if user is None:
+		return
+	# Spam Check
+	spam = db.tipfavorites_check(user)
+	if spam > 0:
+		await post_dm(message.author, "You need to wait %d seconds before you can tipfavorites again", spam)
+		await add_x_reaction(message)
 		return
 	favorites = db.get_favorites_list(message.author.id)
 	if len(favorites) == 0:
@@ -1330,7 +1342,7 @@ async def unmute(ctx):
 	if unmute_count > 0:
 		await post_dm(message.author, "%d users have been unmuted!", unmute_count)
 	else:
-		await post_dm(message.author, "I couldn't find anybody in your message to unmut!")
+		await post_dm(message.author, "I couldn't find anybody in your message to unmute!")
 
 @client.command()
 async def banned(ctx):
