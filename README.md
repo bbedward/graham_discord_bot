@@ -48,7 +48,7 @@ Simply toss the script in cron.hourly, crontab, cron.daily, whatever - and updat
 
 ## Dependencies (install using pip)
 
-- Python 3.5+
+- Python 3.6+
 - NANO Node v10+ (see: https://github.com/nanocurrency/raiblocks/wiki/Docker-node)
 - SQLite
 - `discord.py 1.0+ (rewrite)`

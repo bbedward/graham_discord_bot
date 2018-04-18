@@ -2,8 +2,8 @@ import re
 import datetime
 import util
 import settings
-from random import randint
-from random import shuffle
+import random
+import secrets
 from peewee import *
 from playhouse.sqliteq import SqliteQueueDatabase
 
@@ -18,7 +18,7 @@ LAST_MSG_RAIN_DELTA = 60
 LAST_MSG_RAIN_WORDS = 3
 
 # (Seconds) How long user must wait between tiprandom
-TIP_RANDOM_WAIT = 30
+TIP_RANDOM_WAIT = 10
 # (Seconds) How long user mus wait between tipfavorites
 TIP_FAVORITES_WAIT = 150
 
@@ -86,7 +86,7 @@ def get_tip_stats(user_id):
 	user = get_user_by_id(user_id)
 	if user is None:
 		return None
-	rank = User.select().where(User.tipped_amount > user.tipped_amount).count() + 1
+	rank = User.select().where((User.tipped_amount > user.tipped_amount) & (User.stats_ban == False)).count() + 1
 	if not user.stats_ban:
 		tipped_amount = user.tipped_amount
 		tip_count = user.tip_count
@@ -95,6 +95,7 @@ def get_tip_stats(user_id):
 		tipped_amount = 0
 		tip_count = 0
 		top_tip = 0
+		rank = -1
 	if tip_count == 0:
 		average = 0
 	else:
@@ -361,12 +362,13 @@ def get_statsbanned():
 
 # Returns winning user
 def finish_giveaway():
-	contestants = Contestant.select(Contestant.user_id).where(Contestant.banned == False).order_by(fn.Random())
+	contestants = Contestant.select(Contestant.user_id).where(Contestant.banned == False)
 	contestant_ids = []
 	for c in contestants:
 		contestant_ids.append(c.user_id)
-	shuffle(contestant_ids)
-	offset = randint(0, len(contestant_ids) - 1)
+	sysrand = random.SystemRandom()
+	sysrand.shuffle(contestant_ids)
+	offset = secrets.randbelow(len(contestant_ids))
 	winner = get_user_by_id(contestant_ids[offset])
 	Contestant.delete().execute()
 	giveaway = Giveaway.get(active=True)
@@ -743,7 +745,7 @@ class Giveaway(Model):
 
 # Giveaway Entrants
 class Contestant(Model):
-	user_id = CharField()
+	user_id = CharField(unique=True)
 	banned = BooleanField()
 
 	class Meta:

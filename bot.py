@@ -4,8 +4,8 @@ from discord.ext.commands import Bot
 import threading
 from threading import Thread
 from queue import Queue
-from random import shuffle
-from random import randint
+import secrets
+import random
 import subprocess
 import atexit
 import time
@@ -26,7 +26,7 @@ import paginator
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "2.1.1"
+BOT_VERSION = "2.1.2"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -64,112 +64,195 @@ last_winners=spam_delta
 ### Response Templates ###
 COMMAND_NOT_FOUND="I don't understand what you're saying, try %shelp" % COMMAND_PREFIX
 AUTHOR_HEADER="Graham v%s (NANO Tip Bot)" % BOT_VERSION
-BALANCE_CMD="%sbalance" % COMMAND_PREFIX
-BALANCE_OVERVIEW="Display balance of your account"
-BALANCE_INFO=("Displays the balance of your tip account (in naneroo) as described:" +
-		"\nActual Balance: The actual balance in your tip account" +
-		"\nAvailable Balance: The balance you are able to tip with (Actual - Pending Send)" +
-		"\nPending Send: Tips you have sent, but have not yet been broadcasted to network" +
-		"\nPending Receipt: Tips that have been sent to you, but have not yet been pocketed by the node. " +
-		"\nPending funds will be available for tip/withdraw after they have been pocketed by the node")
-DEPOSIT_CMD="%sdeposit or %sregister" % (COMMAND_PREFIX, COMMAND_PREFIX)
-DEPOSIT_OVERVIEW="Shows your account address"
-DEPOSIT_INFO=("Displays your tip bot account address along with a QR code" +
-		"\n- Send NANO to this address to increase your tip bot balance" +
-		"\n- If you do not have a tip bot account yet, this command will create one for you (receiving a tip automatically creates an account too)")
-WITHDRAW_CMD="%swithdraw, takes: address (optional amount)" % COMMAND_PREFIX
-WITHDRAW_OVERVIEW="Allows you to withdraw from your tip account"
-WITHDRAW_INFO=("Withdraws specified amount to specified address, " +
-		"if amount isn't specified your entire tip account balance will be withdrawn" +
-		"\nExample: `withdraw xrb_1234address5678 1000` - Withdraws 1000 naneroo")
-TIP_CMD="%stip, takes: amount <*users>" % COMMAND_PREFIX
-TIP_OVERVIEW="Send a tip to mentioned users"
-TIP_INFO=("Tip specified amount to mentioned user(s) (minimum tip is 1 naneroo)" +
-		"\nTip units are in RAI. 1 naneroo = 0.000001 NANO" +
+
+# Commands (CMD,Overview, Info)
+BALANCE = {
+		"CMD"      : "%sbalance" % COMMAND_PREFIX,
+		"OVERVIEW" : "Display balance of your account",
+		"INFO"     : ("Displays the balance of your tip account (in naneroo) as described:" +
+				"\nActual Balance: The actual balance in your tip account" +
+				"\nAvailable Balance: The balance you are able to tip with (Actual - Pending Send)" +
+				"\nPending Send: Tips you have sent, but have not yet been broadcasted to network" +
+				"\nPending Receipt: Tips that have been sent to you, but have not yet been pocketed by the node. " +
+				"\nPending funds will be available for tip/withdraw after they have been pocketed by the node"),
+}
+
+DEPOSIT ={
+		"CMD"      : "%sdeposit or %sregister" % (COMMAND_PREFIX, COMMAND_PREFIX),
+		"OVERVIEW" : "Shows your account address",
+		"INFO"     : ("Displays your tip bot account address along with a QR code" +
+				"\n- Send NANO to this address to increase your tip bot balance" +
+				"\n- If you do not have a tip bot account yet, this command will create one for you (receiving a tip automatically creates an account too)"),
+}
+
+WITHDRAW = {
+		"CMD"      : "%swithdraw, takes: address (optional amount)" % COMMAND_PREFIX,
+		"OVERVIEW" : "Allows you to withdraw from your tip account",
+		"INFO"     : ("Withdraws specified amount to specified address, " +
+				"if amount isn't specified your entire tip account balance will be withdrawn" +
+				"\nExample: `withdraw xrb_111111111111111111111111111111111111111111111111111hifc8npp 1000` - Withdraws 1000 naneroo"),
+}
+
+TIP = {
+		"CMD"      : "%stip, takes: amount <*users>" % COMMAND_PREFIX,
+		"OVERVIEW" : "Send a tip to mentioned users",
+		"INFO"     : ("Tip specified amount to mentioned user(s) (minimum tip is 1 naneroo)" +
 		"\nThe recipient(s) will be notified of your tip via private message" +
 		"\nSuccessful tips will be deducted from your available balance immediately" +
-		"\nExample: `tip 2 @user1 @user2` would send 2 to user1 and 2 to user2")
-TIPSPLIT_CMD="%stipsplit, takes: amount, <*users>" % COMMAND_PREFIX
-TIPSPLIT_OVERVIEW="Split a tip among mentioned uses"
-TIPSPLIT_INFO="Distributes a tip evenly to all mentioned users.\nExample: `tipsplit 2 @user1 @user2` would send 1 to user1 and 1 to user2"
-TIPRANDOM_CMD="%stiprandom, takes: amount" % COMMAND_PREFIX
-TIPRANDOM_OVERVIEW="Tips a random active user"
-TIPRANDOM_INFO=("Tips amount to a random active user. Active user list picked using same logic as rain" +
-		"\n**Minimum tiprandom amount: %d naneroo**") % settings.tiprandom_minimum
-RAIN_CMD="%srain, takes: amount" % COMMAND_PREFIX
-RAIN_OVERVIEW="Split tip among all active* users"
-RAIN_INFO=("Distribute <amount> evenly to users who are eligible.\n" +
-		"Eligibility is determined based on your *recent* activity **and** contributions to public channels. " +
-		"Several factors are considered in picking who receives rain. If you aren't receiving it, you aren't contributing enough or your contributions are low-quality/spammy.\n"
-		"Note: Users who have a status of 'offline' or 'do not disturb' do not receive rain.\n" +
-		"Example: `rain 1000` - distributes 1000 evenly to eligible users (similar to `tipsplit`)" +
-		"\n**Minimum rain amount: %d naneroo**") % (RAIN_MINIMUM)
-START_GIVEAWAY_CMD="%sgivearai, takes: amount, fee=(amount), duration=(minutes)" % (COMMAND_PREFIX)
-START_GIVEAWAY_OVERVIEW="Sponsor a giveaway"
-START_GIVEAWAY_INFO=("Start a giveaway with given amount, entry fee, and duration." +
-		"\nEntry fees are added to the total prize pool" +
-		"\nGiveaway will end and choose random winner after (duration)" +
-		"\nExample: `givearai 1000 fee=5 duration=30` - Starts a giveaway of 1000, with fee of 5, duration of 30 minutes" +
-		"\n**Minimum required to sponsor a giveaway: %d naneroo**" +
-		"\n**Minimum giveaway duration: %d minutes**" +
-		"\n**Maximum giveaway duration: %d minutes**") % (GIVEAWAY_MINIMUM, GIVEAWAY_MIN_DURATION, GIVEAWAY_MAX_DURATION)
-ENTER_CMD="%sticket, takes: fee (conditional)" % COMMAND_PREFIX
-ENTER_OVERVIEW="Enter the current giveaway"
-ENTER_INFO=("Enter the current giveaway, if there is one. Takes (fee) as argument only if there's an entry fee." +
-		"\n Fee will go towards the prize pool and be deducted from your available balance immediately" +
-		"\nExample: `ticket` (to enter a giveaway without a fee), `ticket 10` (to enter a giveaway with a fee of 10)")
-TIPGIVEAWAY_CMD="%stipgiveaway or %sdonate, takes: amount" % (COMMAND_PREFIX, COMMAND_PREFIX)
-TIPGIVEAWAY_OVERVIEW="Add to present or future giveaway prize pool"
-TIPGIVEAWAY_INFO=("Add <amount> to the current giveaway pool\n"+
-		"If there is no giveaway, one will be started when minimum is reached." +
-		"\nTips >= %d naneroo automatically enter you for giveaways sponsored by the community." +
-		"\nDonations count towards the next giveaways entry fee" +
-		"\nExample: `donate 1000` - Adds 1000 to giveaway pool") % (TIPGIVEAWAY_AUTO_ENTRY)
-TICKETSTATUS_CMD="%sticketstatus" % COMMAND_PREFIX
-TICKETSTATUS_OVERVIEW="Check if you are entered into the current giveaway"
-TICKETSTATUS_INFO=TICKETSTATUS_OVERVIEW
-GIVEAWAY_STATS_CMD="%sgiveawaystats or %sgoldenticket" % (COMMAND_PREFIX, COMMAND_PREFIX)
-GIVEAWAY_STATS_OVERVIEW="Display statistics relevant to the current giveaway"
-GIVEAWAY_STATS_INFO=GIVEAWAY_STATS_OVERVIEW
-WINNERS_CMD="%swinners" % COMMAND_PREFIX
-WINNERS_INFO="Display previous giveaway winners"
-WINNERS_OVERVIEW=WINNERS_INFO
-LEADERBOARD_CMD="%sleaderboard or %sballers" % (COMMAND_PREFIX, COMMAND_PREFIX)
-LEADERBOARD_INFO="Display the all-time tip leaderboard"
-LEADERBOARD_OVERVIEW=LEADERBOARD_INFO
-TOPTIPS_CMD="%stoptips" % COMMAND_PREFIX
-TOPTIPS_OVERVIEW="Display largest individual tips"
-TOPTIPS_INFO="Display the single largest tips for the past 24 hours, current month, and all time"
-STATS_CMD="%stipstats" % COMMAND_PREFIX
-STATS_OVERVIEW="Display your personal tipping stats"
-STATS_INFO="Display your personal tipping stats (rank, total tipped, and average tip)"
-ADD_FAVORITE_CMD="%saddfavorite, takes: *users" % COMMAND_PREFIX
-ADD_FAVORITE_OVERVIEW="Add users to your favorites list"
-ADD_FAVORITE_INFO="Adds mentioned users to your favorites list.\nExample: `addfavorite @user1 @user2 @user3` - Adds user1,user2,user3 to your favorites"
-DEL_FAVORITE_CMD="%sremovefavorite, takes: *users or favorite ID" % COMMAND_PREFIX
-DEL_FAVORITE_OVERVIEW="Removes users from your favorites list"
-DEL_FAVORITE_INFO=("Removes users from your favorites list. " +
-		"You can either @mention the user in a public channel or use the ID in your `favorites` list" +
-		"\nExample 1: `removefavorite @user1 @user2` - Removes user1 and user2 from your favorites" +
-		"\nExample 2: `removefavorite 1 6 3` - Removes favorites with ID=1, 6, and 3")
-FAVORITES_CMD="%sfavorites" % COMMAND_PREFIX
-FAVORITES_OVERVIEW="View your favorites list"
-FAVORITES_INFO="View your favorites list. Use `addfavorite` to add favorites to your list and `removefavorite` to remove favories"
-TIP_FAVORITES_CMD="%stipfavorites, takes: amount" % COMMAND_PREFIX
-TIP_FAVORITES_OVERVIEW="Tip your entire favorites list"
-TIP_FAVORITES_INFO=("Tip everybody in your favorites list specified amount" +
-		"\nExample: `tipfavorites 1000` Distributes 1000 to your entire favorites list (similar to tipsplit)")
-TIP_AUTHOR_CMD="%stipauthor, takes: amount" % COMMAND_PREFIX
-TIP_AUTHOR_OVERVIEW="Donate to the author of this bot :heart:"
-MUTE_CMD="%smute, takes: user id" % COMMAND_PREFIX
-MUTE_OVERVIEW="Block tip notifications when sent by this user"
-MUTE_INFO=MUTE_OVERVIEW
-UNMUTE_CMD="%sunmute, takes: user id" % COMMAND_PREFIX
-UNMUTE_OVERVIEW="Unblock tip notificaitons sent by this user"
-UNMUTE_INFO=UNMUTE_OVERVIEW
-MUTED_CMD="%smuted" % COMMAND_PREFIX
-MUTED_OVERVIEW="View list of users you have muted"
-MUTED_INFO=MUTED_OVERVIEW
+		"\nExample: `tip 2 @user1 @user2` would send 2 to user1 and 2 to user2"),
+}
+
+TIPSPLIT = {
+		"CMD"      : "%stipsplit, takes: amount, <*users>" % COMMAND_PREFIX,
+		"OVERVIEW" : "Split a tip among mentioned uses",
+		"INFO"     : "Distributes a tip evenly to all mentioned users.\nExample: `tipsplit 2 @user1 @user2` would send 1 to user1 and 1 to user2",
+}
+
+TIPRANDOM = {
+		"CMD"      : "%stiprandom, takes: amount" % COMMAND_PREFIX,
+		"OVERVIEW" : "Tips a random active user",
+		"INFO"     : ("Tips amount to a random active user. Active user list picked using same logic as rain" +
+				"\n**Minimum tiprandom amount: %d naneroo**") % settings.tiprandom_minimum ,
+}
+
+RAIN = {
+		"CMD"      : "%srain, takes: amount" % COMMAND_PREFIX,
+		"OVERVIEW" : "Split tip among all active* users",
+		"INFO"     : ("Distribute <amount> evenly to users who are eligible.\n" +
+				"Eligibility is determined based on your *recent* activity **and** contributions to public channels. " +
+				"Several factors are considered in picking who receives rain. If you aren't receiving it, you aren't contributing enough or your contributions are low-quality/spammy.\n" +
+				"Note: Users who have a status of 'offline' or 'do not disturb' do not receive rain.\n" +
+				"Example: `rain 1000` - distributes 1000 evenly to eligible users (similar to `tipsplit`)" +
+				"\n**Minimum rain amount: %d naneroo**") % (RAIN_MINIMUM),
+}
+
+START_GIVEAWAY = {
+		"CMD"      : "%sgivearai, takes: amount, fee=(amount), duration=(minutes)" % (COMMAND_PREFIX),
+		"OVERVIEW" : "Sponsor a giveaway",
+		"INFO"     : ("Start a giveaway with given amount, entry fee, and duration." +
+				"\nEntry fees are added to the total prize pool" +
+				"\nGiveaway will end and choose random winner after (duration)" +
+				"\nExample: `giveaway 1000 fee=5 duration=30` - Starts a giveaway of 1000, with fee of 5, duration of 30 minutes" +
+				"\n**Minimum required to sponsor a giveaway: %d naneroo**" +
+				"\n**Minimum giveaway duration: %d minutes**" +
+				"\n**Maximum giveaway duration: %d minutes**") % (GIVEAWAY_MINIMUM, GIVEAWAY_MIN_DURATION, GIVEAWAY_MAX_DURATION),
+}
+
+ENTER = {
+		"CMD"      : "%sticket, takes: fee (conditional)" % COMMAND_PREFIX,
+		"OVERVIEW" : "Enter the current giveaway",
+		"INFO"     : ("Enter the current giveaway, if there is one. Takes (fee) as argument only if there's an entry fee." +
+				"\n Fee will go towards the prize pool and be deducted from your available balance immediately" +
+				"\nExample: `ticket` (to enter a giveaway without a fee), `ticket 10` (to enter a giveaway with a fee of 10)"),
+}
+
+TIPGIVEAWAY = {
+		"CMD"      : "%sdonate, takes: amount" % (COMMAND_PREFIX),
+		"OVERVIEW" : "Add to present or future giveaway prize pool",
+		"INFO"     : ("Add <amount> to the current giveaway pool\n"+
+				"If there is no giveaway, one will be started when minimum is reached." +
+				"\nTips >= %d naneroo automatically enter you for giveaways sponsored by the community." +
+				"\nDonations count towards the next giveaways entry fee" +
+				"\nExample: `donate 1000` - Adds 1000 to giveaway pool") % (TIPGIVEAWAY_AUTO_ENTRY),
+}
+
+TICKETSTATUS = {
+		"CMD"      : "%sticketstatus" % COMMAND_PREFIX,
+		"OVERVIEW" : "Check if you are entered into the current giveaway",
+		"INFO"     : "Check if you are entered into the current giveaway",
+}
+
+GIVEAWAY_STATS= {
+		"CMD"      : "%sgiveawaystats or %sgoldenticket" % (COMMAND_PREFIX, COMMAND_PREFIX),
+		"OVERVIEW" : "Display statistics relevant to the current giveaway",
+		"INFO"     : "Display statistics relevant to the current giveaway",
+}
+
+WINNERS = {
+		"CMD"      : "%swinners" % COMMAND_PREFIX,
+		"INFO"     : "Display previous giveaway winners",
+		"OVERVIEW" : "Display previous giveaway winners",
+}
+
+LEADERBOARD = {
+		"CMD"      : "%sleaderboard or %sballers" % (COMMAND_PREFIX, COMMAND_PREFIX),
+		"INFO"     : "Display the all-time tip leaderboard",
+		"OVERVIEW" : "Display the all-time tip leaderboard",
+}
+
+TOPTIPS = {
+		"CMD"      : "%stoptips" % COMMAND_PREFIX,
+		"OVERVIEW" : "Display largest individual tips",
+		"INFO"     : "Display the single largest tips for the past 24 hours, current month, and all time",
+}
+
+STATS = {
+		"CMD"      : "%stipstats" % COMMAND_PREFIX,
+		"OVERVIEW" : "Display your personal tipping stats",
+		"INFO"     : "Display your personal tipping stats (rank, total tipped, and average tip)",
+}
+ADD_FAVORITE = {
+		"CMD"      : "%saddfavorite, takes: *users" % COMMAND_PREFIX,
+		"OVERVIEW" : "Add users to your favorites list",
+		"INFO"     : "Adds mentioned users to your favorites list.\nExample: `addfavorite @user1 @user2 @user3` - Adds user1,user2,user3 to your favorites",
+}
+
+DEL_FAVORITE = {
+		"CMD"      : "%sremovefavorite, takes: *users or favorite ID" % COMMAND_PREFIX,
+		"OVERVIEW" : "Removes users from your favorites list",
+		"INFO"     : ("Removes users from your favorites list. " +
+				"You can either @mention the user in a public channel or use the ID in your `favorites` list" +
+				"\nExample 1: `removefavorite @user1 @user2` - Removes user1 and user2 from your favorites" +
+				"\nExample 2: `removefavorite 1 6 3` - Removes favorites with ID : 1, 6, and 3"),
+}
+
+FAVORITES = {
+		"CMD"      : "%sfavorites" % COMMAND_PREFIX,
+		"OVERVIEW" : "View your favorites list",
+		"INFO"     : "View your favorites list. Use `addfavorite` to add favorites to your list and `removefavorite` to remove favories",
+}
+
+TIP_FAVORITES = {
+		"CMD"      : "%stipfavorites, takes: amount" % COMMAND_PREFIX,
+		"OVERVIEW" : "Tip your entire favorites list",
+		"INFO"     : ("Tip everybody in your favorites list specified amount" +
+				"\nExample: `tipfavorites 1000` Distributes 1000 to your entire favorites list (similar to `tipsplit`)"),
+}
+
+TIP_AUTHOR = {
+		"CMD"      : "%stipauthor, takes: amount" % COMMAND_PREFIX,
+		"OVERVIEW" : "Donate to the author of this bot :heart:",
+		"INFO"     : "The author is BBedward but there was no INFO property here so I added this as an easter egg. Cheers, Newguyneal",
+}
+
+MUTE = {
+		"CMD"      : "%smute, takes: user id" % COMMAND_PREFIX,
+		"OVERVIEW" : "Block tip notifications when sent by this user",
+		"INFO"     : "When someone is spamming you with tips and you can't take it anymore",
+}
+
+UNMUTE = {
+		"CMD"      : "%sunmute, takes: user id" % COMMAND_PREFIX,
+		"OVERVIEW" : "Unblock tip notificaitons sent by this user",
+		"INFO"     : "When the spam is over and you want to know they still love you",
+}
+
+MUTED = {
+		"CMD"      : "%smuted" % COMMAND_PREFIX,
+		"OVERVIEW" : "View list of users you have muted",
+		"INFO"     : "Are you really gonna drunk dial?",
+}
+
+COMMANDS = {
+		"ACCOUNT_COMMANDS"      : [BALANCE, DEPOSIT, WITHDRAW],
+		"TIPPING_COMMANDS"      : [TIP, TIPSPLIT, TIPRANDOM, RAIN],
+		"GIVEAWAY_COMMANDS"     : [START_GIVEAWAY, ENTER, TIPGIVEAWAY, TICKETSTATUS],
+		"STATISTICS_COMMANDS"   : [GIVEAWAY_STATS, WINNERS, LEADERBOARD, TOPTIPS,STATS],
+		"FAVORITES_COMMANDS"    : [ADD_FAVORITE, DEL_FAVORITE, FAVORITES, TIP_FAVORITES],
+		"NOTIFICATION_COMMANDS" : [MUTE, UNMUTE, MUTED],
+		"AUTHOR_COMMANDS"       : [TIP_AUTHOR]
+}
+
 BOT_DESCRIPTION=("Graham v%s - An open source NANO tip bot for Discord\n" +
 		"Developed by bbedward - Feel free to send suggestions, ideas, and/or tips\n") % BOT_VERSION
 BALANCE_TEXT=(	"```Actual Balance   : %s naneroo (%.6f NANO)\n" +
@@ -186,7 +269,6 @@ TIP_SELF="No valid recipients found in your tip.\n(You cannot tip yourself and c
 WITHDRAW_SUCCESS_TEXT="Withdraw has been queued for processing, I'll send you a link to the transaction after I've broadcasted it to the network!"
 WITHDRAW_PROCESSED_TEXT="Withdraw processed:\nTransaction: https://www.nanode.co/block/%s\nIf you have an issue with a withdraw please wait 24 hours before contacting me, the issue will likely resolve itself."
 WITHDRAW_NO_BALANCE_TEXT="You have no NANO to withdraw"
-WITHDRAW_ADDRESS_NOT_FOUND_TEXT="Usage:\n```" + WITHDRAW_INFO + "```"
 WITHDRAW_INVALID_ADDRESS_TEXT="Withdraw address is not valid"
 WITHDRAW_ERROR_TEXT="Something went wrong ! :thermometer_face: "
 WITHDRAW_COOLDOWN_TEXT="You need to wait %d seconds before making another withdraw"
@@ -195,7 +277,7 @@ TOP_HEADER_TEXT="Here are the top %d tippers :clap:"
 TOP_HEADER_EMPTY_TEXT="The leaderboard is empty!"
 TOP_SPAM="No more big tippers for %d seconds"
 STATS_ACCT_NOT_FOUND_TEXT="I could not find an account for you, try private messaging me `%sregister`" % COMMAND_PREFIX
-STATS_TEXT="You are rank #%d, you've tipped a total of %.6f NANO, your average tip is %.6f NANO, and your biggest tip of all time is %.6f NANO"
+STATS_TEXT="You are rank #%s, you've tipped a total of %.6f NANO, your average tip is %.6f NANO, and your biggest tip of all time is %.6f NANO"
 TIPSPLIT_SMALL="Tip amount is too small to be distributed to that many users"
 RAIN_NOBODY="I couldn't find anybody eligible to receive rain"
 GIVEAWAY_EXISTS="There's already an active giveaway"
@@ -204,7 +286,7 @@ GIVEAWAY_STARTED_FEE="%s has sponsored a giveaway of %.6f NANO! The entry fee is
 GIVEAWAY_FEE_TOO_HIGH="A giveaway has started where the entry fee is higher than your donations! Use `%sticketstatus` to see how much you need to enter!" % COMMAND_PREFIX
 GIVEAWAY_MAX_FEE="Giveaway entry fee cannot be more than 5% of the prize pool"
 GIVEAWAY_ENDED="Congratulations! <@%s> was the winner of the giveaway! They have been sent %.6f NANO!"
-GIVEAWAY_STATS="There are %d entries to win %.6f NANO ending in %s - sponsored by %s.\nUse:\n - `" + COMMAND_PREFIX + "ticket` to enter\n -`" + COMMAND_PREFIX + "donate` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check status of your entry"
+GIVEAWAY_STATS="There are %d entries to win %.6f NANO ending in %s - sponsored by %s.\nUse:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "donate` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check status of your entry"
 GIVEAWAY_STATS_FEE="There are %d entries to win %.6f NANO ending in %s - sponsored by %s.\nEntry fee: %d naneroo. Use:\n - `" + COMMAND_PREFIX + "ticket %d` to enter\n - `" + COMMAND_PREFIX + "donate` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
 GIVEAWAY_STATS_INACTIVE="There are no active giveaways\n%d naneroo required to to automatically start one! Use\n - `" + COMMAND_PREFIX + "donate` to donate to the next giveaway.\n - `" + COMMAND_PREFIX + "givearai` to sponsor your own giveaway\n - `" + COMMAND_PREFIX + "ticketstatus` to see how much you've already donated to the next giveaway"
 ENTER_ADDED="You've been successfully entered into the giveaway"
@@ -377,89 +459,61 @@ def is_admin(user):
 	return has_admin_role(user.roles)
 
 ### Commands
+def build_page(group_name,commands_dictionary):
+	entries = []
+	for cmd in commands_dictionary[group_name]:
+			entries.append(paginator.Entry(cmd["CMD"],cmd["INFO"]))
+	return entries
+
 def build_help(page):
 	if page == 0:
-		entries = []
-		entries.append(paginator.Entry(BALANCE_CMD,BALANCE_OVERVIEW))
-		entries.append(paginator.Entry(DEPOSIT_CMD,DEPOSIT_OVERVIEW))
-		entries.append(paginator.Entry(WITHDRAW_CMD,WITHDRAW_OVERVIEW))
-		entries.append(paginator.Entry(TIP_CMD,TIP_OVERVIEW))
-		entries.append(paginator.Entry(TIPSPLIT_CMD,TIPSPLIT_OVERVIEW))
-		entries.append(paginator.Entry(TIPRANDOM_CMD,TIPRANDOM_OVERVIEW))
-		entries.append(paginator.Entry(RAIN_CMD,RAIN_OVERVIEW))
-		entries.append(paginator.Entry(START_GIVEAWAY_CMD,START_GIVEAWAY_OVERVIEW))
-		entries.append(paginator.Entry(ENTER_CMD,ENTER_OVERVIEW))
-		entries.append(paginator.Entry(TIPGIVEAWAY_CMD,TIPGIVEAWAY_OVERVIEW))
-		entries.append(paginator.Entry(TICKETSTATUS_CMD,TICKETSTATUS_OVERVIEW))
-		entries.append(paginator.Entry(ADD_FAVORITE_CMD,ADD_FAVORITE_OVERVIEW))
-		entries.append(paginator.Entry(DEL_FAVORITE_CMD,DEL_FAVORITE_OVERVIEW))
-		entries.append(paginator.Entry(FAVORITES_CMD,FAVORITES_OVERVIEW))
-		entries.append(paginator.Entry(GIVEAWAY_STATS_CMD,GIVEAWAY_STATS_OVERVIEW))
-		entries.append(paginator.Entry(WINNERS_CMD,WINNERS_OVERVIEW))
-		entries.append(paginator.Entry(LEADERBOARD_CMD,LEADERBOARD_OVERVIEW))
-		entries.append(paginator.Entry(TOPTIPS_CMD,TOPTIPS_OVERVIEW))
-		entries.append(paginator.Entry(STATS_CMD,STATS_OVERVIEW))
-		entries.append(paginator.Entry(MUTE_CMD, MUTE_OVERVIEW))
-		entries.append(paginator.Entry(UNMUTE_CMD, UNMUTE_OVERVIEW))
-		entries.append(paginator.Entry(MUTED_CMD, MUTED_OVERVIEW))
 		author=AUTHOR_HEADER
 		title="Command Overview"
+		entries = []
+		tmp_command_list = [
+			"ACCOUNT_COMMANDS",
+			"TIPPING_COMMANDS",
+			"GIVEAWAY_COMMANDS",
+			"STATISTICS_COMMANDS",
+			"FAVORITES_COMMANDS",
+			"NOTIFICATION_COMMANDS"
+		]
+		for command_group in tmp_command_list:
+			for cmd in COMMANDS[command_group]:
+				entries.append(paginator.Entry(cmd["CMD"],cmd["OVERVIEW"]))
 		return paginator.Page(entries=entries, title=title,author=author)
 	elif page == 1:
-		entries = []
-		entries.append(paginator.Entry(BALANCE_CMD,BALANCE_INFO))
-		entries.append(paginator.Entry(DEPOSIT_CMD,DEPOSIT_INFO))
-		entries.append(paginator.Entry(WITHDRAW_CMD,WITHDRAW_INFO))
 		author="Account Commands"
 		description="Check account balance, withdraw, or deposit"
+		entries = build_page("ACCOUNT_COMMANDS",COMMANDS)
 		return paginator.Page(entries=entries, author=author,description=description)
 	elif page == 2:
-		entries = []
-		entries.append(paginator.Entry(TIP_CMD,TIP_INFO))
-		entries.append(paginator.Entry(TIPSPLIT_CMD,TIPSPLIT_INFO))
-		entries.append(paginator.Entry(TIPRANDOM_CMD,TIPRANDOM_INFO))
-		entries.append(paginator.Entry(RAIN_CMD,RAIN_INFO))
 		author="Tipping Commands"
 		description="The different ways you are able to tip with this bot"
+		entries = build_page("TIPPING_COMMANDS",COMMANDS)
 		return paginator.Page(entries=entries, author=author,description=description)
 	elif page == 3:
-		entries = []
-		entries.append(paginator.Entry(START_GIVEAWAY_CMD,START_GIVEAWAY_INFO))
-		entries.append(paginator.Entry(ENTER_CMD,ENTER_INFO))
-		entries.append(paginator.Entry(TIPGIVEAWAY_CMD,TIPGIVEAWAY_INFO))
-		entries.append(paginator.Entry(TICKETSTATUS_CMD,TICKETSTATUS_INFO))
 		author="Giveaway Commands"
 		description="The different ways to interact with the bot's giveaway functionality"
+		entries = build_page("GIVEAWAY_COMMANDS",COMMANDS)
 		return paginator.Page(entries=entries, author=author, description=description)
 	elif page == 4:
-		entries = []
-		entries.append(paginator.Entry(GIVEAWAY_STATS_CMD,GIVEAWAY_STATS_INFO))
-		entries.append(paginator.Entry(WINNERS_CMD,WINNERS_INFO))
-		entries.append(paginator.Entry(LEADERBOARD_CMD,LEADERBOARD_INFO))
-		entries.append(paginator.Entry(TOPTIPS_CMD,TOPTIPS_INFO))
-		entries.append(paginator.Entry(STATS_CMD,STATS_INFO))
 		author="Statistics Commands"
 		description="Individual, bot-wide, and giveaway stats"
+		entries = build_page("STATISTICS_COMMANDS",COMMANDS)
 		return paginator.Page(entries=entries, author=author,description=description)
 	elif page == 5:
-		entries = []
-		entries.append(paginator.Entry(ADD_FAVORITE_CMD,ADD_FAVORITE_INFO))
-		entries.append(paginator.Entry(DEL_FAVORITE_CMD,DEL_FAVORITE_INFO))
-		entries.append(paginator.Entry(FAVORITES_CMD,FAVORITES_INFO))
 		author="Favorites Commands"
 		description="How to interact with your favorites list"
+		entries = build_page("FAVORITES_COMMANDS",COMMANDS)
 		return paginator.Page(entries=entries, author=author,description=description)
 	elif page == 6:
-		entries = []
-		entries.append(paginator.Entry(MUTE_CMD, MUTE_INFO))
-		entries.append(paginator.Entry(UNMUTE_CMD, UNMUTE_INFO))
-		entries.append(paginator.Entry(MUTED_CMD, MUTED_INFO))
 		author="Notification Settings"
 		description="Handle how tip bot gives you notifications"
+		entries = build_page("NOTIFICATION_COMMANDS",COMMANDS)
 		return paginator.Page(entries=entries, author=author, description=description)
 	elif page == 7:
-		entries = []
-		entries.append(paginator.Entry(TIP_AUTHOR_CMD,TIP_AUTHOR_OVERVIEW))
+		entries = [paginator.Entry(TIP_AUTHOR['CMD'], TIP_AUTHOR['OVERVIEW'])]
 		author=AUTHOR_HEADER + " - by bbedward"
 		description=("**Reviews**:\n" + "'10/10 True Masterpiece' - NANO Core Team" +
 				"\n'0/10 Didn't get rain' - Almost everybody else\n\n" +
@@ -561,7 +615,7 @@ async def withdraw(ctx):
 				db.update_last_withdraw(user.user_id)
 		except util.TipBotException as e:
 			if e.error_type == "address_not_found":
-				await post_response(message, WITHDRAW_ADDRESS_NOT_FOUND_TEXT)
+				await post_usage(message, WITHDRAW)
 			elif e.error_type == "invalid_address":
 				await post_response(message, WITHDRAW_INVALID_ADDRESS_TEXT)
 			elif e.error_type == "balance_error":
@@ -575,9 +629,9 @@ async def tip(ctx):
 
 @client.command(aliases=['tr', 'tiprando', 'trando'])
 async def tiprandom(ctx):
-	await do_tip(ctx.message, random=True)
+	await do_tip(ctx.message, rand=True)
 
-async def do_tip(message, random=False):
+async def do_tip(message, rand=False):
 	if is_private(message.channel):
 		return
 	elif paused:
@@ -589,14 +643,14 @@ async def do_tip(message, random=False):
 		if user is None:
 			return
 		amount = find_amount(message.content)
-		if random and amount < settings.tiprandom_minimum:
+		if rand and amount < settings.tiprandom_minimum:
 			raise util.TipBotException("usage_error")
 		# Make sure amount is valid and at least 1 user is mentioned
-		if amount < 1 or (len(message.mentions) < 1 and not random):
+		if amount < 1 or (len(message.mentions) < 1 and not rand):
 			raise util.TipBotException("usage_error")
 		# Create tip list
 		users_to_tip = []
-		if not random:
+		if not rand:
 			for member in message.mentions:
 				# Disregard mentions of exempt users and self
 				if member.id not in settings.exempt_users and member.id != message.author.id and not db.is_banned(member.id) and not member.bot:
@@ -622,8 +676,9 @@ async def do_tip(message, random=False):
 				dmember = message.guild.get_member(int(a))
 				if dmember is None or dmember.bot:
 					active.remove(a)
-			shuffle(active)
-			offset = randint(0, len(active) - 1)
+			sysrand = random.SystemRandom()
+			sysrand.shuffle(active)
+			offset = secrets.randbelow(len(active))
 			users_to_tip.append(message.guild.get_member(int(active[offset])))
 		# Cut out duplicate mentions
 		users_to_tip = list(set(users_to_tip))
@@ -644,7 +699,7 @@ async def do_tip(message, random=False):
 				required_amt -= amount
 			else:
 				msg = TIP_RECEIVED_TEXT
-				if random:
+				if rand:
 					msg += ". You were randomly chosen by %s's `tiprandom`" % message.author.name
 					await post_dm(message.author, "%s was the recipient of your random %d naneroo tip", member.name, actual_amt, skip_dnd=True)
 				if not db.muted(member.id, message.author.id):
@@ -652,14 +707,14 @@ async def do_tip(message, random=False):
 		# Post message reactions
 		await react_to_message(message, required_amt)
 		# Update tip stats
-		if message.channel.id != 416306340848336896:
+		if message.channel.id != 416306340848336896 and not user.stats_ban:
 			db.update_tip_stats(user, required_amt)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			if random:
-				await post_usage(message, TIPRANDOM_CMD, TIPRANDOM_INFO)
+				await post_usage(message, TIPRANDOM)
 			else:
-				await post_usage(message, TIP_CMD, TIP_INFO)
+				await post_usage(message, TIP)
 		elif e.error_type == "no_valid_recipient":
 			await post_dm(message.author, TIP_SELF)
 		else:
@@ -692,7 +747,7 @@ async def tipauthor(ctx):
 	except util.TipBotException as e:
 		pass
 
-@client.command(aliases=['ts'])
+@client.command(aliases=['tsplit'])
 async def tipsplit(ctx):
 	await do_tipsplit(ctx.message)
 
@@ -748,14 +803,14 @@ async def do_tipsplit(message, user_list=None):
 				if not db.muted(member.id, message.author.id):
 					await post_dm(member, TIP_RECEIVED_TEXT, tip_amount, message.author.name, message.author.id, skip_dnd=True)
 		await react_to_message(message, amount)
-		if message.channel.id != 416306340848336896:
+		if message.channel.id != 416306340848336896 and not user.stats_ban:
 			db.update_tip_stats(user, real_amount)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			if user_list is None:
-				await post_usage(message, TIPSPLIT_CMD, TIPSPLIT_INFO)
+				await post_usage(message, TIPSPLIT)
 			else:
-				await post_usage(message, TIP_FAVORITES_CMD, TIP_FAVORITES_INFO)
+				await post_usage(message, TIP_FAVORITES)
 		elif e.error_type == "invalid_tipsplit":
 			await post_dm(message.author, TIPSPLIT_SMALL)
 		elif e.error_type == "no_valid_recipient":
@@ -954,7 +1009,7 @@ async def givearai(ctx):
 			await post_dm(await client.get_user_info(int(d)), GIVEAWAY_FEE_TOO_HIGH)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
-			await post_usage(message, START_GIVEAWAY_CMD, START_GIVEAWAY_INFO)
+			await post_usage(message, START_GIVEAWAY)
 
 @client.command(aliases=['tipgiveaway', 'd', 'tg'])
 async def donate(ctx):
@@ -1004,7 +1059,7 @@ async def tip_giveaway(message, ticket=False):
 			await react_to_message(message, amount)
 		# If eligible, add them to giveaway
 		if (amount + contributions) >= fee and not db.is_banned(message.author.id):
-			if (amount + contributions) >= (fee * 4):
+			if (amount + contributions) >= (TIPGIVEAWAY_AUTO_ENTRY * 4):
 				db.mark_user_active(user)
 			entered = db.add_contestant(message.author.id, override_ban=True)
 			if entered:
@@ -1024,15 +1079,16 @@ async def tip_giveaway(message, ticket=False):
 				await post_response(message, GIVEAWAY_STARTED_FEE, client.user.name, nano_amt, fee, fee)
 				asyncio.get_event_loop().create_task(start_giveaway_timer())
 		# Update top tipY
-		db.update_tip_stats(user, amount, giveaway=True)
+		if not user.stats_ban:
+			db.update_tip_stats(user, amount, giveaway=True)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			if ticket:
-				await post_usage(message, ENTER_CMD, ENTER_INFO)
+				await post_usage(message, ENTER)
 			else:
-				await post_usage(message, TIPGIVEAWAY_CMD, TIPGIVEAWAY_INFO)
+				await post_usage(message, TIPGIVEAWAY)
 
-@client.command()
+@client.command(aliases=['ts'])
 async def ticketstatus(ctx):
 	message = ctx.message
 	user = db.get_user_by_id(message.author.id)
@@ -1175,7 +1231,9 @@ async def tipstats(ctx):
 	if tip_stats is None or len(tip_stats) == 0:
 		await post_response(message, STATS_ACCT_NOT_FOUND_TEXT)
 		return
-	await post_response(message, STATS_TEXT, tip_stats['rank'], tip_stats['total'], tip_stats['average'],tip_stats['top'])
+	if tip_stats['rank'] == -1:
+		tip_stats['rank'] = 'N/A'
+	await post_response(message, STATS_TEXT, str(tip_stats['rank']), tip_stats['total'], tip_stats['average'],tip_stats['top'])
 
 @client.command(aliases=['addfavourite', 'addfavorites', 'addfavourites', 'addfav'])
 async def addfavorite(ctx):
@@ -1411,13 +1469,25 @@ async def statsunban(ctx):
 			else:
 				await post_dm(message.author, STATSUNBAN_DUP, member.name)
 
-@client.command()
-async def settiptotal(ctx, amount: float = -1.0, user: discord.Member = None):
-	if is_admin(ctx.message.author):
-		if user is None or amount < 0:
-			await post_dm(ctx.message.author, "Usage: settiptotal amount user")
-			return
-		db.update_tip_total(user.id, amount)
+@client.command(aliases=['addtips', 'incrementtips'])
+async def increasetips(ctx, amount: float = -1.0, user: discord.Member = None):
+	if not is_admin(ctx.message.author):
+		return
+	u = db.get_user_by_id(user.id)
+	if u is None or 0 > amount:
+		await post_dm(ctx.message.author, "Usage: increasetips amount user")
+		return
+	db.update_tip_total(user.id, amount + u.tipped_amount)
+
+@client.command(aliases=['decrementtips', 'decreasetips', 'removetips'])
+async def reducetips(ctx, amount: float = -1.0, user: discord.Member = None):
+	if not is_admin(ctx.message.author):
+		return
+	u = db.get_user_by_id(user.id)
+	if u is None or amount < 0:
+		await post_dm(ctx.message.author, "Usage: reducetips amount user")
+		return
+	db.update_tip_total(user.id, u.tipped_amount - amount)
 
 @client.command()
 async def settipcount(ctx, cnt: int = -1, user: discord.Member = None):
@@ -1456,10 +1526,10 @@ async def post_response(message, template, *args, incl_mention=True):
 	asyncio.sleep(0.05) # Slight delay to avoid discord bot responding above commands
 	return await message.channel.send(response)
 
-async def post_usage(message, command, description):
+async def post_usage(message, command):
 	embed = discord.Embed(colour=discord.Colour.purple())
 	embed.title = "Usage:"
-	embed.add_field(name=command, value=description,inline=False)
+	embed.add_field(name=command['CMD'], value=command['INFO'],inline=False)
 	await message.author.send(embed=embed)
 
 async def post_dm(member, template, *args, skip_dnd=False):
