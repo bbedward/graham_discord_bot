@@ -1,6 +1,6 @@
 # Graham (a NANO currency Tip Bot for Discord)
 
-Graham is an open source, free to use nano tip bot for discord.
+Graham is an open source, free to use nano bot for discord.
 
 A few of the features included in this bot:
 
@@ -9,8 +9,11 @@ A few of the features included in this bot:
 - giveaways+raffles from individual sponsors or auto-started by the bot when pool reaches certain amount (`givearai`,`tipgiveaway`)
 - individual statistics (`tipstats`)
 - bot-wide statistics (`leaderboard`,`toptips`,`winners`)
-- individual favorites list (`addfavorite`,`removefavorite`,`tipfavorites`)
-- Administration commands for specific users or roles (`tipban`/`tipunban`, `statsban/statsunban`, `settiptotal/settipcount`, `pause/unpause`)
+- individual favorites list (`addfavorite`,`removefavorite`,`tipfavorites`,`favorites`)
+- Administration commands for specific users or roles (see `adminhelp`)
+- Interactive help for user friendly-ness
+
+And much more than listed here probably
 
 ## About
 

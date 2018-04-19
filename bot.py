@@ -26,7 +26,7 @@ import paginator
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "2.1.2"
+BOT_VERSION = "2.2"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -55,192 +55,296 @@ WITHDRAW_CHECK_JOB=15
 # Pool giveaway auto amount (1%)
 TIPGIVEAWAY_AUTO_ENTRY=int(.01 * GIVEAWAY_MINIMUM)
 
-# Spam prevention
-spam_delta=datetime.datetime.now() - datetime.timedelta(seconds=SPAM_THRESHOLD)
-last_big_tippers=spam_delta
-last_top_tips=spam_delta
-last_winners=spam_delta
+# HELP menu header
+AUTHOR_HEADER="Graham v{0} (NANO Tip Bot)".format(BOT_VERSION)
 
-### Response Templates ###
-COMMAND_NOT_FOUND="I don't understand what you're saying, try %shelp" % COMMAND_PREFIX
-AUTHOR_HEADER="Graham v%s (NANO Tip Bot)" % BOT_VERSION
+# Command DOC (TRIGGER, CMD, Overview, Info)
+'''
+TRIGGER: Users can get information about this command specifically via help $TRIGGER
+CMD: Command overview for help doc
+OVERVIEW: General overview of command for overview of command listings
+INFO: Detailed command usage/examples/information/etc.
+'''
 
-# Commands (CMD,Overview, Info)
+def get_aliases(dict, exclude=''):
+	'''Returns list of command triggers excluding `exclude`'''
+	cmds = dict["TRIGGER"]
+	ret_cmds = []
+	for cmd in cmds:
+		if cmd != exclude:
+			ret_cmds.append(cmd)
+	return ret_cmds
+
+### All commands
+
 BALANCE = {
-		"CMD"      : "%sbalance" % COMMAND_PREFIX,
+		"TRIGGER"  : ["balance", "bal", "$", "b"],
+		"CMD"      : "{0}balance".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Display balance of your account",
 		"INFO"     : ("Displays the balance of your tip account (in naneroo) as described:" +
 				"\nActual Balance: The actual balance in your tip account" +
 				"\nAvailable Balance: The balance you are able to tip with (Actual - Pending Send)" +
 				"\nPending Send: Tips you have sent, but have not yet been broadcasted to network" +
 				"\nPending Receipt: Tips that have been sent to you, but have not yet been pocketed by the node. " +
-				"\nPending funds will be available for tip/withdraw after they have been pocketed by the node"),
+				"\nPending funds will be available for tip/withdraw after they have been pocketed by the node")
 }
 
 DEPOSIT ={
-		"CMD"      : "%sdeposit or %sregister" % (COMMAND_PREFIX, COMMAND_PREFIX),
+		"TRIGGER"  : ["deposit", "register"],
+		"CMD"      : "{0}deposit or {0}register".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Shows your account address",
 		"INFO"     : ("Displays your tip bot account address along with a QR code" +
 				"\n- Send NANO to this address to increase your tip bot balance" +
-				"\n- If you do not have a tip bot account yet, this command will create one for you (receiving a tip automatically creates an account too)"),
+				"\n- If you do not have a tip bot account yet, this command will create one for you (receiving a tip automatically creates an account too)")
 }
 
 WITHDRAW = {
-		"CMD"      : "%swithdraw, takes: address (optional amount)" % COMMAND_PREFIX,
+		"TRIGGER"  : ["withdraw"],
+		"CMD"      : "{0}withdraw, takes: address (optional amount)".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Allows you to withdraw from your tip account",
 		"INFO"     : ("Withdraws specified amount to specified address, " +
 				"if amount isn't specified your entire tip account balance will be withdrawn" +
-				"\nExample: `withdraw xrb_111111111111111111111111111111111111111111111111111hifc8npp 1000` - Withdraws 1000 naneroo"),
+				"\nExample: `withdraw xrb_111111111111111111111111111111111111111111111111111hifc8npp 1000` - Withdraws 1000 naneroo")
 }
 
 TIP = {
-		"CMD"      : "%stip, takes: amount <*users>" % COMMAND_PREFIX,
+		"TRIGGER"  : ["tip", "t"],
+		"CMD"      : "{0}tip, takes: amount <*users>".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Send a tip to mentioned users",
 		"INFO"     : ("Tip specified amount to mentioned user(s) (minimum tip is 1 naneroo)" +
 		"\nThe recipient(s) will be notified of your tip via private message" +
 		"\nSuccessful tips will be deducted from your available balance immediately" +
-		"\nExample: `tip 2 @user1 @user2` would send 2 to user1 and 2 to user2"),
+		"\nExample: `tip 2 @user1 @user2` would send 2 to user1 and 2 to user2")
 }
 
 TIPSPLIT = {
-		"CMD"      : "%stipsplit, takes: amount, <*users>" % COMMAND_PREFIX,
+		"TRIGGER"  : ["tipsplit", "tsplit"],
+		"CMD"      : "{0}tipsplit, takes: amount, <*users>".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Split a tip among mentioned uses",
-		"INFO"     : "Distributes a tip evenly to all mentioned users.\nExample: `tipsplit 2 @user1 @user2` would send 1 to user1 and 1 to user2",
+		"INFO"     : "Distributes a tip evenly to all mentioned users.\nExample: `tipsplit 2 @user1 @user2` would send 1 to user1 and 1 to user2"
 }
 
 TIPRANDOM = {
-		"CMD"      : "%stiprandom, takes: amount" % COMMAND_PREFIX,
+		"TRIGGER"  : ["tiprandom", "tr"],
+		"CMD"      : "{0}tiprandom, takes: amount".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Tips a random active user",
 		"INFO"     : ("Tips amount to a random active user. Active user list picked using same logic as rain" +
-				"\n**Minimum tiprandom amount: %d naneroo**") % settings.tiprandom_minimum ,
+				"\n**Minimum tiprandom amount: {0} naneroo**").format(settings.tiprandom_minimum)
 }
 
 RAIN = {
-		"CMD"      : "%srain, takes: amount" % COMMAND_PREFIX,
+		"TRIGGER"  : ["rain"],
+		"CMD"      : "{0}rain, takes: amount".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Split tip among all active* users",
 		"INFO"     : ("Distribute <amount> evenly to users who are eligible.\n" +
 				"Eligibility is determined based on your *recent* activity **and** contributions to public channels. " +
 				"Several factors are considered in picking who receives rain. If you aren't receiving it, you aren't contributing enough or your contributions are low-quality/spammy.\n" +
 				"Note: Users who have a status of 'offline' or 'do not disturb' do not receive rain.\n" +
 				"Example: `rain 1000` - distributes 1000 evenly to eligible users (similar to `tipsplit`)" +
-				"\n**Minimum rain amount: %d naneroo**") % (RAIN_MINIMUM),
+				"\n**Minimum rain amount: {0} naneroo**").format(RAIN_MINIMUM)
 }
 
 START_GIVEAWAY = {
-		"CMD"      : "%sgivearai, takes: amount, fee=(amount), duration=(minutes)" % (COMMAND_PREFIX),
+		"TRIGGER"  : ["givearai", "giveaway", "sponsorgiveaway"],
+		"CMD"      : "{0}givearai, takes: amount, fee=(amount), duration=(minutes)".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Sponsor a giveaway",
 		"INFO"     : ("Start a giveaway with given amount, entry fee, and duration." +
 				"\nEntry fees are added to the total prize pool" +
 				"\nGiveaway will end and choose random winner after (duration)" +
 				"\nExample: `giveaway 1000 fee=5 duration=30` - Starts a giveaway of 1000, with fee of 5, duration of 30 minutes" +
-				"\n**Minimum required to sponsor a giveaway: %d naneroo**" +
-				"\n**Minimum giveaway duration: %d minutes**" +
-				"\n**Maximum giveaway duration: %d minutes**") % (GIVEAWAY_MINIMUM, GIVEAWAY_MIN_DURATION, GIVEAWAY_MAX_DURATION),
+				"\n**Minimum required to sponsor a giveaway: {0} naneroo**" +
+				"\n**Minimum giveaway duration: {1} minutes**" +
+				"\n**Maximum giveaway duration: {2} minutes**").format(GIVEAWAY_MINIMUM, GIVEAWAY_MIN_DURATION, GIVEAWAY_MAX_DURATION)
 }
 
 ENTER = {
-		"CMD"      : "%sticket, takes: fee (conditional)" % COMMAND_PREFIX,
+		"TRIGGER"  : ["ticket", "enter", "e"],
+		"CMD"      : "{0}ticket, takes: fee (conditional)".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Enter the current giveaway",
 		"INFO"     : ("Enter the current giveaway, if there is one. Takes (fee) as argument only if there's an entry fee." +
 				"\n Fee will go towards the prize pool and be deducted from your available balance immediately" +
-				"\nExample: `ticket` (to enter a giveaway without a fee), `ticket 10` (to enter a giveaway with a fee of 10)"),
+				"\nExample: `ticket` (to enter a giveaway without a fee), `ticket 10` (to enter a giveaway with a fee of 10)")
 }
 
 TIPGIVEAWAY = {
-		"CMD"      : "%sdonate, takes: amount" % (COMMAND_PREFIX),
+		"TRIGGER"  : ["donate", "tipgiveaway", "d"],
+		"CMD"      : "{0}donate, takes: amount".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Add to present or future giveaway prize pool",
 		"INFO"     : ("Add <amount> to the current giveaway pool\n"+
 				"If there is no giveaway, one will be started when minimum is reached." +
-				"\nTips >= %d naneroo automatically enter you for giveaways sponsored by the community." +
+				"\nTips >= {0} naneroo automatically enter you for giveaways sponsored by the community." +
 				"\nDonations count towards the next giveaways entry fee" +
-				"\nExample: `donate 1000` - Adds 1000 to giveaway pool") % (TIPGIVEAWAY_AUTO_ENTRY),
+				"\nExample: `donate 1000` - Adds 1000 to giveaway pool").format(TIPGIVEAWAY_AUTO_ENTRY)
 }
 
 TICKETSTATUS = {
-		"CMD"      : "%sticketstatus" % COMMAND_PREFIX,
+		"TRIGGER"  : ["ticketstatus", "ts"],
+		"CMD"      : "{0}ticketstatus".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Check if you are entered into the current giveaway",
-		"INFO"     : "Check if you are entered into the current giveaway",
+		"INFO"     : "Check if you are entered into the current giveaway"
 }
 
 GIVEAWAY_STATS= {
-		"CMD"      : "%sgiveawaystats or %sgoldenticket" % (COMMAND_PREFIX, COMMAND_PREFIX),
+		"TRIGGER"  : ["gstats", "giveawaystats", "gs", "giveawaystatus", "gstatus"],
+		"CMD"      : "{0}giveawaystats or {0}goldenticket".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Display statistics relevant to the current giveaway",
-		"INFO"     : "Display statistics relevant to the current giveaway",
+		"INFO"     : "Display statistics relevant to the current giveaway"
 }
 
 WINNERS = {
-		"CMD"      : "%swinners" % COMMAND_PREFIX,
+		"TRIGGER"  : ["winners"],
+		"CMD"      : "{0}winners".format(COMMAND_PREFIX),
 		"INFO"     : "Display previous giveaway winners",
-		"OVERVIEW" : "Display previous giveaway winners",
+		"OVERVIEW" : "Display previous giveaway winners"
 }
 
 LEADERBOARD = {
-		"CMD"      : "%sleaderboard or %sballers" % (COMMAND_PREFIX, COMMAND_PREFIX),
+		"TRIGGER"  : ["leaderboard", "ballers", "bigtippers"],
+		"CMD"      : "{0}leaderboard or {0}ballers".format(COMMAND_PREFIX),
 		"INFO"     : "Display the all-time tip leaderboard",
-		"OVERVIEW" : "Display the all-time tip leaderboard",
+		"OVERVIEW" : "Display the all-time tip leaderboard"
 }
 
 TOPTIPS = {
-		"CMD"      : "%stoptips" % COMMAND_PREFIX,
+		"TRIGGER"  : ["toptips"],
+		"CMD"      : "{0}toptips".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Display largest individual tips",
-		"INFO"     : "Display the single largest tips for the past 24 hours, current month, and all time",
+		"INFO"     : "Display the single largest tips for the past 24 hours, current month, and all time"
 }
 
 STATS = {
-		"CMD"      : "%stipstats" % COMMAND_PREFIX,
+		"TRIGGER"  : ["tipstats"],
+		"CMD"      : "{0}tipstats".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Display your personal tipping stats",
-		"INFO"     : "Display your personal tipping stats (rank, total tipped, and average tip)",
+		"INFO"     : "Display your personal tipping stats (rank, total tipped, and average tip)"
 }
+
 ADD_FAVORITE = {
-		"CMD"      : "%saddfavorite, takes: *users" % COMMAND_PREFIX,
+		"TRIGGER"  : ["addfav", "addfavorite", "addfavourite"],
+		"CMD"      : "{0}addfavorite, takes: *users".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Add users to your favorites list",
-		"INFO"     : "Adds mentioned users to your favorites list.\nExample: `addfavorite @user1 @user2 @user3` - Adds user1,user2,user3 to your favorites",
+		"INFO"     : "Adds mentioned users to your favorites list.\nExample: `addfavorite @user1 @user2 @user3` - Adds user1,user2,user3 to your favorites"
 }
 
 DEL_FAVORITE = {
-		"CMD"      : "%sremovefavorite, takes: *users or favorite ID" % COMMAND_PREFIX,
+		"TRIGGER"  : ["removefavorite", "removefavourite", "removefav"],
+		"CMD"      : "{0}removefavorite, takes: *users or favorite ID".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Removes users from your favorites list",
 		"INFO"     : ("Removes users from your favorites list. " +
 				"You can either @mention the user in a public channel or use the ID in your `favorites` list" +
 				"\nExample 1: `removefavorite @user1 @user2` - Removes user1 and user2 from your favorites" +
-				"\nExample 2: `removefavorite 1 6 3` - Removes favorites with ID : 1, 6, and 3"),
+				"\nExample 2: `removefavorite 1 6 3` - Removes favorites with ID : 1, 6, and 3")
 }
 
 FAVORITES = {
-		"CMD"      : "%sfavorites" % COMMAND_PREFIX,
+		"TRIGGER"  : ["favorites", "favs", "favourites"],
+		"CMD"      : "{0}favorites".format(COMMAND_PREFIX),
 		"OVERVIEW" : "View your favorites list",
-		"INFO"     : "View your favorites list. Use `addfavorite` to add favorites to your list and `removefavorite` to remove favories",
+		"INFO"     : "View your favorites list. Use `addfavorite` to add favorites to your list and `removefavorite` to remove favories"
 }
 
 TIP_FAVORITES = {
-		"CMD"      : "%stipfavorites, takes: amount" % COMMAND_PREFIX,
+		"TRIGGER"  : ["tipfavs", "tipfavorites", "tipfavourites", "tf"],
+		"CMD"      : "{0}tipfavorites, takes: amount".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Tip your entire favorites list",
 		"INFO"     : ("Tip everybody in your favorites list specified amount" +
-				"\nExample: `tipfavorites 1000` Distributes 1000 to your entire favorites list (similar to `tipsplit`)"),
+				"\nExample: `tipfavorites 1000` Distributes 1000 to your entire favorites list (similar to `tipsplit`)")
 }
 
 TIP_AUTHOR = {
-		"CMD"      : "%stipauthor, takes: amount" % COMMAND_PREFIX,
+		"TRIGGER"  : ["tipauthor"],
+		"CMD"      : "{0}tipauthor, takes: amount".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Donate to the author of this bot :heart:",
-		"INFO"     : "The author is BBedward but there was no INFO property here so I added this as an easter egg. Cheers, Newguyneal",
+		"INFO"     : "The author is BBedward but there was no INFO property here so I added this as an easter egg. Cheers, Newguyneal"
 }
 
 MUTE = {
-		"CMD"      : "%smute, takes: user id" % COMMAND_PREFIX,
+		"TRIGGER"  : ["mute"],
+		"CMD"      : "{0}mute, takes: user id".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Block tip notifications when sent by this user",
-		"INFO"     : "When someone is spamming you with tips and you can't take it anymore",
+		"INFO"     : "When someone is spamming you with tips and you can't take it anymore"
 }
 
 UNMUTE = {
-		"CMD"      : "%sunmute, takes: user id" % COMMAND_PREFIX,
+		"TRIGGER"  : ["unmute"],
+		"CMD"      : "{0}unmute, takes: user id".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Unblock tip notificaitons sent by this user",
-		"INFO"     : "When the spam is over and you want to know they still love you",
+		"INFO"     : "When the spam is over and you want to know they still love you"
 }
 
 MUTED = {
-		"CMD"      : "%smuted" % COMMAND_PREFIX,
+		"TRIGGER"  : ["muted"],
+		"CMD"      : "{0}muted".format(COMMAND_PREFIX),
 		"OVERVIEW" : "View list of users you have muted",
-		"INFO"     : "Are you really gonna drunk dial?",
+		"INFO"     : "Are you really gonna drunk dial?"
+}
+
+### ADMIN-only commands
+PAUSE = {
+		"CMD"      : "{0}pause".format(COMMAND_PREFIX),
+		"INFO"     : "Pause all transaction-related activity"
+}
+
+UNPAUSE = {
+		"CMD"      : "{0}unpause".format(COMMAND_PREFIX),
+		"INFO"     : "Resume all transaction-related activity"
+}
+
+TIPBAN = {
+		"CMD"      : "{0}tipban, takes: users".format(COMMAND_PREFIX),
+		"INFO"     : "Makes it so mentioned users can no longer receive tips"
+}
+
+TIPUNBAN = {
+		"CMD"      : "{0}tipunban, takes: users".format(COMMAND_PREFIX),
+		"INFO"     : "Makes it so mentioned users can receive tips again"
+}
+
+BANNED = {
+		"CMD"      : "{0}banned".format(COMMAND_PREFIX),
+		"INFO"     : "View list of users currently tip banned"
+}
+
+STATSBAN = {
+		"CMD"      : "{0}statsban, takes: users".format(COMMAND_PREFIX),
+		"INFO"     : "Bans mentioned users from all stats consideration"
+}
+
+STATSUNBAN = {
+		"CMD"      : "{0}statsunban, takes: users".format(COMMAND_PREFIX),
+		"INFO"     : "Unbans mentioned users from stats considerations"
+}
+
+STATSBANNED = {
+		"CMD"      : "{0}statsbanned".format(COMMAND_PREFIX),
+		"INFO"     : "View list of stats banned users"
+}
+
+INCREASETIPTOTAL = {
+		"CMD"      : "{0}increasetips (amount) (user)".format(COMMAND_PREFIX),
+		"INFO"     : "Increases users tip total by (amount), for stats purposes"
+}
+
+DECREASETIPTOTAL = {
+		"CMD"      : "{0}decreasetips (amount) (user)".format(COMMAND_PREFIX),
+		"INFO"     : "Decreases users tip total by (amount), for stats purposes"
+}
+
+SETTOPTIP = {
+		"CMD"      : "{0}settoptip".format(COMMAND_PREFIX),
+		"INFO"     : ("Allows you to set a users top tips. You can set 1 or all of monthly, 24h, and all-time " +
+				"toptips.\n Example: \n `settoptip @user alltime=2.38 month=1.23 day=0.5` " + 
+				"sets @user's biggest alltime tip to 2.38 NANO, month to 1.23 NANO, and day to 0.5 NANO")
+}
+
+INCREASETIPCOUNT = {
+		"CMD"      : "{0}increasetipcount (amount) (user)".format(COMMAND_PREFIX),
+		"INFO"     : "Increases the number of tips a user has made (used for average TIP)"
+}
+
+DECREASETIPCOUNT = {
+		"CMD"      : "{0}decreasetipcount (amount) (user)".format(COMMAND_PREFIX),
+		"INFO"     : "Decreases the number of tips a user has made (used for average TIP)"
 }
 
 COMMANDS = {
@@ -250,75 +354,99 @@ COMMANDS = {
 		"STATISTICS_COMMANDS"   : [GIVEAWAY_STATS, WINNERS, LEADERBOARD, TOPTIPS,STATS],
 		"FAVORITES_COMMANDS"    : [ADD_FAVORITE, DEL_FAVORITE, FAVORITES, TIP_FAVORITES],
 		"NOTIFICATION_COMMANDS" : [MUTE, UNMUTE, MUTED],
-		"AUTHOR_COMMANDS"       : [TIP_AUTHOR]
+		"AUTHOR_COMMANDS"       : [TIP_AUTHOR],
+		"ADMIN_COMMANDS"	: [PAUSE, UNPAUSE, TIPBAN, TIPUNBAN, BANNED, STATSBAN, STATSUNBAN, STATSBANNED, INCREASETIPTOTAL, DECREASETIPTOTAL, SETTOPTIP, INCREASETIPCOUNT, DECREASETIPCOUNT]
 }
 
-BOT_DESCRIPTION=("Graham v%s - An open source NANO tip bot for Discord\n" +
-		"Developed by bbedward - Feel free to send suggestions, ideas, and/or tips\n") % BOT_VERSION
-BALANCE_TEXT=(	"```Actual Balance   : %s naneroo (%.6f NANO)\n" +
-		"Available Balance: %s naneroo (%.6f NANO)\n" +
-		"Pending Send     : %s naneroo (%.6f NANO)\n" +
-		"Pending Receipt  : %s naneroo (%.6f NANO)```")
+### Response Templates###
+
+# balance
+BALANCE_TEXT=(	"```Actual Balance   : {0} naneroo ({1:.6f} NANO)\n" +
+		"Available Balance: {2} naneroo ({3:.6f} NANO)\n" +
+		"Pending Send     : {4} naneroo ({5:.6f} NANO)\n" +
+		"Pending Receipt  : {6} naneroo ({7:.6f} NANO)```")
+
+# deposit (split into 3 for easy copypasting address on mobile)
 DEPOSIT_TEXT="Your wallet address is:"
-DEPOSIT_TEXT_2="%s"
-DEPOSIT_TEXT_3="QR: %s"
+DEPOSIT_TEXT_2="{0}"
+DEPOSIT_TEXT_3="QR: {0}"
+
+# generic tip replies (apply to numerous tip commands)
 INSUFFICIENT_FUNDS_TEXT="You don't have enough nano in your available balance!"
-TIP_ERROR_TEXT="Something went wrong with the tip. I wrote to logs."
-TIP_RECEIVED_TEXT="You were tipped %d naneroo by %s. You can mute tip notifications from this person using `" + COMMAND_PREFIX + "mute %d`"
+TIP_RECEIVED_TEXT="You were tipped {0} naneroo by {1}. You can mute tip notifications from this person using `" + COMMAND_PREFIX + "mute {2}`"
 TIP_SELF="No valid recipients found in your tip.\n(You cannot tip yourself and certain other users are exempt from receiving tips)"
+
+# withdraw
 WITHDRAW_SUCCESS_TEXT="Withdraw has been queued for processing, I'll send you a link to the transaction after I've broadcasted it to the network!"
-WITHDRAW_PROCESSED_TEXT="Withdraw processed:\nTransaction: https://www.nanode.co/block/%s\nIf you have an issue with a withdraw please wait 24 hours before contacting me, the issue will likely resolve itself."
+WITHDRAW_PROCESSED_TEXT="Withdraw processed:\nTransaction: https://www.nano.org/en/explore/block/{0}\nIf you have an issue with a withdraw please wait **24 hours** before contacting my master."
 WITHDRAW_NO_BALANCE_TEXT="You have no NANO to withdraw"
 WITHDRAW_INVALID_ADDRESS_TEXT="Withdraw address is not valid"
-WITHDRAW_ERROR_TEXT="Something went wrong ! :thermometer_face: "
-WITHDRAW_COOLDOWN_TEXT="You need to wait %d seconds before making another withdraw"
+WITHDRAW_COOLDOWN_TEXT="You need to wait {0} seconds before making another withdraw"
 WITHDRAW_INSUFFICIENT_BALANCE="Your balance isn't high enough to withdraw that much"
-TOP_HEADER_TEXT="Here are the top %d tippers :clap:"
+
+# leaderboard
+TOP_HEADER_TEXT="Here are the top {0} tippers :clap:"
 TOP_HEADER_EMPTY_TEXT="The leaderboard is empty!"
-TOP_SPAM="No more big tippers for %d seconds"
-STATS_ACCT_NOT_FOUND_TEXT="I could not find an account for you, try private messaging me `%sregister`" % COMMAND_PREFIX
-STATS_TEXT="You are rank #%s, you've tipped a total of %.6f NANO, your average tip is %.6f NANO, and your biggest tip of all time is %.6f NANO"
+TOP_SPAM="No more big tippers for {0} seconds"
+
+# tipstats (individual)
+STATS_ACCT_NOT_FOUND_TEXT="I could not find an account for you, try private messaging me `{0}register`".format(COMMAND_PREFIX)
+STATS_TEXT="You are rank #{0}, you've tipped a total of {1:.6f} NANO, your average tip is {2:.6f} NANO, and your biggest tip of all time is {3:.6f} NANO"
+
+# tipsplit
 TIPSPLIT_SMALL="Tip amount is too small to be distributed to that many users"
+
+# rain
 RAIN_NOBODY="I couldn't find anybody eligible to receive rain"
+
+# giveaway (all giveaway related commands)
 GIVEAWAY_EXISTS="There's already an active giveaway"
-GIVEAWAY_STARTED="%s has sponsored a giveaway of %.6f NANO! Use:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "donate` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
-GIVEAWAY_STARTED_FEE="%s has sponsored a giveaway of %.6f NANO! The entry fee is %d naneroo. Use:\n - `" + COMMAND_PREFIX + "ticket %d` to buy your ticket\n - `" + COMMAND_PREFIX + "donate` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
-GIVEAWAY_FEE_TOO_HIGH="A giveaway has started where the entry fee is higher than your donations! Use `%sticketstatus` to see how much you need to enter!" % COMMAND_PREFIX
+GIVEAWAY_STARTED="{0} has sponsored a giveaway of {1:.6f} NANO! Use:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "donate` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
+GIVEAWAY_STARTED_FEE="{0} has sponsored a giveaway of {1:.6f} NANO! The entry fee is {2} naneroo. Use:\n - `" + COMMAND_PREFIX + "ticket {2}` to buy your ticket\n - `" + COMMAND_PREFIX + "donate` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
+GIVEAWAY_FEE_TOO_HIGH="A giveaway has started where the entry fee is higher than your donations! Use `{0}ticketstatus` to see how much you need to enter!".format(COMMAND_PREFIX)
 GIVEAWAY_MAX_FEE="Giveaway entry fee cannot be more than 5% of the prize pool"
-GIVEAWAY_ENDED="Congratulations! <@%s> was the winner of the giveaway! They have been sent %.6f NANO!"
-GIVEAWAY_STATS="There are %d entries to win %.6f NANO ending in %s - sponsored by %s.\nUse:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "donate` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check status of your entry"
-GIVEAWAY_STATS_FEE="There are %d entries to win %.6f NANO ending in %s - sponsored by %s.\nEntry fee: %d naneroo. Use:\n - `" + COMMAND_PREFIX + "ticket %d` to enter\n - `" + COMMAND_PREFIX + "donate` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
-GIVEAWAY_STATS_INACTIVE="There are no active giveaways\n%d naneroo required to to automatically start one! Use\n - `" + COMMAND_PREFIX + "donate` to donate to the next giveaway.\n - `" + COMMAND_PREFIX + "givearai` to sponsor your own giveaway\n - `" + COMMAND_PREFIX + "ticketstatus` to see how much you've already donated to the next giveaway"
+GIVEAWAY_ENDED="Congratulations! <@{0}> was the winner of the giveaway! They have been sent {1:.6f} NANO!"
+GIVEAWAY_STATS_NF="There are {0} entries to win {1:.6f} NANO ending in {2} - sponsored by {3}.\nUse:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "donate` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check status of your entry"
+GIVEAWAY_STATS_FEE="There are {0} entries to win {1:.6f} NANO ending in {2} - sponsored by {3}.\nEntry fee: {4} naneroo. Use:\n - `" + COMMAND_PREFIX + "ticket {4}` to enter\n - `" + COMMAND_PREFIX + "donate` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
+GIVEAWAY_STATS_INACTIVE="There are no active giveaways\n{0} naneroo required to to automatically start one! Use\n - `" + COMMAND_PREFIX + "donate` to donate to the next giveaway.\n - `" + COMMAND_PREFIX + "givearai` to sponsor your own giveaway\n - `" + COMMAND_PREFIX + "ticketstatus` to see how much you've already donated to the next giveaway"
 ENTER_ADDED="You've been successfully entered into the giveaway"
 ENTER_DUP="You've already entered the giveaway"
-TIPGIVEAWAY_NO_ACTIVE="There are no active giveaways. Check giveaway status using `%sgiveawaystats`, or donate to the next one using `%stipgiveaway`" % (COMMAND_PREFIX, COMMAND_PREFIX)
+TIPGIVEAWAY_NO_ACTIVE="There are no active giveaways. Check giveaway status using `{0}giveawaystats`, or donate to the next one using `{0}tipgiveaway`".format(COMMAND_PREFIX)
 TIPGIVEAWAY_ENTERED_FUTURE="With your gorgeous donation I have reserved your ticket for the next community sponsored giveaway!"
-TOPTIP_SPAM="No more top tips for %d seconds"
+
+# toptips
+TOPTIP_SPAM="No more top tips for {0} seconds"
+
+# admin command responses
 PAUSE_MSG="All transaction activity is currently suspended. Check back later."
-BAN_SUCCESS="User %s can no longer receive tips"
-BAN_DUP="User %s is already banned"
-UNBAN_SUCCESS="User %s has been unbanned"
-UNBAN_DUP="User %s is not banned"
-STATSBAN_SUCCESS="User %s is no longer considered in tip statistics"
-STATSBAN_DUP="User %s is already stats banned"
-STATSUNBAN_SUCCESS="User %s is now considered in tip statistics"
-STATSUNBAN_DUP="User %s is not stats banned"
-WINNERS_HEADER="Here are the previous %d giveaway winners! :trophy:" % WINNERS_COUNT
+BAN_SUCCESS="User {0} can no longer receive tips"
+BAN_DUP="User {0} is already banned"
+UNBAN_SUCCESS="User {0} has been unbanned"
+UNBAN_DUP="User {0} is not banned"
+STATSBAN_SUCCESS="User {0} is no longer considered in tip statistics"
+STATSBAN_DUP="User {0} is already stats banned"
+STATSUNBAN_SUCCESS="User {0} is now considered in tip statistics"
+STATSUNBAN_DUP="User {0} is not stats banned"
+
+# past giveaway winners
+WINNERS_HEADER="Here are the previous {0} giveaway winners! :trophy:".format(WINNERS_COUNT)
 WINNERS_EMPTY="There are no previous giveaway winners"
-WINNERS_SPAM="No more winners for %d seconds"
+WINNERS_SPAM="No more winners for {0} seconds"
+
 ### END Response Templates ###
 
 # Paused flag, indicates whether or not bot is paused
 paused = False
 
 # Create discord client
-client = Bot(command_prefix=COMMAND_PREFIX,description=BOT_DESCRIPTION)
+client = Bot(command_prefix=COMMAND_PREFIX)
 client.remove_command('help')
 
-# Thread to process send transactions
-# Queue is used to communicate back to main thread
+# Queue is used to send BLOCK to the main thread after withdraws
 withdrawq = Queue()
 class SendProcessor(Thread):
+	"""SendProcessor is used to synchronously process RPC send actions that occur
+	   after tips and after withdraws."""
 	def __init__(self):
 		super(SendProcessor, self).__init__()
 		self._stop_event = threading.Event()
@@ -396,12 +524,29 @@ sp = SendProcessor()
 def handle_exit():
 	sp.stop()
 
+# Don't make them wait when bot first launches
+initial_ts=datetime.datetime.now() - datetime.timedelta(seconds=SPAM_THRESHOLD)
+last_big_tippers = {}
+last_top_tips = {}
+last_winners = {}
+def create_spam_dicts():
+	"""map every channel the client can see to datetime objects
+	   this way we can have channel-specific spam prevention"""
+	global last_big_tippers
+	global last_top_tips
+	global last_winners
+	for c in client.get_all_channels():
+		if not is_private(c):
+			last_big_tippers[c.id] = initial_ts
+			last_top_tips[c.id] = initial_ts
+			last_winners[c.id] = initial_ts
 @client.event
 async def on_ready():
 	logger.info("NANO Tip Bot v%s started", BOT_VERSION)
 	logger.info("Discord.py API version %s", discord.__version__)
 	logger.info("Name: %s", client.user.name)
 	logger.info("ID: %s", client.user.id)
+	create_spam_dicts()
 	await client.change_presence(activity=discord.Game(settings.playing_status))
 	logger.info("Starting SendProcessor Thread")
 	if not sp.is_alive():
@@ -414,6 +559,9 @@ async def on_ready():
 	asyncio.get_event_loop().create_task(start_giveaway_timer())
 
 async def check_for_withdraw():
+	"""check_for_withdraw() checks withdraw queue for messages.
+	   After message is retrieved, send a DM to the user with
+           a link to their transaction"""
 	try:
 		await asyncio.sleep(WITHDRAW_CHECK_JOB)
 		asyncio.get_event_loop().create_task(check_for_withdraw())
@@ -428,8 +576,8 @@ async def check_for_withdraw():
 	except Exception as ex:
 		logger.exception(ex)
 
-# Override on_message and do our spam check here
 def is_private(channel):
+	"""Check if a discord channel is private"""
 	return isinstance(channel, discord.abc.PrivateChannel)
 
 @client.event
@@ -444,6 +592,8 @@ async def on_message(message):
 
 
 def has_admin_role(roles):
+	"""Check if user has an admin role defined in our settings"""
+
 	for r in roles:
 		if r.name in settings.admin_roles:
 			return True
@@ -454,94 +604,114 @@ async def pause_msg(message):
 		await post_dm(message.author, PAUSE_MSG)
 
 def is_admin(user):
+	"""Returns true if user is an admin"""
 	if str(user.id) in settings.admin_ids:
 		return True
 	return has_admin_role(user.roles)
 
 ### Commands
 def build_page(group_name,commands_dictionary):
+	"""Return array of paginator.Entry objects based on passed in dictionary"""
 	entries = []
 	for cmd in commands_dictionary[group_name]:
 			entries.append(paginator.Entry(cmd["CMD"],cmd["INFO"]))
 	return entries
 
-def build_help(page):
-	if page == 0:
-		author=AUTHOR_HEADER
-		title="Command Overview"
-		entries = []
-		tmp_command_list = [
-			"ACCOUNT_COMMANDS",
-			"TIPPING_COMMANDS",
-			"GIVEAWAY_COMMANDS",
-			"STATISTICS_COMMANDS",
-			"FAVORITES_COMMANDS",
-			"NOTIFICATION_COMMANDS"
-		]
-		for command_group in tmp_command_list:
-			for cmd in COMMANDS[command_group]:
-				entries.append(paginator.Entry(cmd["CMD"],cmd["OVERVIEW"]))
-		return paginator.Page(entries=entries, title=title,author=author)
-	elif page == 1:
-		author="Account Commands"
-		description="Check account balance, withdraw, or deposit"
-		entries = build_page("ACCOUNT_COMMANDS",COMMANDS)
-		return paginator.Page(entries=entries, author=author,description=description)
-	elif page == 2:
-		author="Tipping Commands"
-		description="The different ways you are able to tip with this bot"
-		entries = build_page("TIPPING_COMMANDS",COMMANDS)
-		return paginator.Page(entries=entries, author=author,description=description)
-	elif page == 3:
-		author="Giveaway Commands"
-		description="The different ways to interact with the bot's giveaway functionality"
-		entries = build_page("GIVEAWAY_COMMANDS",COMMANDS)
-		return paginator.Page(entries=entries, author=author, description=description)
-	elif page == 4:
-		author="Statistics Commands"
-		description="Individual, bot-wide, and giveaway stats"
-		entries = build_page("STATISTICS_COMMANDS",COMMANDS)
-		return paginator.Page(entries=entries, author=author,description=description)
-	elif page == 5:
-		author="Favorites Commands"
-		description="How to interact with your favorites list"
-		entries = build_page("FAVORITES_COMMANDS",COMMANDS)
-		return paginator.Page(entries=entries, author=author,description=description)
-	elif page == 6:
-		author="Notification Settings"
-		description="Handle how tip bot gives you notifications"
-		entries = build_page("NOTIFICATION_COMMANDS",COMMANDS)
-		return paginator.Page(entries=entries, author=author, description=description)
-	elif page == 7:
-		entries = [paginator.Entry(TIP_AUTHOR['CMD'], TIP_AUTHOR['OVERVIEW'])]
-		author=AUTHOR_HEADER + " - by bbedward"
-		description=("**Reviews**:\n" + "'10/10 True Masterpiece' - NANO Core Team" +
-				"\n'0/10 Didn't get rain' - Almost everybody else\n\n" +
-				"NANO Tip Bot is completely free to use and open source." +
-				" Developed by bbedward (reddit: /u/bbedward, discord: bbedward#9246)" +
-				"\nFeel free to send tips, suggestions, and feedback.\n\n" +
-				"github: https://github.com/bbedward/Graham_Nano_Tip_Bot")
-		return paginator.Page(entries=entries, author=author,description=description)
+def build_help():
+	"""Returns an array of paginator.Page objects for help  menu"""
+	pages = []
+	# Overview
+	author=AUTHOR_HEADER
+	title="Command Overview"
+	description=("Use `{0}help command` for more information about a specific command " +
+		     " or go to the next page").format(COMMAND_PREFIX)
+	entries = []
+	tmp_command_list = [
+		"ACCOUNT_COMMANDS",
+		"TIPPING_COMMANDS",
+		"GIVEAWAY_COMMANDS",
+		"STATISTICS_COMMANDS",
+		"FAVORITES_COMMANDS",
+		"NOTIFICATION_COMMANDS"
+	]
+	for command_group in tmp_command_list:
+		for cmd in COMMANDS[command_group]:
+			entries.append(paginator.Entry(cmd["CMD"],cmd["OVERVIEW"]))
+	pages.append(paginator.Page(entries=entries, title=title,author=author, description=description))
+	# Account
+	author="Account Commands"
+	description="Check account balance, withdraw, or deposit"
+	entries = build_page("ACCOUNT_COMMANDS",COMMANDS)
+	pages.append(paginator.Page(entries=entries, author=author,description=description))
+	# Tipping
+	author="Tipping Commands"
+	description="The different ways you are able to tip with this bot"
+	entries = build_page("TIPPING_COMMANDS",COMMANDS)
+	pages.append(paginator.Page(entries=entries, author=author,description=description))
+	# Giveaway
+	author="Giveaway Commands"
+	description="The different ways to interact with the bot's giveaway functionality"
+	entries = build_page("GIVEAWAY_COMMANDS",COMMANDS)
+	pages.append(paginator.Page(entries=entries, author=author, description=description))
+	# Stats
+	author="Statistics Commands"
+	description="Individual, bot-wide, and giveaway stats"
+	entries = build_page("STATISTICS_COMMANDS",COMMANDS)
+	pages.append(paginator.Page(entries=entries, author=author,description=description))
+	# Favorites
+	author="Favorites Commands"
+	description="How to interact with your favorites list"
+	entries = build_page("FAVORITES_COMMANDS",COMMANDS)
+	pages.append(paginator.Page(entries=entries, author=author,description=description))
+	# notifications
+	author="Notification Settings"
+	description="Handle how tip bot gives you notifications"
+	entries = build_page("NOTIFICATION_COMMANDS",COMMANDS)
+	pages.append(paginator.Page(entries=entries, author=author, description=description))
+	# Info
+	entries = [paginator.Entry(TIP_AUTHOR['CMD'], TIP_AUTHOR['OVERVIEW'])]
+	author=AUTHOR_HEADER + " - by bbedward"
+	description=("**Reviews**:\n" + "'10/10 True Masterpiece' - NANO Core Team" +
+			"\n'0/10 Didn't get rain' - Almost everybody else\n\n" +
+			"NANO Tip Bot is completely free to use and open source." +
+			" Developed by bbedward (reddit: /u/bbedward, discord: bbedward#9246)" +
+			"\nFeel free to send tips, suggestions, and feedback.\n\n" +
+			"github: https://github.com/bbedward/Graham_Nano_Tip_Bot")
+	pages.append(paginator.Page(entries=entries, author=author,description=description))
+	return pages
 
 @client.command()
 async def help(ctx):
 	message = ctx.message
-	pages=[]
-	pages.append(build_help(0))
-	pages.append(build_help(1))
-	pages.append(build_help(2))
-	pages.append(build_help(3))
-	pages.append(build_help(4))
-	pages.append(build_help(5))
-	pages.append(build_help(6))
-	pages.append(build_help(7))
+	# If they spplied an argument post usage for a specific command if applicable
+	content = message.content.split(' ')
+	if len(content) > 1:
+		arg = content[1].strip().lower()
+		for key, value in COMMANDS.items():
+			if key == 'ADMIN_COMMANDS':
+				continue
+			for v in value:
+				if arg in v["TRIGGER"]:
+					await post_usage(message, v)
+					return
 	try:
-		pages = paginator.Paginator(client, message=message, page_list=pages,as_dm=True)
+		pages = paginator.Paginator(client, message=message, page_list=build_help(),as_dm=True)
 		await pages.paginate(start_page=1)
 	except paginator.CannotPaginate as e:
 		logger.exception(str(e))
 
-@client.command(aliases=['bal','$','b'])
+@client.command()
+async def adminhelp(ctx):
+	message = ctx.message
+	if not is_admin(ctx.message.author):
+		return
+	embed = discord.Embed(colour=discord.Colour.magenta())
+	embed.title = "Admin Commands"
+	for cmd in COMMANDS["ADMIN_COMMANDS"]:
+		embed.add_field(name=cmd['CMD'], value=cmd['INFO'], inline=False)
+	await message.author.send(embed=embed)
+
+@client.command(aliases=get_aliases(BALANCE, exclude='balance'))
 async def balance(ctx):
 	message = ctx.message
 	if is_private(message.channel):
@@ -566,7 +736,7 @@ async def balance(ctx):
 								"{:,}".format(receive),
 								receivenano)
 
-@client.command(aliases=['register'])
+@client.command(aliases=get_aliases(DEPOSIT, exclude='deposit'))
 async def deposit(ctx):
 	message = ctx.message
 	if is_private(message.channel):
@@ -594,8 +764,7 @@ async def withdraw(ctx):
 				return
 			last_withdraw_delta = db.get_last_withdraw_delta(user.user_id)
 			if WITHDRAW_COOLDOWN > last_withdraw_delta:
-				await post_response(message, WITHDRAW_COOLDOWN_TEXT, (WITHDRAW_COOLDOWN - last_withdraw_delta))
-				return
+				raise util.TipBotException("cooldown_error")
 			source_id = user.user_id
 			source_address = user.wallet_address
 			balance = await wallet.get_balance(user)
@@ -620,14 +789,14 @@ async def withdraw(ctx):
 				await post_response(message, WITHDRAW_INVALID_ADDRESS_TEXT)
 			elif e.error_type == "balance_error":
 				await post_response(message, INSUFFICIENT_FUNDS_TEXT)
-			elif e.error_type == "error":
-				await post_response(message, WITHDRAW_ERROR_TEXT)
+			elif e.error_type == "cooldown_error":
+				await post_response(message, WITHDRAW_COOLDOWN_TEXT, (WITHDRAW_COOLDOWN - last_withdraw_delta))
 
-@client.command(aliases=['t'])
+@client.command(aliases=get_aliases(TIP,exclude='tip'))
 async def tip(ctx):
 	await do_tip(ctx.message)
 
-@client.command(aliases=['tr', 'tiprando', 'trando'])
+@client.command(aliases=get_aliases(TIPRANDOM, exclude='tiprandom'))
 async def tiprandom(ctx):
 	await do_tip(ctx.message, rand=True)
 
@@ -661,7 +830,7 @@ async def do_tip(message, rand=False):
 			# Spam Check
 			spam = db.tiprandom_check(user)
 			if spam > 0:
-				await post_dm(message.author, "You need to wait %d seconds before you can tiprandom again", spam)
+				await post_dm(message.author, "You need to wait {0} seconds before you can tiprandom again", spam)
 				await add_x_reaction(message)
 				return
 			# Pick a random active user
@@ -700,8 +869,8 @@ async def do_tip(message, rand=False):
 			else:
 				msg = TIP_RECEIVED_TEXT
 				if rand:
-					msg += ". You were randomly chosen by %s's `tiprandom`" % message.author.name
-					await post_dm(message.author, "%s was the recipient of your random %d naneroo tip", member.name, actual_amt, skip_dnd=True)
+					msg += ". You were randomly chosen by {0}'s `tiprandom`".format(message.author.name)
+					await post_dm(message.author, "{0} was the recipient of your random {1} naneroo tip", member.name, actual_amt, skip_dnd=True)
 				if not db.muted(member.id, message.author.id):
 					await post_dm(member, msg, actual_amt, message.author.name, message.author.id, skip_dnd=True)
 		# Post message reactions
@@ -717,8 +886,6 @@ async def do_tip(message, rand=False):
 				await post_usage(message, TIP)
 		elif e.error_type == "no_valid_recipient":
 			await post_dm(message.author, TIP_SELF)
-		else:
-			await post_response(message, TIP_ERROR_TEXT)
 
 @client.command()
 async def tipauthor(ctx):
@@ -747,7 +914,7 @@ async def tipauthor(ctx):
 	except util.TipBotException as e:
 		pass
 
-@client.command(aliases=['tsplit'])
+@client.command(aliases=get_aliases(TIPSPLIT, exclude='tipsplit'))
 async def tipsplit(ctx):
 	await do_tipsplit(ctx.message)
 
@@ -815,10 +982,8 @@ async def do_tipsplit(message, user_list=None):
 			await post_dm(message.author, TIPSPLIT_SMALL)
 		elif e.error_type == "no_valid_recipient":
 			await post_dm(message.author, TIP_SELF)
-		else:
-			await post_response(message, TIP_ERROR_TEXT)
 
-@client.command(aliases=['tipfavorite', 'tipfavourite', 'tipfavourites', 'tf', 'tipfavs', 'tipfav'])
+@client.command(aliases=get_aliases(TIP_FAVORITES, exclude='tipfavorites'))
 async def tipfavorites(ctx):
 	message = ctx.message
 	user = db.get_user_by_id(message.author.id)
@@ -827,12 +992,12 @@ async def tipfavorites(ctx):
 	# Spam Check
 	spam = db.tipfavorites_check(user)
 	if spam > 0:
-		await post_dm(message.author, "You need to wait %d seconds before you can tipfavorites again", spam)
+		await post_dm(message.author, "You need to wait {0} seconds before you can tipfavorites again", spam)
 		await add_x_reaction(message)
 		return
 	favorites = db.get_favorites_list(message.author.id)
 	if len(favorites) == 0:
-		await post_dm(message.author, "There's nobody in your favorites list. Add some people by using `%saddfavorite`", COMMAND_PREFIX)
+		await post_dm(message.author, "There's nobody in your favorites list. Add some people by using `{0}addfavorite`", COMMAND_PREFIX)
 		return
 	user_list = []
 	for fav in favorites:
@@ -841,7 +1006,7 @@ async def tipfavorites(ctx):
 			user_list.append(discord_user)
 	await do_tipsplit(message, user_list=user_list)
 
-@client.command(aliases=['r'])
+@client.command()
 async def rain(ctx):
 	message = ctx.message
 	if is_private(message.channel):
@@ -898,15 +1063,13 @@ async def rain(ctx):
 		db.mark_user_active(user)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
-			await post_usage(message, RAIN_CMD, RAIN_INFO)
+			await post_usage(message, RAIN)
 		elif e.error_type == "no_valid_recipient":
 			await post_dm(message.author, RAIN_NOBODY)
 		elif e.error_type == "invalid_tipsplit":
 			await post_dm(message.author, TIPSPLIT_SMALL)
-		else:
-			await post_response(message, TIP_ERROR_TEXT)
 
-@client.command(aliases=['entergiveaway', 'enter', 'e'])
+@client.command(aliases=get_aliases(ENTER, exclude='ticket'))
 async def ticket(ctx):
 	message = ctx.message
 	if not db.is_active_giveaway():
@@ -934,7 +1097,7 @@ async def ticket(ctx):
 			await tip_giveaway(message,ticket=True)
 	await remove_message(message)
 
-@client.command(aliases=['sponsorgiveaway', 'giveaway'])
+@client.command(aliases=get_aliases(START_GIVEAWAY,exclude='givearai'))
 async def givearai(ctx):
 	message = ctx.message
 	if is_private(message.channel):
@@ -999,7 +1162,7 @@ async def givearai(ctx):
 		uid = str(uuid.uuid4())
 		await wallet.make_transaction_to_address(user, amount, None, uid, giveaway_id=giveaway.id)
 		if fee > 0:
-			await post_response(message, GIVEAWAY_STARTED_FEE, message.author.name, nano_amt, fee, fee)
+			await post_response(message, GIVEAWAY_STARTED_FEE, message.author.name, nano_amt, fee)
 		else:
 			await post_response(message, GIVEAWAY_STARTED, message.author.name, nano_amt)
 		asyncio.get_event_loop().create_task(start_giveaway_timer())
@@ -1011,7 +1174,7 @@ async def givearai(ctx):
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_usage(message, START_GIVEAWAY)
 
-@client.command(aliases=['tipgiveaway', 'd', 'tg'])
+@client.command(aliases=get_aliases(TIPGIVEAWAY, exclude='donate'))
 async def donate(ctx):
 	await tip_giveaway(ctx.message)
 
@@ -1047,10 +1210,10 @@ async def tip_giveaway(message, ticket=False):
 				owed = fee - contributions
 				await post_dm(message.author,
 					"You were NOT entered into the giveaway!\n" +
-					"This giveaway has a fee of **%d naneroo**\n" +
-					"You've donated **%d naneroo** so far\n" +
-					"You need **%d naneroo** to enter\n" +
-					"You may enter using `%sticket %d`"
+					"This giveaway has a fee of **{0} naneroo**\n" +
+					"You've donated **{1} naneroo** so far\n" +
+					"You need **{2} naneroo** to enter\n" +
+					"You may enter using `{3}sticket {4}`"
 					, fee, contributions, owed, COMMAND_PREFIX, owed)
 				return
 		uid = str(uuid.uuid4())
@@ -1076,7 +1239,7 @@ async def tip_giveaway(message, ticket=False):
 			if tipgiveaway_sum >= GIVEAWAY_MINIMUM:
 				end_time = datetime.datetime.now() + datetime.timedelta(minutes=GIVEAWAY_AUTO_DURATION)
 				db.start_giveaway(client.user.id, client.user.name, 0, end_time, message.channel.id,entry_fee=fee)
-				await post_response(message, GIVEAWAY_STARTED_FEE, client.user.name, nano_amt, fee, fee)
+				await post_response(message, GIVEAWAY_STARTED_FEE, client.user.name, nano_amt, fee)
 				asyncio.get_event_loop().create_task(start_giveaway_timer())
 		# Update top tipY
 		if not user.stats_ban:
@@ -1088,7 +1251,7 @@ async def tip_giveaway(message, ticket=False):
 			else:
 				await post_usage(message, TIPGIVEAWAY)
 
-@client.command(aliases=['ts'])
+@client.command(aliases=get_aliases(TICKETSTATUS,exclude='ticketstatus'))
 async def ticketstatus(ctx):
 	message = ctx.message
 	user = db.get_user_by_id(message.author.id)
@@ -1096,7 +1259,7 @@ async def ticketstatus(ctx):
 		await post_dm(message.author, db.get_ticket_status(message.author.id))
 	await remove_message(message)
 
-@client.command(aliases=['goldenticket', 'gstats', 'giveawaystatus', 'gstatus'])
+@client.command(aliases=get_aliases(GIVEAWAY_STATS,exclude='giveawaystats'))
 async def giveawaystats(ctx):
 	message = ctx.message
 	stats = db.get_giveaway_stats()
@@ -1109,9 +1272,9 @@ async def giveawaystats(ctx):
 		str_delta = time.strftime("%M Minutes and %S Seconds", time.gmtime(end_s))
 		fee = stats['fee']
 		if fee == 0:
-			await post_response(message, GIVEAWAY_STATS, stats['entries'], stats['amount'], str_delta, stats['started_by'])
+			await post_response(message, GIVEAWAY_STATS_NF, stats['entries'], stats['amount'], str_delta, stats['started_by'])
 		else:
-			await post_response(message, GIVEAWAY_STATS_FEE, stats['entries'], stats['amount'], str_delta, stats['started_by'], fee, fee)
+			await post_response(message, GIVEAWAY_STATS_FEE, stats['entries'], stats['amount'], str_delta, stats['started_by'], fee)
 
 async def start_giveaway_timer():
 	giveaway = db.get_giveaway()
@@ -1129,7 +1292,7 @@ async def finish_giveaway(delay):
 	giveaway = db.finish_giveaway()
 	if giveaway is not None:
 		channel = client.get_channel(int(giveaway.channel_id))
-		response = GIVEAWAY_ENDED % (giveaway.winner_id, giveaway.amount + giveaway.tip_amount)
+		response = GIVEAWAY_ENDED.format(giveaway.winner_id, giveaway.amount + giveaway.tip_amount)
 		await channel.send(response)
 		await post_dm(await client.get_user_info(int(giveaway.winner_id)), response)
 
@@ -1139,11 +1302,11 @@ async def winners(ctx):
 	# Check spam
 	global last_winners
 	if not is_private(message.channel):
-		tdelta = datetime.datetime.now() - last_winners
+		tdelta = datetime.datetime.now() - last_winners[message.channel.id]
 		if SPAM_THRESHOLD > tdelta.seconds:
 			await post_response(message, WINNERS_SPAM, (SPAM_THRESHOLD - tdelta.seconds))
 			return
-		last_winners = datetime.datetime.now()
+		last_winners[message.channel.id] = datetime.datetime.now()
 	winners = db.get_giveaway_winners(WINNERS_COUNT)
 	if len(winners) == 0:
 		await post_response(message, WINNERS_EMPTY)
@@ -1154,9 +1317,9 @@ async def winners(ctx):
 		winner_nms = []
 		for winner in winners:
 			if winner['index'] >= 10:
-				winner_nm = '%d: %s ' % (winner['index'], winner['name'])
+				winner_nm = '{0}: {1} '.format(winner['index'], winner['name'])
 			else:
-				winner_nm = '%d:  %s ' % (winner['index'], winner['name'])
+				winner_nm = '{0}:  {1} '.format(winner['index'], winner['name'])
 			if len(winner_nm) > max_l:
 				max_l = len(winner_nm)
 			winner_nms.append(winner_nm)
@@ -1166,36 +1329,36 @@ async def winners(ctx):
 			padding = " " * ((max_l - len(winner_nm)) + 1)
 			response += winner_nm
 			response += padding
-			response += 'won %.6f NANO' % winner['amount']
+			response += 'won {0:.6f} NANO'.format(winner['amount'])
 			response += '\n'
 		response += "```"
 		await post_response(message, response)
 
-@client.command(aliases=['bigtippers', 'ballers'])
+@client.command(aliases=get_aliases(LEADERBOARD, exclude='leaderboard'))
 async def leaderboard(ctx):
 	message = ctx.message
 	# Check spam
 	global last_big_tippers
 	if not is_private(message.channel):
-		tdelta = datetime.datetime.now() - last_big_tippers
+		tdelta = datetime.datetime.now() - last_big_tippers[message.channel.id]
 		if SPAM_THRESHOLD > tdelta.seconds:
 			await post_response(message, TOP_SPAM, (SPAM_THRESHOLD - tdelta.seconds))
 			return
-		last_big_tippers = datetime.datetime.now()
+		last_big_tippers[message.channel.id] = datetime.datetime.now()
 	top_users = db.get_top_users(TOP_TIPPERS_COUNT)
 	if len(top_users) == 0:
 		await post_response(message, TOP_HEADER_EMPTY_TEXT)
 	else:
 		# Probably a very clunky and sloppy way to format this output, I'm sure there's something better
-		response = TOP_HEADER_TEXT % TOP_TIPPERS_COUNT
+		response = TOP_HEADER_TEXT.format(TOP_TIPPERS_COUNT)
 		response += "```"
 		max_l = 0
 		top_user_nms = []
 		for top_user in top_users:
 			if top_user['index'] >= 10:
-				top_user_nm = '%d: %s ' % (top_user['index'], top_user['name'])
+				top_user_nm = '{0}: {1} '.format(top_user['index'], top_user['name'])
 			else:
-				top_user_nm = '%d:  %s ' % (top_user['index'], top_user['name'])
+				top_user_nm = '{0}:  {1} '.format(top_user['index'], top_user['name'])
 			if len(top_user_nm) > max_l:
 				max_l = len(top_user_nm)
 			top_user_nms.append(top_user_nm)
@@ -1205,7 +1368,7 @@ async def leaderboard(ctx):
 			padding = " " * ((max_l - len(top_user_nm)) + 1)
 			response += top_user_nm
 			response += padding
-			response += '- %.6f NANO' % top_user['amount']
+			response += '- {0:.6f} NANO'.format(top_user['amount'])
 			response += '\n'
 		response += "```"
 		await post_response(message, response)
@@ -1216,11 +1379,11 @@ async def toptips(ctx):
 	# Check spam
 	global last_top_tips
 	if not is_private(message.channel):
-		tdelta = datetime.datetime.now() - last_top_tips
+		tdelta = datetime.datetime.now() - last_top_tips[message.channel.id]
 		if SPAM_THRESHOLD > tdelta.seconds:
 			await post_response(message, TOPTIP_SPAM, (SPAM_THRESHOLD - tdelta.seconds))
 			return
-		last_top_tips = datetime.datetime.now()
+		last_top_tips[message.channel.id] = datetime.datetime.now()
 	top_tips_msg = db.get_top_tips()
 	await post_response(message, top_tips_msg)
 
@@ -1235,7 +1398,7 @@ async def tipstats(ctx):
 		tip_stats['rank'] = 'N/A'
 	await post_response(message, STATS_TEXT, str(tip_stats['rank']), tip_stats['total'], tip_stats['average'],tip_stats['top'])
 
-@client.command(aliases=['addfavourite', 'addfavorites', 'addfavourites', 'addfav'])
+@client.command(aliases=get_aliases(ADD_FAVORITE, exclude='addfavorite'))
 async def addfavorite(ctx):
 	message = ctx.message
 	user = db.get_user_by_id(message.author.id)
@@ -1247,11 +1410,11 @@ async def addfavorite(ctx):
 			if db.add_favorite(user.user_id,mention.id):
 				added_count += 1
 	if added_count > 0:
-		await post_dm(message.author, "%d users added to your favorites!", added_count)
+		await post_dm(message.author, "{0} users added to your favorites!", added_count)
 	else:
 		await post_dm(message.author, "I couldn't find any users to add as favorites in your message! They may already be in your favorites or they may not have accounts with me")
 
-@client.command(aliases=['removefavourite', 'removefavorites', 'removefavourites', 'removefav'])
+@client.command(aliases=get_aliases(DEL_FAVORITE, exclude='removefavorite'))
 async def removefavorite(ctx):
 	message = ctx.message
 	user = db.get_user_by_id(message.author.id)
@@ -1276,11 +1439,11 @@ async def removefavorite(ctx):
 		if db.remove_favorite(user.user_id,identifier=id):
 			remove_count += 1
 	if remove_count > 0:
-		await post_dm(message.author, "%d users removed from your favorites!", remove_count)
+		await post_dm(message.author, "{0} users removed from your favorites!", remove_count)
 	else:
 		await post_dm(message.author, "I couldn't find anybody in your message to remove from your favorites!")
 
-@client.command(aliases=['favourites', 'favs'])
+@client.command(aliases=get_aliases(FAVORITES, exclude='favorites'))
 async def favorites(ctx):
 	message = ctx.message
 	user = db.get_user_by_id(message.author.id)
@@ -1290,17 +1453,17 @@ async def favorites(ctx):
 	if len(favorites) == 0:
 		embed = discord.Embed(colour=discord.Colour.red())
 		embed.title="No Favorites"
-		embed.description="Your favorites list is empty. Add to it with `%saddfavorite`" % COMMAND_PREFIX
+		embed.description="Your favorites list is empty. Add to it with `{0}addfavorite`".format(COMMAND_PREFIX)
 		await message.author.send(embed=embed)
 		return
 	title="Favorites List"
 	description=("Here are your favorites! " +
-			   "You can tip everyone in this list at the same time using `%stipfavorites amount`") % COMMAND_PREFIX
+			   "You can tip everyone in this list at the same time using `{0}tipfavorites amount`").format(COMMAND_PREFIX)
 	entries = []
 	for fav in favorites:
 		fav_user = db.get_user_by_id(fav['user_id'])
 		name = str(fav['id']) + ": " + fav_user.user_name
-		value = "You can remove this favorite with `%sremovefavorite %d`" % (COMMAND_PREFIX, fav['id'])
+		value = "You can remove this favorite with `{0}removefavorite {1}`".format(COMMAND_PREFIX, fav['id'])
 		entries.append(paginator.Entry(name,value))
 
 	# Do paginator for favorites > 10
@@ -1326,7 +1489,7 @@ async def muted(ctx):
 	if len(muted) == 0:
 		embed = discord.Embed(colour=discord.Colour.red())
 		embed.title="Nobody Muted"
-		embed.description="Nobody is muted. You can mute people with `%smute discord_id`" % COMMAND_PREFIX
+		embed.description="Nobody is muted. You can mute people with `{0}mute discord_id`".format(COMMAND_PREFIX)
 		await message.author.send(embed=embed)
 		return
 	title="Muted List"
@@ -1336,7 +1499,7 @@ async def muted(ctx):
 	idx = 1
 	for m in muted:
 		name = str(idx) + ": " + m['name']
-		value = "You can unmute with person with `%sunmute %s`" % (COMMAND_PREFIX, m['id'])
+		value = "You can unmute with person with `{0}unmute {1}`".format(COMMAND_PREFIX, m['id'])
 		entries.append(paginator.Entry(name,value))
 		idx += 1
 
@@ -1374,7 +1537,7 @@ async def mute(ctx):
 		if target is not None and db.mute(user.user_id, target.user_id, target.user_name):
 			muted_count += 1
 	if muted_count > 0:
-		await post_dm(message.author, "%d users have been muted!", muted_count)
+		await post_dm(message.author, "{0} users have been muted!", muted_count)
 	else:
 		await post_dm(message.author, "I couldn't find any users to mute in your message. They probably are already muted or they aren't registered with me")
 
@@ -1398,7 +1561,7 @@ async def unmute(ctx):
 		if db.unmute(user.user_id,id) > 0:
 			unmute_count += 1
 	if unmute_count > 0:
-		await post_dm(message.author, "%d users have been unmuted!", unmute_count)
+		await post_dm(message.author, "{0} users have been unmuted!", unmute_count)
 	else:
 		await post_dm(message.author, "I couldn't find anybody in your message to unmute!")
 
@@ -1420,6 +1583,7 @@ async def pause(ctx):
 	if is_admin(message.author):
 		global paused
 		paused = True
+		await post_response(message, "Transaction-related activity is now suspended")
 
 @client.command()
 async def unpause(ctx):
@@ -1427,6 +1591,7 @@ async def unpause(ctx):
 	if is_admin(message.author):
 		global paused
 		paused = False
+		await post_response(message, "Transaction-related activity is no longer suspended")
 
 @client.command()
 async def tipban(ctx):
@@ -1475,9 +1640,11 @@ async def increasetips(ctx, amount: float = -1.0, user: discord.Member = None):
 		return
 	u = db.get_user_by_id(user.id)
 	if u is None or 0 > amount:
-		await post_dm(ctx.message.author, "Usage: increasetips amount user")
+		await post_usage(ctx.message, INCREASETIPS)
 		return
-	db.update_tip_total(user.id, amount + u.tipped_amount)
+	new_total = u.tipped_amount + amount
+	db.update_tip_total(user.id, new_total)
+	await post_dm(ctx.message.author, "New tip total for {0} is {1:.6f}", user.name, new_total)
 
 @client.command(aliases=['decrementtips', 'decreasetips', 'removetips'])
 async def reducetips(ctx, amount: float = -1.0, user: discord.Member = None):
@@ -1485,21 +1652,108 @@ async def reducetips(ctx, amount: float = -1.0, user: discord.Member = None):
 		return
 	u = db.get_user_by_id(user.id)
 	if u is None or amount < 0:
-		await post_dm(ctx.message.author, "Usage: reducetips amount user")
+		await post_usage(ctx.message, DECREASETIPS)
 		return
-	db.update_tip_total(user.id, u.tipped_amount - amount)
+	new_total = u.tipped_amount - amount
+	db.update_tip_total(user.id, new_total)
+	await post_dm(ctx.message.author, "New tip total for {0} is {1:.6f}", user.name, new_total)
 
-@client.command()
-async def settipcount(ctx, cnt: int = -1, user: discord.Member = None):
+@client.command(aliases=['incrementtipcount'])
+async def increasetipcount(ctx, cnt: int = -1, user: discord.Member = None):
 	if is_admin(ctx.message.author):
-		if user is None or cnt < 0:
-			await post_dm(ctx.message.author, "Usage settipcount amount user")
+		u = db.get_user_by_id(user.id)
+		if u is None or cnt < 0:
+			await post_usage(ctx.message, INCREASETIPCOUNT)
 			return
-		db.update_tip_count(user.id, cnt)
+		new_cnt = u.tip_count + new_cnt
+		db.update_tip_count(user.id, new_cnt)
+		await post_dm(ctx.message.author, "New tip count for {0} is {1}", user.name, new_cnt)
+
+@client.command(aliases=['decrementtipcount', 'reducetipcount'])
+async def decreasetipcount(ctx, cnt: int = -1, user: discord.Member = None):
+	if is_admin(ctx.message.author):
+		u = db.get_user_by_id(user.id)
+		if u is None or 0 > cnt:
+			await post_usage(ctx.message, DECREASETIPCOUNT)
+			return
+		new_cnt = u.tip_count - cnt
+		db.update_tip_count(user.id, new_cnt)
+		await post_dm(ctx.message.author, "New tip count for {0} is {1}", user.name, new_cnt)
+
+@client.command(aliases=['settoptips'])
+async def settoptip(ctx):
+	if not is_admin(ctx.message.author):
+		return
+	month = -1.0
+	alltime = -1.0
+	day = -1.0
+	for split in ctx.message.content.split(' '):
+		if split.startswith('month='):
+			split = split.replace('month=', '').strip()
+			if not split:
+				continue
+			try:
+				month = float(split)
+			except ValueError:
+				pass
+		elif split.startswith('alltime='):
+			split = split.replace('alltime=', '').strip()
+			if not split:
+				continue
+			try:
+				alltime = float(split)
+			except ValueError:
+				pass
+		elif split.startswith('day='):
+			split = split.replace('day=', '').strip()
+			if not split:
+				continue
+			try:
+				day = float(split)
+			except ValueError:
+				pass
+	if month == -1 and alltime == -1 and day == -1:
+		await post_usage(ctx.message, SETTOPTIP)
+		return
+	else:
+		if month != -1:
+			month =  int(month * 1000000)
+		if alltime != -1:
+			alltime = int(alltime * 1000000)
+		if day != -1:
+			day = int(day * 1000000)
+	for m in ctx.message.mentions:
+		u = db.get_user_by_id(m.id)
+		if u is None:
+			continue
+		# We use increments in db.update_top_tips so compute those
+		if month == -1:
+			mdelta = 0
+		elif month >  u.top_tip_month:
+			mdelta = month - u.top_tip_month
+		elif u.top_tip_month > month:
+			mdelta = -1 * (u.top_tip_month - month)
+		if alltime == -1:
+			adelta = 0
+		elif alltime > u.top_tip:
+			adelta = alltime - u.top_tip
+		elif u.top_tip > alltime:
+			adelta = -1 * (u.top_tip - alltime)
+		if day == -1:
+			ddelta = 0
+		elif day > u.top_tip_day:
+			ddelta = day - u.top_tip_day
+		elif u.top_tip_day > day:
+			ddelta = -1 * (u.top_tip_day - day)
+		upd = db.update_top_tips(u.user_id, month=mdelta, alltime=adelta, day=ddelta)
+		if upd > 0:
+			await post_dm(ctx.message.author, "top tips for {0} adjusted successfully", u.user_name)
+		else:
+			await post_dm(ctx.message.author, "Could not adjust top tip for {0}", u.user_name)
 
 ### Utility Functions
 def get_qr_url(text):
-	return 'https://chart.googleapis.com/chart?cht=qr&chl=%s&chs=180x180&choe=UTF-8&chld=L|2' % text
+	return 'https://chart.googleapis.com/chart?cht=qr&chl={0}&chs=180x180&choe=UTF-8&chld=L|2'.format(text)
 
 def find_address(input_text):
 	address = input_text.split(' ')
@@ -1518,9 +1772,9 @@ def find_amount(input_text):
 		raise util.TipBotException("amount_not_found")
 
 ### Re-Used Discord Functions
-async def post_response(message, template, *args, incl_mention=True):
-	response = template % tuple(args)
-	if not is_private(message.channel) and incl_mention:
+async def post_response(message, template, *args):
+	response = template.format(*args)
+	if not is_private(message.channel):
 		response = "<@" + str(message.author.id) + "> \n" + response
 	logger.info("sending response: '%s' for message: '%s' to userid: '%s' name: '%s'", response, message.content, message.author.id, message.author.name)
 	asyncio.sleep(0.05) # Slight delay to avoid discord bot responding above commands
@@ -1533,7 +1787,7 @@ async def post_usage(message, command):
 	await message.author.send(embed=embed)
 
 async def post_dm(member, template, *args, skip_dnd=False):
-	response = template % tuple(args)
+	response = template.format(*args)
 	logger.info("sending dm: '%s' to user: %s", response, member.id)
 	try:
 		asyncio.sleep(0.05)
@@ -1544,7 +1798,7 @@ async def post_dm(member, template, *args, skip_dnd=False):
 		return None
 
 async def post_edit(message, template, *args):
-	response = template % tuple(args)
+	response = template.format(*args)
 	return await message.edit(content=response)
 
 async def remove_message(message):

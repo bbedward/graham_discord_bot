@@ -346,7 +346,7 @@ def get_banned():
 		return "```Nobody Banned```"
 	ret = "```"
 	for idx,user in enumerate(users):
-		ret += "%d: %s\n" % (idx+1,user.user_name)
+		ret += "{0}: {1}\n".format(idx+1,user.user_name)
 	ret += "```"
 	return ret
 
@@ -356,7 +356,7 @@ def get_statsbanned():
 		return "```No stats bans```"
 	ret = "```"
 	for idx,user in enumerate(statsbanned):
-		ret += "%d: %s\n" % (idx+1,user.user_name)
+		ret += "{0}: {1}\n".format(idx+1,user.user_name)
 	ret += "```"
 	return ret
 
@@ -405,14 +405,16 @@ def get_ticket_status(user_id):
 		contributions = get_tipgiveaway_contributions(user_id, giveawayid=giveaway.id)
 		cost = fee - contributions
 		return_str = ("You do not have a ticket to the current giveaway!\n" +
-				"Giveaway fee: %d\n" +
-				"Your donations: %d\n" +
-				"Your ticket cost: %d\n\n" +
-				"You may enter using `%sticket %d`") % (fee, contributions, cost, settings.command_prefix, cost)
+				"Giveaway fee: {0}\n" +
+				"Your donations: {1}\n" +
+				"Your ticket cost: {2}\n\n" +
+				"You may enter using `{3}ticket {2}`").format(fee, contributions, cost, settings.command_prefix)
 		return return_str
 	except Giveaway.DoesNotExist:
 		contributions = get_tipgiveaway_contributions(user_id)
-		return "There is no active giveaway.\nSo far you've contributed %d naneroo towards the next one!" % contributions
+		return ("There is no active giveaway.\n" +
+			"So far you've contributed {0} naneroo towards the next one.\n" +
+			"I'll automatically enter you into the next giveaway if the fee is <= {0} naneroo").format(contributions)
 
 def contestant_exists(user_id):
 	user_id = str(user_id)
@@ -457,11 +459,17 @@ def inc_tx_attempts(uid):
 		tx.save()
 	return
 
+def update_top_tips(user_id, month=0,day=0,alltime=0):
+	return (User.update(top_tip = User.top_tip + alltime,
+			    top_tip_month = User.top_tip_month + month,
+		 	    top_tip_day = User.top_tip_day + day
+		  	   ).where(User.user_id == user_id)).execute()
+
 def get_top_tips():
 	dt = datetime.datetime.now()
 	past_dt = dt - datetime.timedelta(days=1) # Date 24H ago
 	month_str = dt.strftime("%B")
-	month_num = "%02d" % dt.month # Sqlite uses 2 digit month (with leading 0)
+	month_num = "{0:02d}".format(dt.month) # Sqlite uses 2 digit month (with leading 0)
 	amount = fn.MAX(User.top_tip).alias('amount')
 	amount_day = fn.MAX(User.top_tip_day).alias('amount')
 	amount_month = fn.MAX(User.top_tip_month).alias('amount')
@@ -488,11 +496,11 @@ def get_top_tips():
 
 	result = ""
 	if user24h is not None:
-		result += "Biggest tip in the last 24 hours:```%.6f NANO by %s```" % (amount24h, user24h)
+		result += "Biggest tip in the last 24 hours:```{0:.6f} NANO by {1}```".format(amount24h, user24h)
 	if monthuser is not None:
-		result += "Biggest tip in %s:```%.6f NANO by %s```" % (month_str, monthamount, monthuser)
+		result += "Biggest tip in {0}:```{1:.6f} NANO by {2}```".format(month_str, monthamount, monthuser)
 	if atuser is not None:
-		result += "Biggest tip of all time:```%.6f NANO by %s```" % (atamount, atuser)
+		result += "Biggest tip of all time:```{0:.6f} NANO by {1}```".format(atamount, atuser)
 
 	return result
 

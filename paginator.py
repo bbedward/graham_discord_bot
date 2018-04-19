@@ -79,10 +79,13 @@ class Paginator:
 		self.current_page = page
 		content = self.get_page(page)
 
-		# Rainbow page, logic is just to make colors repeat
+		# Cycle through page colors
 		if page > len(self.colors):
-			multiplier = int(page / len(self.colors))
-			color_idx = (page - multiplier * len(self.colors)) - 1
+			# We want colors to repeat for page # bigger than length(colors)
+			quotient,remainder = divmod(page, len(self.colors))
+			if remainder == 0:
+				quotient = quotient - 1
+			color_idx = (page - quotient * len(self.colors)) - 1
 		else:
 			color_idx = page - 1
 		self.embed.colour = self.colors[color_idx]
