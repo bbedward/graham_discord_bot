@@ -104,7 +104,7 @@ WITHDRAW = {
 		"OVERVIEW" : "Allows you to withdraw from your tip account",
 		"INFO"     : ("Withdraws specified amount to specified address, " +
 				"if amount isn't specified your entire tip account balance will be withdrawn" +
-				"\nExample: `withdraw xrb_111111111111111111111111111111111111111111111111111hifc8npp 1000` - Withdraws 1000 naneroo")
+				"\nExample: `{0}withdraw xrb_111111111111111111111111111111111111111111111111111hifc8npp 1000` - Withdraws 1000 naneroo").format(COMMAND_PREFIX)
 }
 
 TIP = {
@@ -114,14 +114,14 @@ TIP = {
 		"INFO"     : ("Tip specified amount to mentioned user(s) (minimum tip is 1 naneroo)" +
 		"\nThe recipient(s) will be notified of your tip via private message" +
 		"\nSuccessful tips will be deducted from your available balance immediately" +
-		"\nExample: `tip 2 @user1 @user2` would send 2 to user1 and 2 to user2")
+		"\nExample: `{0}tip 2 @user1 @user2` would send 2 to user1 and 2 to user2").format(COMMAND_PREFIX)
 }
 
 TIPSPLIT = {
 		"TRIGGER"  : ["tipsplit", "tsplit"],
 		"CMD"      : "{0}tipsplit, takes: amount, <*users>".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Split a tip among mentioned uses",
-		"INFO"     : "Distributes a tip evenly to all mentioned users.\nExample: `tipsplit 2 @user1 @user2` would send 1 to user1 and 1 to user2"
+		"INFO"     : "Distributes a tip evenly to all mentioned users.\nExample: `{0}tipsplit 2 @user1 @user2` would send 1 to user1 and 1 to user2".format(COMMAND_PREFIX)
 }
 
 TIPRANDOM = {
@@ -140,8 +140,8 @@ RAIN = {
 				"Eligibility is determined based on your *recent* activity **and** contributions to public channels. " +
 				"Several factors are considered in picking who receives rain. If you aren't receiving it, you aren't contributing enough or your contributions are low-quality/spammy.\n" +
 				"Note: Users who have a status of 'offline' or 'do not disturb' do not receive rain.\n" +
-				"Example: `rain 1000` - distributes 1000 evenly to eligible users (similar to `tipsplit`)" +
-				"\n**Minimum rain amount: {0} naneroo**").format(RAIN_MINIMUM)
+				"Example: `{0}rain 1000` - distributes 1000 evenly to eligible users (similar to `tipsplit`)" +
+				"\n**Minimum rain amount: {1} naneroo**").format(COMMAND_PREFIX, RAIN_MINIMUM)
 }
 
 START_GIVEAWAY = {
@@ -151,10 +151,10 @@ START_GIVEAWAY = {
 		"INFO"     : ("Start a giveaway with given amount, entry fee, and duration." +
 				"\nEntry fees are added to the total prize pool" +
 				"\nGiveaway will end and choose random winner after (duration)" +
-				"\nExample: `giveaway 1000 fee=5 duration=30` - Starts a giveaway of 1000, with fee of 5, duration of 30 minutes" +
-				"\n**Minimum required to sponsor a giveaway: {0} naneroo**" +
-				"\n**Minimum giveaway duration: {1} minutes**" +
-				"\n**Maximum giveaway duration: {2} minutes**").format(GIVEAWAY_MINIMUM, GIVEAWAY_MIN_DURATION, GIVEAWAY_MAX_DURATION)
+				"\nExample: `{0}giveaway 1000 fee=5 duration=30` - Starts a giveaway of 1000, with fee of 5, duration of 30 minutes" +
+				"\n**Minimum required to sponsor a giveaway: {1} naneroo**" +
+				"\n**Minimum giveaway duration: {2} minutes**" +
+				"\n**Maximum giveaway duration: {3} minutes**").format(COMMAND_PREFIX, GIVEAWAY_MINIMUM, GIVEAWAY_MIN_DURATION, GIVEAWAY_MAX_DURATION)
 }
 
 ENTER = {
@@ -163,7 +163,7 @@ ENTER = {
 		"OVERVIEW" : "Enter the current giveaway",
 		"INFO"     : ("Enter the current giveaway, if there is one. Takes (fee) as argument only if there's an entry fee." +
 				"\n Fee will go towards the prize pool and be deducted from your available balance immediately" +
-				"\nExample: `ticket` (to enter a giveaway without a fee), `ticket 10` (to enter a giveaway with a fee of 10)")
+				"\nExample: `{0}ticket` (to enter a giveaway without a fee), `{0}ticket 10` (to enter a giveaway with a fee of 10)").format(COMMAND_PREFIX)
 }
 
 TIPGIVEAWAY = {
@@ -174,7 +174,7 @@ TIPGIVEAWAY = {
 				"If there is no giveaway, one will be started when minimum is reached." +
 				"\nTips >= {0} naneroo automatically enter you for giveaways sponsored by the community." +
 				"\nDonations count towards the next giveaways entry fee" +
-				"\nExample: `donate 1000` - Adds 1000 to giveaway pool").format(TIPGIVEAWAY_AUTO_ENTRY)
+				"\nExample: `{1}donate 1000` - Adds 1000 to giveaway pool").format(TIPGIVEAWAY_AUTO_ENTRY, COMMAND_PREFIX)
 }
 
 TICKETSTATUS = {
@@ -223,7 +223,7 @@ ADD_FAVORITE = {
 		"TRIGGER"  : ["addfav", "addfavorite", "addfavourite"],
 		"CMD"      : "{0}addfavorite, takes: *users".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Add users to your favorites list",
-		"INFO"     : "Adds mentioned users to your favorites list.\nExample: `addfavorite @user1 @user2 @user3` - Adds user1,user2,user3 to your favorites"
+		"INFO"     : "Adds mentioned users to your favorites list.\nExample: `{0}addfavorite @user1 @user2 @user3` - Adds user1,user2,user3 to your favorites".format(COMMAND_PREFIX)
 }
 
 DEL_FAVORITE = {
@@ -232,15 +232,15 @@ DEL_FAVORITE = {
 		"OVERVIEW" : "Removes users from your favorites list",
 		"INFO"     : ("Removes users from your favorites list. " +
 				"You can either @mention the user in a public channel or use the ID in your `favorites` list" +
-				"\nExample 1: `removefavorite @user1 @user2` - Removes user1 and user2 from your favorites" +
-				"\nExample 2: `removefavorite 1 6 3` - Removes favorites with ID : 1, 6, and 3")
+				"\nExample 1: `{0}removefavorite @user1 @user2` - Removes user1 and user2 from your favorites" +
+				"\nExample 2: `{0}removefavorite 1 6 3` - Removes favorites with ID : 1, 6, and 3").format(COMMAND_PREFIX)
 }
 
 FAVORITES = {
 		"TRIGGER"  : ["favorites", "favs", "favourites"],
 		"CMD"      : "{0}favorites".format(COMMAND_PREFIX),
 		"OVERVIEW" : "View your favorites list",
-		"INFO"     : "View your favorites list. Use `addfavorite` to add favorites to your list and `removefavorite` to remove favories"
+		"INFO"     : "View your favorites list. Use `{0}addfavorite` to add favorites to your list and `{0}removefavorite` to remove favories".format(COMMAND_PREFIX)
 }
 
 TIP_FAVORITES = {
@@ -248,7 +248,7 @@ TIP_FAVORITES = {
 		"CMD"      : "{0}tipfavorites, takes: amount".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Tip your entire favorites list",
 		"INFO"     : ("Tip everybody in your favorites list specified amount" +
-				"\nExample: `tipfavorites 1000` Distributes 1000 to your entire favorites list (similar to `tipsplit`)")
+				"\nExample: `{0}tipfavorites 1000` Distributes 1000 to your entire favorites list (similar to `{0}tipsplit`)").format(COMMAND_PREFIX)
 }
 
 TIP_AUTHOR = {
@@ -322,12 +322,12 @@ STATSBANNED = {
 
 INCREASETIPTOTAL = {
 		"CMD"      : "{0}increasetips (amount) (user)".format(COMMAND_PREFIX),
-		"INFO"     : "Increases users tip total by (amount), for stats purposes"
+		"INFO"     : "Increases users tip total by (amount), for stats purposes. Amount is in NANO and not naneroo"
 }
 
 DECREASETIPTOTAL = {
 		"CMD"      : "{0}decreasetips (amount) (user)".format(COMMAND_PREFIX),
-		"INFO"     : "Decreases users tip total by (amount), for stats purposes"
+		"INFO"     : "Decreases users tip total by (amount), for stats purposes. Amount is in NANO and not naneroo"
 }
 
 SETTOPTIP = {
@@ -607,7 +607,11 @@ def is_admin(user):
 	"""Returns true if user is an admin"""
 	if str(user.id) in settings.admin_ids:
 		return True
-	return has_admin_role(user.roles)
+	for m in client.get_all_members():
+		if m.id == user.id:
+			if has_admin_role(m.roles):
+				return True
+	return False
 
 ### Commands
 def build_page(group_name,commands_dictionary):
@@ -1227,7 +1231,10 @@ async def tip_giveaway(message, ticket=False):
 			entered = db.add_contestant(message.author.id, override_ban=True)
 			if entered:
 				if giveaway is None:
-					await post_response(message, TIPGIVEAWAY_ENTERED_FUTURE)
+					if message.channel.id not in settings.no_spam_channels:
+						await post_response(message, TIPGIVEAWAY_ENTERED_FUTURE)
+					else:
+						await post_dm(message.author, TIPGIVEAWAY_ENTERED_FUTURE)
 				else:
 					await post_dm(message.author, ENTER_ADDED)
 			elif ticket:
@@ -1262,6 +1269,8 @@ async def ticketstatus(ctx):
 @client.command(aliases=get_aliases(GIVEAWAY_STATS,exclude='giveawaystats'))
 async def giveawaystats(ctx):
 	message = ctx.message
+	if message.channel.id in settings.no_spam_channels:
+		return
 	stats = db.get_giveaway_stats()
 	if stats is None:
 		for_next = GIVEAWAY_MINIMUM - db.get_tipgiveaway_sum()
@@ -1299,6 +1308,8 @@ async def finish_giveaway(delay):
 @client.command()
 async def winners(ctx):
 	message = ctx.message
+	if message.channel.id in settings.no_spam_channels:
+		return
 	# Check spam
 	global last_winners
 	if not is_private(message.channel):
@@ -1337,6 +1348,8 @@ async def winners(ctx):
 @client.command(aliases=get_aliases(LEADERBOARD, exclude='leaderboard'))
 async def leaderboard(ctx):
 	message = ctx.message
+	if message.channel.id in settings.no_spam_channels:
+		return
 	# Check spam
 	global last_big_tippers
 	if not is_private(message.channel):
@@ -1376,6 +1389,8 @@ async def leaderboard(ctx):
 @client.command()
 async def toptips(ctx):
 	message = ctx.message
+	if message.channel.id in settings.no_spam_channels:
+		return
 	# Check spam
 	global last_top_tips
 	if not is_private(message.channel):
@@ -1390,6 +1405,8 @@ async def toptips(ctx):
 @client.command()
 async def tipstats(ctx):
 	message = ctx.message
+	if message.channel.id in settings.no_spam_channels:
+		return
 	tip_stats = db.get_tip_stats(message.author.id)
 	if tip_stats is None or len(tip_stats) == 0:
 		await post_response(message, STATS_ACCT_NOT_FOUND_TEXT)

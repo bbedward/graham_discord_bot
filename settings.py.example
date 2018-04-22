@@ -23,7 +23,9 @@ giveaway_max_duration=60
 giveaway_auto_duration=30
 # Reboot node script on timeout
 reboot_script_path="./scripts/reboot_node.sh"
+# Set channels here you do not want to allow spam in comma-separated (IE commands like `giveaawaystats`
+no_spam_channels=[403628311965597697]
 # command prefix
 command_prefix='!'
 # Status
-playing_status='send me ' + command_prefix + 'help in private'
+playing_status=command_prefix + 'help'
