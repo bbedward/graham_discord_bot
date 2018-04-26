@@ -26,7 +26,7 @@ import paginator
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "2.2"
+BOT_VERSION = "2.2.1"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -57,6 +57,8 @@ TIPGIVEAWAY_AUTO_ENTRY=int(.01 * GIVEAWAY_MINIMUM)
 
 # HELP menu header
 AUTHOR_HEADER="Graham v{0} (NANO Tip Bot)".format(BOT_VERSION)
+
+DONATION_ADDRESS="xrb_1hmefcfq35td5f6rkh15hbpr4bkkhyyhmfhm7511jaka811bfp17xhkboyxo"
 
 # Command DOC (TRIGGER, CMD, Overview, Info)
 '''
@@ -167,14 +169,14 @@ ENTER = {
 }
 
 TIPGIVEAWAY = {
-		"TRIGGER"  : ["donate", "tipgiveaway", "d"],
-		"CMD"      : "{0}donate, takes: amount".format(COMMAND_PREFIX),
+		"TRIGGER"  : ["tipgiveaway", "tg"],
+		"CMD"      : "{0}tipgiveaway, takes: amount".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Add to present or future giveaway prize pool",
 		"INFO"     : ("Add <amount> to the current giveaway pool\n"+
 				"If there is no giveaway, one will be started when minimum is reached." +
 				"\nTips >= {0} naneroo automatically enter you for giveaways sponsored by the community." +
 				"\nDonations count towards the next giveaways entry fee" +
-				"\nExample: `{1}donate 1000` - Adds 1000 to giveaway pool").format(TIPGIVEAWAY_AUTO_ENTRY, COMMAND_PREFIX)
+				"\nExample: `{1}tipgiveaway 1000` - Adds 1000 to giveaway pool").format(TIPGIVEAWAY_AUTO_ENTRY, COMMAND_PREFIX)
 }
 
 TICKETSTATUS = {
@@ -378,10 +380,10 @@ TIP_SELF="No valid recipients found in your tip.\n(You cannot tip yourself and c
 
 # withdraw
 WITHDRAW_SUCCESS_TEXT="Withdraw has been queued for processing, I'll send you a link to the transaction after I've broadcasted it to the network!"
-WITHDRAW_PROCESSED_TEXT="Withdraw processed:\nTransaction: https://www.nano.org/en/explore/block/{0}\nIf you have an issue with a withdraw please wait **24 hours** before contacting my master."
+WITHDRAW_PROCESSED_TEXT="Withdraw processed:\nTransaction: {0}{1}\nIf you have an issue with a withdraw please wait **24 hours** before contacting my master."
 WITHDRAW_NO_BALANCE_TEXT="You have no NANO to withdraw"
 WITHDRAW_INVALID_ADDRESS_TEXT="Withdraw address is not valid"
-WITHDRAW_COOLDOWN_TEXT="You need to wait {0} seconds before making another withdraw"
+WITHDRAW_COOLDOWN_TEXT="You need to wait {0:.2f} seconds before making another withdraw"
 WITHDRAW_INSUFFICIENT_BALANCE="Your balance isn't high enough to withdraw that much"
 
 # leaderboard
@@ -401,14 +403,14 @@ RAIN_NOBODY="I couldn't find anybody eligible to receive rain"
 
 # giveaway (all giveaway related commands)
 GIVEAWAY_EXISTS="There's already an active giveaway"
-GIVEAWAY_STARTED="{0} has sponsored a giveaway of {1:.6f} NANO! Use:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "donate` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
-GIVEAWAY_STARTED_FEE="{0} has sponsored a giveaway of {1:.6f} NANO! The entry fee is {2} naneroo. Use:\n - `" + COMMAND_PREFIX + "ticket {2}` to buy your ticket\n - `" + COMMAND_PREFIX + "donate` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
+GIVEAWAY_STARTED="{0} has sponsored a giveaway of {1:.6f} NANO, including community contributions the total pot is {2:.6f} NANO!\nUse:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "tipgiveaway` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
+GIVEAWAY_STARTED_FEE="{0} has sponsored a giveaway of {1:.6f} NANO, including community contributions the total pot is {2:.6f} NANO! The entry fee is {3} naneroo.\nUse:\n - `" + COMMAND_PREFIX + "ticket {3}` to buy your ticket\n - `" + COMMAND_PREFIX + "tipgiveaway` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
 GIVEAWAY_FEE_TOO_HIGH="A giveaway has started where the entry fee is higher than your donations! Use `{0}ticketstatus` to see how much you need to enter!".format(COMMAND_PREFIX)
 GIVEAWAY_MAX_FEE="Giveaway entry fee cannot be more than 5% of the prize pool"
 GIVEAWAY_ENDED="Congratulations! <@{0}> was the winner of the giveaway! They have been sent {1:.6f} NANO!"
-GIVEAWAY_STATS_NF="There are {0} entries to win {1:.6f} NANO ending in {2} - sponsored by {3}.\nUse:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "donate` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check status of your entry"
-GIVEAWAY_STATS_FEE="There are {0} entries to win {1:.6f} NANO ending in {2} - sponsored by {3}.\nEntry fee: {4} naneroo. Use:\n - `" + COMMAND_PREFIX + "ticket {4}` to enter\n - `" + COMMAND_PREFIX + "donate` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
-GIVEAWAY_STATS_INACTIVE="There are no active giveaways\n{0} naneroo required to to automatically start one! Use\n - `" + COMMAND_PREFIX + "donate` to donate to the next giveaway.\n - `" + COMMAND_PREFIX + "givearai` to sponsor your own giveaway\n - `" + COMMAND_PREFIX + "ticketstatus` to see how much you've already donated to the next giveaway"
+GIVEAWAY_STATS_NF="There are {0} entries to win {1:.6f} NANO ending in {2} - sponsored by {3}.\nUse:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "tipgiveaway` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check status of your entry"
+GIVEAWAY_STATS_FEE="There are {0} entries to win {1:.6f} NANO ending in {2} - sponsored by {3}.\nEntry fee: {4} naneroo. Use:\n - `" + COMMAND_PREFIX + "ticket {4}` to enter\n - `" + COMMAND_PREFIX + "tipgiveaway` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
+GIVEAWAY_STATS_INACTIVE="There are no active giveaways\n{0} naneroo required to to automatically start one! Use\n - `" + COMMAND_PREFIX + "tipgiveaway` to donate to the next giveaway.\n - `" + COMMAND_PREFIX + "givearai` to sponsor your own giveaway\n - `" + COMMAND_PREFIX + "ticketstatus` to see how much you've already donated to the next giveaway"
 ENTER_ADDED="You've been successfully entered into the giveaway"
 ENTER_DUP="You've already entered the giveaway"
 TIPGIVEAWAY_NO_ACTIVE="There are no active giveaways. Check giveaway status using `{0}giveawaystats`, or donate to the next one using `{0}tipgiveaway`".format(COMMAND_PREFIX)
@@ -500,7 +502,7 @@ class SendProcessor(Thread):
 					txid = wallet_output['block']
 					db.mark_transaction_processed(uid, txid)
 					logger.info('TX processed. UID: %s, TXID: %s', uid, txid)
-					if target_id is None:
+					if target_id is None and to_address != DONATION_ADDRESS:
 						withdrawq.put({'user_id':source_id, 'txid':txid})
 				else:
 					# Not sure what happen but we'll retry a few times
@@ -529,6 +531,7 @@ initial_ts=datetime.datetime.now() - datetime.timedelta(seconds=SPAM_THRESHOLD)
 last_big_tippers = {}
 last_top_tips = {}
 last_winners = {}
+last_gs = {}
 def create_spam_dicts():
 	"""map every channel the client can see to datetime objects
 	   this way we can have channel-specific spam prevention"""
@@ -540,6 +543,8 @@ def create_spam_dicts():
 			last_big_tippers[c.id] = initial_ts
 			last_top_tips[c.id] = initial_ts
 			last_winners[c.id] = initial_ts
+			last_gs[c.id] = initial_ts
+
 @client.event
 async def on_ready():
 	logger.info("NANO Tip Bot v%s started", BOT_VERSION)
@@ -572,7 +577,7 @@ async def check_for_withdraw():
 			user_id = withdraw['user_id']
 			txid = withdraw['txid']
 			user = await client.get_user_info(int(user_id))
-			await post_dm(user, WITHDRAW_PROCESSED_TEXT, txid)
+			await post_dm(user, WITHDRAW_PROCESSED_TEXT, settings.block_explorer, txid)
 	except Exception as ex:
 		logger.exception(ex)
 
@@ -680,7 +685,9 @@ def build_help():
 			"NANO Tip Bot is completely free to use and open source." +
 			" Developed by bbedward (reddit: /u/bbedward, discord: bbedward#9246)" +
 			"\nFeel free to send tips, suggestions, and feedback.\n\n" +
-			"github: https://github.com/bbedward/Graham_Nano_Tip_Bot")
+			"Consider using my node as a representative to help decentralize the NANO network!\n" +
+			"Representative Address: {0}\n\n"
+			"github: https://github.com/bbedward/Graham_Nano_Tip_Bot").format(settings.representative)
 	pages.append(paginator.Page(entries=entries, author=author,description=description))
 	return pages
 
@@ -775,6 +782,9 @@ async def withdraw(ctx):
 			amount = balance['available']
 			if withdraw_amount == 0:
 				withdraw_amount = amount
+			elif 1 > withdraw_amount:
+				await post_response(message, "Minimum withdraw is 1 naneroo")
+				return
 			else:
 				withdraw_amount = abs(withdraw_amount)
 			if amount == 0:
@@ -884,7 +894,7 @@ async def do_tip(message, rand=False):
 			db.update_tip_stats(user, required_amt)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
-			if random:
+			if rand:
 				await post_usage(message, TIPRANDOM)
 			else:
 				await post_usage(message, TIP)
@@ -908,7 +918,7 @@ async def tipauthor(ctx):
 		if amount > available_balance:
 			return
 		uid = str(uuid.uuid4())
-		await wallet.make_transaction_to_address(user, amount, "xrb_3o7uzba8b9e1wqu5ziwpruteyrs3scyqr761x7ke6w1xctohxfh5du75qgaj", uid,verify_address = True)
+		await wallet.make_transaction_to_address(user, amount, DONATION_ADDRESS, uid,verify_address = True)
 		await message.add_reaction('\U00002611')
 		await message.add_reaction('\U0001F618')
 		await message.add_reaction('\u2764')
@@ -1162,13 +1172,14 @@ async def givearai(ctx):
 			return
 		end_time = datetime.datetime.now() + datetime.timedelta(minutes=duration)
 		nano_amt = amount / 1000000
+		tipped_amount = db.get_tipgiveaway_sum() / 1000000
 		giveaway,deleted = db.start_giveaway(message.author.id, message.author.name, nano_amt, end_time, message.channel.id, entry_fee=fee)
 		uid = str(uuid.uuid4())
 		await wallet.make_transaction_to_address(user, amount, None, uid, giveaway_id=giveaway.id)
 		if fee > 0:
-			await post_response(message, GIVEAWAY_STARTED_FEE, message.author.name, nano_amt, fee)
+			await post_response(message, GIVEAWAY_STARTED_FEE, message.author.name, nano_amt, nano_amt + tipped_amount, fee)
 		else:
-			await post_response(message, GIVEAWAY_STARTED, message.author.name, nano_amt)
+			await post_response(message, GIVEAWAY_STARTED, message.author.name, nano_amt, nano_amt + tipped_amount)
 		asyncio.get_event_loop().create_task(start_giveaway_timer())
 		db.update_tip_stats(user, amount, giveaway=True)
 		db.add_contestant(message.author.id, override_ban=True)
@@ -1178,8 +1189,8 @@ async def givearai(ctx):
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_usage(message, START_GIVEAWAY)
 
-@client.command(aliases=get_aliases(TIPGIVEAWAY, exclude='donate'))
-async def donate(ctx):
+@client.command(aliases=get_aliases(TIPGIVEAWAY, exclude='tipgiveaway'))
+async def tipgiveaway(ctx):
 	await tip_giveaway(ctx.message)
 
 async def tip_giveaway(message, ticket=False):
@@ -1246,7 +1257,7 @@ async def tip_giveaway(message, ticket=False):
 			if tipgiveaway_sum >= GIVEAWAY_MINIMUM:
 				end_time = datetime.datetime.now() + datetime.timedelta(minutes=GIVEAWAY_AUTO_DURATION)
 				db.start_giveaway(client.user.id, client.user.name, 0, end_time, message.channel.id,entry_fee=fee)
-				await post_response(message, GIVEAWAY_STARTED_FEE, client.user.name, nano_amt, fee)
+				await post_response(message, GIVEAWAY_STARTED_FEE, client.user.name, nano_amt, nano_amt, fee)
 				asyncio.get_event_loop().create_task(start_giveaway_timer())
 		# Update top tipY
 		if not user.stats_ban:
@@ -1269,8 +1280,15 @@ async def ticketstatus(ctx):
 @client.command(aliases=get_aliases(GIVEAWAY_STATS,exclude='giveawaystats'))
 async def giveawaystats(ctx):
 	message = ctx.message
+	global last_gs
 	if message.channel.id in settings.no_spam_channels:
 		return
+	if not is_private(message.channel):
+		if message.channel.id not in last_gs:
+			last_gs[message.channel.id] = datetime.datetime.now()
+		if 5 > (datetime.datetime.now() - last_gs[message.channel.id]).total_seconds():
+			return
+		last_gs[message.channel.id] = datetime.datetime.now()
 	stats = db.get_giveaway_stats()
 	if stats is None:
 		for_next = GIVEAWAY_MINIMUM - db.get_tipgiveaway_sum()
@@ -1313,6 +1331,8 @@ async def winners(ctx):
 	# Check spam
 	global last_winners
 	if not is_private(message.channel):
+		if message.channel.id not in last_winners:
+			last_winners[message.channel.id] = datetime.datetime.now()
 		tdelta = datetime.datetime.now() - last_winners[message.channel.id]
 		if SPAM_THRESHOLD > tdelta.seconds:
 			await post_response(message, WINNERS_SPAM, (SPAM_THRESHOLD - tdelta.seconds))
@@ -1353,6 +1373,8 @@ async def leaderboard(ctx):
 	# Check spam
 	global last_big_tippers
 	if not is_private(message.channel):
+		if message.channel.id not in last_big_tippers:
+			last_big_tippers[message.channel.id] = datetime.datetime.now()
 		tdelta = datetime.datetime.now() - last_big_tippers[message.channel.id]
 		if SPAM_THRESHOLD > tdelta.seconds:
 			await post_response(message, TOP_SPAM, (SPAM_THRESHOLD - tdelta.seconds))
@@ -1394,6 +1416,8 @@ async def toptips(ctx):
 	# Check spam
 	global last_top_tips
 	if not is_private(message.channel):
+		if not message.channel.id in last_top_tips:
+			last_top_tips[message.channel.id] = datetime.datetime.now()
 		tdelta = datetime.datetime.now() - last_top_tips[message.channel.id]
 		if SPAM_THRESHOLD > tdelta.seconds:
 			await post_response(message, TOPTIP_SPAM, (SPAM_THRESHOLD - tdelta.seconds))
@@ -1783,7 +1807,7 @@ def find_address(input_text):
 def find_amount(input_text):
 	regex = r'(?:^|\s)(\d*\.?\d+)(?=$|\s)'
 	matches = re.findall(regex, input_text, re.IGNORECASE)
-	if len(matches) == 1:
+	if len(matches) >= 1:
 		return float(matches[0].strip())
 	else:
 		raise util.TipBotException("amount_not_found")

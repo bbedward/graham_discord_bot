@@ -27,6 +27,13 @@ db = SqliteQueueDatabase('nanotipbot.db')
 logger = util.get_logger("db")
 
 ### User Stuff
+def get_accounts():
+	u = User.select()
+	accts = []
+	for a in u:
+		accts.append(a.wallet_address)
+	return accts
+
 def get_user_by_id(user_id):
 	try:
 		user = User.get(user_id=str(user_id))
