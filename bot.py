@@ -530,6 +530,7 @@ class SendProcessor(Thread):
 						db.mark_transaction_processed(uid, 'invalid')
 					else:
 						db.inc_tx_attempts(uid)
+				wallet.communicate_wallet({"action":"search_pending", "wallet":settings.wallet})
 			if self.stopped():
 				break
 
