@@ -55,7 +55,7 @@ def user_exists(user_id):
 
 def get_active_users(since_minutes):
 	since_ts = datetime.datetime.now() - datetime.timedelta(minutes=since_minutes)
-	users = User.select().where(User.last_msg > since_ts)
+	users = User.select().where(User.last_msg > since_ts).order_by(User.user_id)
 	return_ids = []
 	for user in users:
 		if user.last_msg_count >= LAST_MSG_RAIN_COUNT:
@@ -369,7 +369,7 @@ def get_statsbanned():
 
 # Returns winning user
 def finish_giveaway():
-	contestants = Contestant.select(Contestant.user_id).where(Contestant.banned == False)
+	contestants = Contestant.select(Contestant.user_id).order_by(User.user_id)
 	contestant_ids = []
 	for c in contestants:
 		contestant_ids.append(c.user_id)
@@ -383,24 +383,17 @@ def finish_giveaway():
 	giveaway.winner_id = winner.user_id
 	giveaway.save()
 	process_giveaway_transactions(giveaway.id, winner.user_id)
-	# Undo shadow bans
-	q = User.update({User.ticket_count:0})
-	q.execute()
 	return giveaway
 
 # Returns True is contestant added, False if contestant already exists
-def add_contestant(user_id, banned=False, override_ban=False):
+def add_contestant(user_id):
 	user_id=str(user_id)
-	try:
-		c = Contestant.get(Contestant.user_id == user_id)
-		if c.banned and override_ban:
-			c.banned=False
-			c.save()
+	exists = Contestant.select().where(Contestant.user_id == user_id).count() > 0
+	if exists:
 		return False
-	except Contestant.DoesNotExist:
-		contestant = Contestant(user_id=user_id,banned=banned)
-		contestant.save()
-		return True
+	contestant = Contestant(user_id=user_id,banned=False)
+	contestant.save()
+	return True
 
 def get_ticket_status(user_id):
 	user_id = str(user_id)
@@ -433,22 +426,6 @@ def is_active_giveaway():
 	if giveaway > 0:
 		return True
 	return False
-
-# Return true if shadow banned, or banned in general
-def ticket_spam_check(user_id, increment=True):
-	user_id = str(user_id)
-	user = get_user_by_id(user_id)
-	if user is None:
-		return False
-	if is_banned(user_id):
-		return True
-	if increment:
-		user.ticket_count += 1
-		(User.update(
-			ticket_count = (User.ticket_count + 1)
-		     ).where(User.user_id == user_id)
-		).execute()
-	return user.ticket_count >= 3
 
 # Gets giveaway stats
 def get_giveaway_stats():
@@ -716,7 +693,6 @@ class User(Model):
 	top_tip_month_ts = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
 	top_tip_day = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
 	top_tip_day_ts = DateTimeField(default=datetime.datetime.now(),constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
-	ticket_count = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
 	last_withdraw = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
 	stats_ban = BooleanField(default=False, constraints=[SQL('DEFAULT 0')])
 	rain_amount = FloatField(default=0.0, constraints=[SQL('DEFAULT 0.0')])

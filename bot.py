@@ -1107,24 +1107,20 @@ async def rain(ctx):
 async def ticket(ctx):
 	message = ctx.message
 	if not db.is_active_giveaway():
-		db.ticket_spam_check(message.author.id)
 		await post_dm(message.author, TIPGIVEAWAY_NO_ACTIVE)
 		await remove_message(message)
 		return
 	giveaway = db.get_giveaway()
-	if giveaway.entry_fee == 0:
-		spam = db.ticket_spam_check(message.author.id,increment=False)
-		entered = db.add_contestant(message.author.id, banned=spam)
+	if db.is_banned(message.author.id):
+		await post_dm(message.author, "You may not enter giveaways at this time")
+	elif giveaway.entry_fee == 0:
+		entered = db.add_contestant(message.author.id)
 		if entered:
-			if not spam:
-				await wallet.create_or_fetch_user(message.author.id, message.author.name)
+			await wallet.create_or_fetch_user(message.author.id, message.author.name)
 			await post_dm(message.author, ENTER_ADDED)
 		else:
 			await post_dm(message.author, ENTER_DUP)
 	else:
-		if db.is_banned(message.author.id):
-			await remove_message(message)
-			return
 		if db.contestant_exists(message.author.id):
 			await post_dm(message.author, ENTER_DUP)
 		else:
@@ -1202,7 +1198,7 @@ async def givearai(ctx):
 			await post_response(message, GIVEAWAY_STARTED, message.author.name, nano_amt, nano_amt + tipped_amount)
 		asyncio.get_event_loop().create_task(start_giveaway_timer())
 		db.update_tip_stats(user, amount, giveaway=True)
-		db.add_contestant(message.author.id, override_ban=True)
+		db.add_contestant(message.author.id)
 		for d in deleted:
 			await post_dm(await client.get_user_info(int(d)), GIVEAWAY_FEE_TOO_HIGH)
 	except util.TipBotException as e:
@@ -1259,7 +1255,7 @@ async def tip_giveaway(message, ticket=False):
 		if (amount + contributions) >= fee and not db.is_banned(message.author.id):
 			if (amount + contributions) >= (TIPGIVEAWAY_AUTO_ENTRY * 4):
 				db.mark_user_active(user)
-			entered = db.add_contestant(message.author.id, override_ban=True)
+			entered = db.add_contestant(message.author.id)
 			if entered:
 				if giveaway is None:
 					if message.channel.id not in settings.no_spam_channels:
