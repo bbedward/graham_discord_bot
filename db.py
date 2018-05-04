@@ -369,7 +369,7 @@ def get_statsbanned():
 
 # Returns winning user
 def finish_giveaway():
-	contestants = Contestant.select(Contestant.user_id).order_by(User.user_id)
+	contestants = Contestant.select(Contestant.user_id).order_by(Contestant.user_id)
 	contestant_ids = []
 	for c in contestants:
 		contestant_ids.append(c.user_id)
