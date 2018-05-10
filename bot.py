@@ -910,7 +910,7 @@ async def do_tip(message, rand=False):
 		# Post message reactions
 		await react_to_message(message, required_amt)
 		# Update tip stats
-		if message.channel.id != 416306340848336896 and not user.stats_ban:
+		if message.channel.id not in (416306340848336896, 443985110371401748) and not user.stats_ban:
 			db.update_tip_stats(user, required_amt)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
@@ -1004,7 +1004,7 @@ async def do_tipsplit(message, user_list=None):
 				if not db.muted(member.id, message.author.id):
 					await post_dm(member, TIP_RECEIVED_TEXT, tip_amount, message.author.name, message.author.id, skip_dnd=True)
 		await react_to_message(message, amount)
-		if message.channel.id != 416306340848336896 and not user.stats_ban:
+		if message.channel.id not in (416306340848336896, 443985110371401748) and not user.stats_ban:
 			db.update_tip_stats(user, real_amount)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":

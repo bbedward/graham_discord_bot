@@ -82,11 +82,9 @@ async def make_transaction_to_address(source_user, amount, withdraw_address, uid
 				  'account': withdraw_address}
 		address_validation = await asyncio.get_event_loop().run_in_executor(None, communicate_wallet, wallet_command)
 
-		# If the address was the incorrect length, did not start with xrb_ or nano_ or was deemed invalid by the node, return an error.
-		address_prefix_valid = withdraw_address[:4] == 'xrb_' \
-			or withdraw_address[:5] == 'nano_'
-		if len(withdraw_address) != 64 or not address_prefix_valid \
-			or address_validation['valid'] != '1':
+		if (((withdraw_address[:4] == 'xrb_' and len(withdraw_address) != 64)
+		    or (withdraw_address[:5] == 'nano_' and len(withdraw_address) != 65))
+		    or address_validation['valid'] != '1'):
 			raise util.TipBotException('invalid_address')
 
 	amount = int(amount)
