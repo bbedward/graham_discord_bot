@@ -1805,7 +1805,7 @@ async def increasetipcount(ctx, cnt: int = -1, user: discord.Member = None):
 		if u is None or cnt < 0:
 			await post_usage(ctx.message, INCREASETIPCOUNT)
 			return
-		new_cnt = u.tip_count + new_cnt
+		new_cnt = u.tip_count + cnt
 		db.update_tip_count(user.id, new_cnt)
 		await post_dm(ctx.message.author, "New tip count for {0} is {1}", user.name, new_cnt)
 
