@@ -26,7 +26,7 @@ import paginator
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "2.2.1"
+BOT_VERSION = "2.3"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -282,6 +282,31 @@ MUTED = {
 }
 
 ### ADMIN-only commands
+FREEZE = {
+		"CMD"      : "{0}freeze, takes: users".format(COMMAND_PREFIX),
+		"INFO"     : "Suspends every action from user, including withdraw"
+}
+
+UNFREEZE = {
+		"CMD"      : "{0}unfreeze, takes: users".format(COMMAND_PREFIX),
+		"INFO"     : "Unfreezes mentioned user"
+}
+
+FROZEN = {
+		"CMD"	   : "{0}frozen".format(COMMAND_PREFIX),
+		"INFO"     : "List frozen users"
+}
+
+WALLET_FOR = {
+		"CMD"      : "{0}walletfor, takes: user".format(COMMAND_PREFIX),
+		"INFO"     : "Returns wallet address for mentioned user"
+}
+
+USER_FOR_WALLET = {
+		"CMD"      : "{0}userforwallet, takes: user".format(COMMAND_PREFIX),
+		"INFO"     : "Returns user owning wallet address"
+}
+
 PAUSE = {
 		"CMD"      : "{0}pause".format(COMMAND_PREFIX),
 		"INFO"     : "Pause all transaction-related activity"
@@ -357,7 +382,7 @@ COMMANDS = {
 		"FAVORITES_COMMANDS"    : [ADD_FAVORITE, DEL_FAVORITE, FAVORITES, TIP_FAVORITES],
 		"NOTIFICATION_COMMANDS" : [MUTE, UNMUTE, MUTED],
 		"AUTHOR_COMMANDS"       : [TIP_AUTHOR],
-		"ADMIN_COMMANDS"	: [PAUSE, UNPAUSE, TIPBAN, TIPUNBAN, BANNED, STATSBAN, STATSUNBAN, STATSBANNED, INCREASETIPTOTAL, DECREASETIPTOTAL, SETTOPTIP, INCREASETIPCOUNT, DECREASETIPCOUNT]
+		"ADMIN_COMMANDS"	: [FREEZE, UNFREEZE, FROZEN, USER_FOR_WALLET, WALLET_FOR, PAUSE, UNPAUSE, TIPBAN, TIPUNBAN, BANNED, STATSBAN, STATSUNBAN, STATSBANNED, INCREASETIPTOTAL, DECREASETIPTOTAL, SETTOPTIP, INCREASETIPCOUNT, DECREASETIPCOUNT]
 }
 
 ### Response Templates###
@@ -429,6 +454,7 @@ STATSBAN_SUCCESS="User {0} is no longer considered in tip statistics"
 STATSBAN_DUP="User {0} is already stats banned"
 STATSUNBAN_SUCCESS="User {0} is now considered in tip statistics"
 STATSUNBAN_DUP="User {0} is not stats banned"
+FROZEN_MSG="Your account is frozen. Contact an admin for help"
 
 # past giveaway winners
 WINNERS_HEADER="Here are the previous {0} giveaway winners! :trophy:".format(WINNERS_COUNT)
@@ -746,7 +772,7 @@ async def adminhelp(ctx):
 async def balance(ctx):
 	message = ctx.message
 	if is_private(message.channel):
-		user = db.get_user_by_id(message.author.id)
+		user = db.get_user_by_id(message.author.id, user_name=message.author.name)
 		if user is None:
 			return
 		balances = await wallet.get_balance(user)
@@ -783,14 +809,16 @@ async def withdraw(ctx):
 	if paused:
 		await pause_msg(message)
 		return
-	if is_private(message.channel):
+	elif db.is_frozen(message.author.id):
+		await post_dm(message.author, FROZEN_MSG)
+	elif is_private(message.channel):
 		try:
 			withdraw_amount = find_amount(message.content)
 		except util.TipBotException as e:
 			withdraw_amount = 0
 		try:
 			withdraw_address = find_address(message.content)
-			user = db.get_user_by_id(message.author.id)
+			user = db.get_user_by_id(message.author.id, user_name=message.author.name)
 			if user is None:
 				return
 			last_withdraw_delta = db.get_last_withdraw_delta(user.user_id)
@@ -840,9 +868,12 @@ async def do_tip(message, rand=False):
 	elif paused:
 		await pause_msg(message)
 		return
+	elif db.is_frozen(message.author.id):
+		await post_dm(message.author, FROZEN_MSG)
+		return
 
 	try:
-		user = db.get_user_by_id(message.author.id)
+		user = db.get_user_by_id(message.author.id, user_name=message.author.name)
 		if user is None:
 			return
 		amount = find_amount(message.content)
@@ -928,7 +959,7 @@ async def tipauthor(ctx):
 		amount = find_amount(message.content)
 		if amount < 1:
 			return
-		user = db.get_user_by_id(message.author.id)
+		user = db.get_user_by_id(message.author.id, user_name=message.author.name)
 		if user is None:
 			return
 		source_id = user.user_id
@@ -958,6 +989,9 @@ async def do_tipsplit(message, user_list=None):
 	elif paused:
 		await pause_msg(message)
 		return
+	elif db.is_frozen(message.author.id):
+		await post_dm(message.author, FROZEN_MSG)
+		return
 	try:
 		amount = find_amount(message.content)
 		# Make sure amount is valid and at least 1 user is mentioned
@@ -981,7 +1015,7 @@ async def do_tipsplit(message, user_list=None):
 		# Remove duplicates
 		users_to_tip = list(set(users_to_tip))
 		# Make sure user has enough in their balance
-		user = db.get_user_by_id(message.author.id)
+		user = db.get_user_by_id(message.author.id, user_name=message.author.name)
 		if user is None:
 			return
 		balance = await wallet.get_balance(user)
@@ -1020,7 +1054,7 @@ async def do_tipsplit(message, user_list=None):
 @client.command(aliases=get_aliases(TIP_FAVORITES, exclude='tipfavorites'))
 async def tipfavorites(ctx):
 	message = ctx.message
-	user = db.get_user_by_id(message.author.id)
+	user = db.get_user_by_id(message.author.id, user_name=mesage.author.name)
 	if user is None:
 		return
 	# Spam Check
@@ -1067,7 +1101,7 @@ async def rain(ctx):
 			raise util.TipBotException("no_valid_recipient")
 		if int(amount / len(users_to_tip)) < 1:
 			raise util.TipBotException("invalid_tipsplit")
-		user = db.get_user_by_id(message.author.id)
+		user = db.get_user_by_id(message.author.id, user_name=message.author.name)
 		if user is None:
 			return
 		balance = await wallet.get_balance(user)
@@ -1165,7 +1199,7 @@ async def givearai(ctx):
 
 		# Sanity checks
 		max_fee = int(0.05 * amount)
-		user = db.get_user_by_id(message.author.id)
+		user = db.get_user_by_id(message.author.id, user_name=message.author.name)
 		if fee == -1 or duration == -1:
 			raise util.TipBotException("usage_error")
 		elif amount < GIVEAWAY_MINIMUM:
@@ -1218,7 +1252,7 @@ async def tip_giveaway(message, ticket=False):
 	try:
 		giveaway = db.get_giveaway()
 		amount = find_amount(message.content)
-		user = db.get_user_by_id(message.author.id)
+		user = db.get_user_by_id(message.author.id, user_name=message.author.name)
 		if user is None:
 			return
 		balance = await wallet.get_balance(user)
@@ -1635,6 +1669,12 @@ async def statsbanned(ctx):
 		await post_dm(message.author, db.get_statsbanned())
 
 @client.command()
+async def frozen(ctx):
+	message = ctx.message
+	if is_admin(message.author):
+		await post_dm(message.author, db.frozen())
+
+@client.command()
 async def pause(ctx):
 	message = ctx.message
 	if is_admin(message.author):
@@ -1649,6 +1689,16 @@ async def unpause(ctx):
 		global paused
 		paused = False
 		await post_response(message, "Transaction-related activity is no longer suspended")
+
+@client.command()
+async def freeze(ctx):
+	message = ctx.message
+	if is_admin(message.author):
+		for member in message.mentions:
+			if db.freeze(member):
+				await post_dm(message.author, "User {0} is frozen", member.name)
+			else:
+				await post_dm(message.author, "Couldn't freeze user they may already be frozen")
 
 @client.command()
 async def tipban(ctx):
@@ -1682,6 +1732,16 @@ async def tipunban(ctx):
 				await post_dm(message.author, UNBAN_DUP, member.name)
 
 @client.command()
+async def unfreeze(ctx):
+	message = ctx.message
+	if is_admin(message.author):
+		for member in message.mentions:
+			if db.unfreeze(member.id):
+				await post_dm(message.author, "{0} has been unfrozen", member.name)
+			else:
+				await post_dm(message.author, "Couldn't unfreeze, {0} may not be frozen", member.name)
+
+@client.command()
 async def statsunban(ctx):
 	message = ctx.message
 	if is_admin(message.author):
@@ -1690,6 +1750,29 @@ async def statsunban(ctx):
 				await post_dm(message.author, STATSUNBAN_SUCCESS, member.name)
 			else:
 				await post_dm(message.author, STATSUNBAN_DUP, member.name)
+
+@client.command(aliases=['wfu'])
+async def walletfor(ctx, user: discord.Member = None, user_id: str = None):
+	if user is None and user_id is None:
+		await post_usage(ctx.message, WALLET_FOR)
+		return
+	wa = None;
+	if user is not None:
+		wa = db.get_address(user.id)
+	else:
+		wa = db.get_address(user_id)
+	if wa is not None:
+		await post_dm(ctx.message.author, "Address for user: {0}", wa)
+	else:
+		await post_dm(ctx.message.author, "Could not find address for user")
+
+@client.command(aliases=['ufw'])
+async def userforwallet(ctx, address: str):
+	u = db.get_user_by_wallet_address(address)
+	if u is None:
+		await post_dm(ctx.message.author, "No user with that wallet address")
+	else:
+		await post_dm(ctx.message.author, "username: {0}, discordid: {1}", u.user_name, u.user_id)
 
 @client.command(aliases=['addtips', 'incrementtips'])
 async def increasetips(ctx, amount: float = -1.0, user: discord.Member = None):
