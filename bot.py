@@ -1054,7 +1054,7 @@ async def do_tipsplit(message, user_list=None):
 @client.command(aliases=get_aliases(TIP_FAVORITES, exclude='tipfavorites'))
 async def tipfavorites(ctx):
 	message = ctx.message
-	user = db.get_user_by_id(message.author.id, user_name=mesage.author.name)
+	user = db.get_user_by_id(message.author.id, user_name=message.author.name)
 	if user is None:
 		return
 	# Spam Check
