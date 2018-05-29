@@ -111,3 +111,6 @@ nohup.out
 backups/
 *.db-wal
 *.db-shm
+
+# Virtualenv
+venv/

@@ -27,43 +27,97 @@ Some highlights:
 
 Recommend using with a GPU/OpenCL configured node (or work peer) on busier discord servers due to POW calculation.
 
-## Usage
+## Getting started
 
-To run the bot, update `settings.py` with nano wallet ID and discord bot ID+Token, then simply use:
-
-```
-python3 bot.py
-```
-
-or to run in background
+### Requirements
 
 ```
-nohup python3 bot.py &
+sudo apt install python3 python3-dev libcurl4-openssl-dev git
 ```
 
-Optionally update `scripts/reboot_node.sh` with commands you would like automatically executed when tip bot encounters timeouts when doing RPC sends.
+(Optional - to run with pm2)
 
-** WARNING **
+```
+sudo apt install npm nodejs
+sudo npm install -g pm2
+```
+
+Note: python 3.6+ is required. On older distributions you may need to source a third party package.
+
+### Cloning
+
+```
+cd ~
+git clone https://github.com/bbedward/Graham_Nano_Tip_Bot.git nanotipbot
+```
+
+### Set up NANO Node
+
+You can follow the lovely guide here for setting up a docker nano node if you don't already have one running:
+
+https://1nano.co/support-the-network/
+
+You need rpc_enable and enable_control set to 'true' in the config.json
+
+### Create wallet for tip bot
+
+```
+docker <container_id> exec rai_node --wallet_create
+```
+
+non-docker nodes:
+
+```
+/path/to/rai_node --wallet_create
+```
+
+This will output your wallet ID (NOT the seed), copy this as you will need it for later
+
+### Discord bot
+
+Create discord bot and get client ID and token (also save both of these for the next step)
+
+Guide written by somebody else https://github.com/reactiflux/discord-irc/wiki/Creating-a-discord-bot-&-getting-a-token
+
+### Configuration
+
+```
+cd nanotipbot
+cp settings.py.example settings.py
+```
+
+Then open settings.py with any text editor and add your bot's client ID, token, and the wallet ID from earlier
+
+### Virtualenv + python requirements
+
+```
+virtualenv -p python3.6 venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### Running with PM2
+
+```
+pm2 start bot.py --interpreter=~/nanotipbot/venv/bin/python
+pm2 save
+```
+
+### Running normally
+
+```
+venv/bin/python bot.py
+```
+
+or in background:
+
+```
+nohup venv/bin/python bot.py &
+```
+
+## Database backups
 
 There exists a script in scripts/cron called `nanotipbotbackup`. Highly recommend you use this or something better to backup the tip bot database.
 
 Simply toss the script in cron.hourly, crontab, cron.daily, whatever - and update the backup path and database path.
-
-## Dependencies (install using pip)
-
-- Python 3.6+
-- NANO Node v10+ (see: https://github.com/nanocurrency/raiblocks/wiki/Docker-node)
-- SQLite
-- `discord.py 1.0+ (rewrite)`
-- `peewee`
-- `asyncio`
-- `pycurl`
-
-## Graham 2.0 Update
-
-Graham 2.0 switched to the rewritten discord.py API (discord.py 1.0.0)
-
-You can install this using:
-
-`pip3 install -U git+https://github.com/Rapptz/discord.py@rewrite#egg-discord.py[voice]`
 
