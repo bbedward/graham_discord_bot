@@ -4,8 +4,6 @@ from discord.ext.commands import Bot
 from aiohttp import ClientError
 import secrets
 import random
-import subprocess
-import time
 import collections
 import random
 import re
@@ -13,7 +11,6 @@ import errno
 import asyncio
 import uuid
 import datetime
-import pycurl
 
 import wallet
 import util
