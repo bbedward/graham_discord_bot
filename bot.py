@@ -495,7 +495,7 @@ async def receive_check_job():
 			return
 		for account, blocks in response['blocks'].items():
 			for b in blocks:
-				logger.info('receiving block %s', b)
+				logger.info('Receiving block %s for account %s', b, account)
 				receive_action = {
 					"action":"receive",
 					"wallet":settings.wallet,
@@ -517,7 +517,7 @@ async def receive_check_job():
 	except Exception as e:
 		logger.exception(e)
 
-async def schedule_receive_jon():
+async def schedule_receive_job():
 	await asyncio.sleep(RECEIVE_CHECK_JOB)
 	asyncio.get_event_loop().create_task(receive_check_job())
 
