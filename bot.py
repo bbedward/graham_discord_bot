@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord.ext.commands import Bot
+from aiohttp import ClientError
 import threading
 from threading import Thread
 from queue import Queue
@@ -26,7 +27,7 @@ import paginator
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "2.3"
+BOT_VERSION = "2.4"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -52,6 +53,8 @@ MAX_TX_RETRIES=3
 COMMAND_PREFIX=settings.command_prefix
 # Withdraw Check Job - checks for completed withdraws at this interval
 WITHDRAW_CHECK_JOB=15
+# Receive check job - checks for pending transactions and pockets them
+RECEIVE_CHECK_JOB=300
 # Pool giveaway auto amount (1%)
 TIPGIVEAWAY_AUTO_ENTRY=int(.01 * GIVEAWAY_MINIMUM)
 
@@ -470,6 +473,54 @@ paused = False
 client = Bot(command_prefix=COMMAND_PREFIX)
 client.remove_command('help')
 
+# Receive check job to pocket transactions
+async def receive_check_job():
+	try:
+		logger.info("Running receive job...")
+		accts = []
+		cursor = db.User.select(db.User.wallet_address)
+		for a in cursor:
+			accts.append(a.wallet_address)
+		accts_pending_action = {
+			"action":"accounts_pending",
+			"accounts":accts,
+			"threshold":1000000000000000000000000
+		}
+		response = await wallet.communicate_wallet_async(accts_pending_action)
+		if response is None:
+			response = 'None'
+		if 'blocks' not in response:
+			logger.error('invalid response %s. Rescheduling job', str(response))
+			await schedule_receive_job()
+			return
+		for account, blocks in response['blocks'].items():
+			for b in blocks:
+				logger.info('receiving block %s', b)
+				receive_action = {
+					"action":"receive",
+					"wallet":settings.wallet,
+					"account":account,
+					"block":b
+				}
+				rcv_response = await wallet.communicate_wallet_async(receive_action)
+				if rcv_response is None:
+					rcv_response='None'
+				if 'block' not in rcv_response:
+					logger.info("Couldn't receive %s - response: %s", b, str(rcv_response))
+				else:
+					logger.info("pocketed block %s", b)
+		logger.info("receive job complete")
+		await schedule_receive_job()
+	except ClientError:
+		logger.info("aiohttp error, rescheduling job")
+		await schedule_receive_job()
+	except Exception as e:
+		logger.exception(e)
+
+async def schedule_receive_jon():
+	await asyncio.sleep(RECEIVE_CHECK_JOB)
+	asyncio.get_event_loop().create_task(receive_check_job())
+
 # Queue is used to send BLOCK to the main thread after withdraws
 withdrawq = Queue()
 
@@ -482,6 +533,15 @@ def receive_block(account, block):
 		'block':block
 	}
 	wallet.communicate_wallet(wallet_command)
+
+# TODO
+# Call it python inexperience, but this should be converted to an asyncio task
+# Which would eliminate the need for withdrawQ
+# Then we would use the communicate_wallet_async method instead of pycurl
+
+# TODO
+# Would be nice to spawn multiple threads of this at one time.
+# Mainly the work_generate process would be nice to multithread
 
 class SendProcessor(Thread):
 	"""SendProcessor is used to synchronously process RPC send actions that occur
@@ -556,7 +616,6 @@ class SendProcessor(Thread):
 						db.mark_transaction_processed(uid, 'invalid')
 					else:
 						db.inc_tx_attempts(uid)
-				wallet.communicate_wallet({"action":"search_pending", "wallet":settings.wallet})
 			if self.stopped():
 				break
 
@@ -608,6 +667,8 @@ async def on_ready():
 	asyncio.get_event_loop().create_task(check_for_withdraw())
 	logger.info("Continuing outstanding giveaway")
 	asyncio.get_event_loop().create_task(start_giveaway_timer())
+	logger.info("Starting receive check job")
+	asyncio.get_event_loop().create_task(receive_check_job())
 
 async def check_for_withdraw():
 	"""check_for_withdraw() checks withdraw queue for messages.

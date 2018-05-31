@@ -14,6 +14,7 @@ wallet = settings.wallet
 logger = util.get_logger('wallet')
 logger_newuser = util.get_logger('usr', log_file='user_creation.log')
 
+# TODO - deprecate this method
 def communicate_wallet(wallet_command):
 	buffer = BytesIO()
 	c = pycurl.Curl()
@@ -32,7 +33,7 @@ def communicate_wallet(wallet_command):
 async def communicate_wallet_async(wallet_command):
 	conn = aiohttp.TCPConnector(family=socket.AF_INET6,resolver=aiohttp.AsyncResolver())
 	async with aiohttp.ClientSession(connector=conn) as session:
-		async with session.post("http://[::1]:7076",json=wallet_command) as resp:
+		async with session.post("http://[::1]:7076",json=wallet_command, timeout=300) as resp:
 			return await resp.json()
 
 async def create_or_fetch_user(user_id, user_name):

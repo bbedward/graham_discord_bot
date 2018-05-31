@@ -7,6 +7,37 @@ import secrets
 from peewee import *
 from playhouse.sqliteq import SqliteQueueDatabase
 
+# TODO - Redesign the schema
+# - TipBot grew into more than a tip bot quickly as features piled on
+#   combined with a non-backwards compatible discord.py update and
+#   the fact I never worked with python or peewee before this project.
+#   So eventual schema redesign plans:
+# 1) Discord IDs are now integers. Every discord ID stored should become IntegerField
+# 2) Giveaway transactions should be further distinguished from normal TXs
+#    after a giveaway is over, it's impossible to tell what transactions were part of the
+#    giveaway. That's a mild design flaw
+# 3) Where applicable replace peewee default primary key with discord ID as primary key
+#    many of our queries are written using discord IDs already.
+#    e.g. user_id should be PrimaryKeyField on users table
+# 4) De-couple stats, accounts, etc. from users table.
+#    (Make a one-to-many relationship between a users and stats/accounts table)
+#    Why one-to-many instead of 1-1 for accounts? see point 8
+# 5) Foreign key relationships everywhere
+# 6) We only retrieve a DB connection 1 time, which isn't much of a problem for SQLite,
+#    but perhaps a better practice would be to create and destroy connections as needed
+#    which brings the next point:
+# 7) SQLite is fine for our purposes, but some operations would be much better if we
+#    could do them atomically. (e.g. when multiple DB operations occur, if  one fails
+#    then everything rolls back). Not a problem with SQLite or peewee, per say, but
+#    due to multithreading issues we use SQliteQueueDatabase which queues writes
+#    synchronously and that breaks atomic transactions.
+#    so....maybe eye a switch to MySQL or PostgreSQL
+# 8) Attach discord server ID to user accounts, stats, etc.
+#    this will allow some important things for the future of NANO/BANANO bots
+#    Mainly, allowing the bot to be used on multiple servers
+#
+# Of course, we need a way to migrate the old database into this re-design
+
 # (Seconds) how long a user must wait in between messaging the bot
 LAST_MSG_TIME = 1
 
