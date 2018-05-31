@@ -1,6 +1,3 @@
-from io import BytesIO
-import json
-import pycurl
 import util
 import db
 import datetime
@@ -13,22 +10,6 @@ wallet = settings.wallet
 
 logger = util.get_logger('wallet')
 logger_newuser = util.get_logger('usr', log_file='user_creation.log')
-
-# TODO - deprecate this method
-def communicate_wallet(wallet_command):
-	buffer = BytesIO()
-	c = pycurl.Curl()
-	c.setopt(c.URL, '[::1]')
-	c.setopt(c.PORT, 7076)
-	c.setopt(c.POSTFIELDS, json.dumps(wallet_command))
-	c.setopt(c.WRITEFUNCTION, buffer.write)
-	c.setopt(c.TIMEOUT, 300)
-	c.perform()
-	c.close()
-
-	body = buffer.getvalue()
-	parsed_json = json.loads(body.decode('iso-8859-1'))
-	return parsed_json
 
 async def communicate_wallet_async(wallet_command):
 	conn = aiohttp.TCPConnector(family=socket.AF_INET6,resolver=aiohttp.AsyncResolver())
