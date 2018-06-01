@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import Bot
 from aiohttp import ClientError
-from asyncio TimeoutError
+from asyncio import TimeoutError
 import time
 import secrets
 import random
