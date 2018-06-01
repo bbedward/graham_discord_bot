@@ -1109,21 +1109,20 @@ async def rain(ctx):
 		tip_amount = int(amount / len(users_to_tip))
 		# Recalculate actual tip amount as it may be smaller now
 		real_amount = tip_amount * len(users_to_tip)
+		# 1) Make all transactions first
 		for member in users_to_tip:
 			uid = str(uuid.uuid4())
 			actual_amt = await wallet.make_transaction_to_user(user, tip_amount, member.id, member.name, uid)
-			# Tip didn't go through for some reason
-			if actual_amt == 0:
-				amount -= tip_amount
-			else:
-				if not db.muted(member.id, message.author.id):
-					await post_dm(member, TIP_RECEIVED_TEXT, actual_amt, message.author.name, message.author.id)
-
-		# Message React
+		# 2) Add reaction
 		await react_to_message(message, amount)
 		await message.add_reaction('\U0001F4A6') # Sweat Drops
+		# 3) Update tip stats
 		db.update_tip_stats(user, real_amount,rain=True)
 		db.mark_user_active(user)
+		# 4) Send DMs (do this last because this takes the longest)
+		for member in users_to_tip:
+			if not db.muted(member.id, message.author.id):
+				await post_dm(member, TIP_RECEIVED_TEXT, actual_amt, message.author.name, message.author.id)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_usage(message, RAIN)
