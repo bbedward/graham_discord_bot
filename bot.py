@@ -1229,6 +1229,7 @@ async def givearai(ctx):
 		db.add_contestant(message.author.id)
 		for d in deleted:
 			await post_dm(await client.get_user_info(int(d)), GIVEAWAY_FEE_TOO_HIGH)
+		db.mark_user_active(user)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			await post_usage(message, START_GIVEAWAY)
