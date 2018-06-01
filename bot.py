@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from discord.ext.commands import Bot
-from aiohttp import ClientError
+from aiohttp import ClientError, TimeoutError
 import time
 import secrets
 import random
@@ -505,7 +505,7 @@ async def receive_check_job():
 					logger.info("pocketed block %s", b)
 		logger.info("receive job complete")
 		await schedule_receive_job()
-	except ClientError:
+	except (ClientError, TimeoutError):
 		logger.info("aiohttp error, rescheduling receive_job")
 		await schedule_receive_job()
 	except Exception as e:
@@ -572,12 +572,12 @@ async def send_job():
 					db.inc_tx_attempts(uid)
 		logger.info("send_job complete, rescheduling")
 		await schedule_send_job()
-	except ClientError:
+	except (ClientError, TimeoutError):
 		logger.info("aiohttp error, rescheduling send_job")
 		await schedule_send_job()
 	except Exception as e:
 		logger.exception(e)
-					
+
 async def schedule_send_job():
 	await asyncio.sleep(SEND_JOB)
 	asyncio.get_event_loop().create_task(send_job())
