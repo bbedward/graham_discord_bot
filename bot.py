@@ -1,8 +1,6 @@
 import discord
 from discord.ext import commands
 from discord.ext.commands import Bot
-from aiohttp import ClientError
-from asyncio import TimeoutError
 import time
 import secrets
 import random
@@ -22,7 +20,7 @@ import paginator
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "2.5"
+BOT_VERSION = "3.0-alpha1"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -42,14 +40,8 @@ RAIN_DELTA=30
 SPAM_THRESHOLD=60
 # Withdraw Cooldown (Seconds) - how long a user must wait between withdraws
 WITHDRAW_COOLDOWN=300
-# MAX TX_Retries - If wallet does not indicate a successful send for whatever reason, retry this many times
-MAX_TX_RETRIES=3
 # Change command prefix to whatever you want to begin commands with
 COMMAND_PREFIX=settings.command_prefix
-# Send Job (seconds) - process send transactions at this interval
-SEND_JOB=10
-# Receive check job (seconds) - checks for pending transactions and pockets them
-RECEIVE_CHECK_JOB=300
 # Pool giveaway auto amount (1%)
 TIPGIVEAWAY_AUTO_ENTRY=int(.01 * GIVEAWAY_MINIMUM)
 
@@ -468,121 +460,6 @@ paused = False
 client = Bot(command_prefix=COMMAND_PREFIX)
 client.remove_command('help')
 
-# Receive check job to pocket transactions
-async def receive_check_job():
-	try:
-		logger.info("Running receive job...")
-		accts = []
-		cursor = db.User.select(db.User.wallet_address)
-		for a in cursor:
-			accts.append(a.wallet_address)
-		accts_pending_action = {
-			"action":"accounts_pending",
-			"accounts":accts,
-			"threshold":1000000000000000000000000
-		}
-		response = await wallet.communicate_wallet_async(accts_pending_action)
-		if response is None:
-			response = 'None'
-		if 'blocks' not in response:
-			logger.error('invalid response %s. Rescheduling job', str(response))
-			await schedule_receive_job()
-			return
-		for account, blocks in response['blocks'].items():
-			for b in blocks:
-				logger.info('Receiving block %s for account %s', b, account)
-				receive_action = {
-					"action":"receive",
-					"wallet":settings.wallet,
-					"account":account,
-					"block":b
-				}
-				rcv_response = await wallet.communicate_wallet_async(receive_action)
-				if rcv_response is None:
-					rcv_response='None'
-				if 'block' not in rcv_response:
-					logger.info("Couldn't receive %s - response: %s", b, str(rcv_response))
-				else:
-					logger.info("pocketed block %s", b)
-		logger.info("receive job complete")
-		await schedule_receive_job()
-	except (ClientError, TimeoutError):
-		logger.info("aiohttp error, rescheduling receive_job")
-		await schedule_receive_job()
-	except Exception as e:
-		logger.exception(e)
-
-async def schedule_receive_job():
-	await asyncio.sleep(RECEIVE_CHECK_JOB)
-	asyncio.get_event_loop().create_task(receive_check_job())
-
-# TODO
-# Would be nice to spawn multiple threads of this at one time.
-# Mainly the work_generate process would be nice to multithread
-
-# This isn't as un-optimized as it seems
-# Yes a send is a long-running task due to work_generate
-# Yes we are not achieving "true" multithreading/multiprocessing with asyncio
-# But, the long-running job (work_generate) is executed outside of this program
-
-async def send_job():
-	try:
-		logger.info("send_job started")
-		txs = db.get_unprocessed_transactions()
-		for tx in txs:
-			source_address = tx['source_address']
-			to_address = tx['to_address']
-			amount = tx['amount']
-			uid = tx['uid']
-			attempts = tx['attempts']
-			raw_withdraw_amt = str(amount) + '000000000000000000000000'
-			wallet_command = {
-				'action': 'send',
-				'wallet': settings.wallet,
-				'source': source_address,
-				'destination': to_address,
-				'amount': int(raw_withdraw_amt),
-				'id': uid
-			}
-			src_usr = db.get_user_by_wallet_address(source_address)
-			trg_usr = db.get_user_by_wallet_address(to_address)
-			source_id=None
-			target_id=None
-			pending_delta = int(amount) * -1
-			if src_usr is not None:
-				source_id=src_usr.user_id
-			if trg_usr is not None:
-				target_id=trg_usr.user_id
-			db.mark_transaction_sent(uid, pending_delta, source_id, target_id)
-			logger.debug("RPC Send")
-			wallet_output = await wallet.communicate_wallet_async(wallet_command)
-			logger.debug("RPC Response")
-			if 'block' in wallet_output:
-				txid = wallet_output['block']
-				db.mark_transaction_processed(uid, txid)
-				logger.info('TX processed. UID: %s, TXID: %s', uid, txid)
-				if target_id is None and to_address != DONATION_ADDRESS:
-					# Don't wait for the result of this, doesn't matter
-					asyncio.get_event_loop().create_task(notify_of_withdraw(source_id, txid))
-			else:
-				# Not sure what happen but we'll retry a few times
-				if attempts >= MAX_TX_RETRIES:
-					logger.info("Max Retires Exceeded for TX UID: %s", uid)
-					db.mark_transaction_processed(uid, 'invalid')
-				else:
-					db.inc_tx_attempts(uid)
-		logger.info("send_job complete, rescheduling")
-		await schedule_send_job()
-	except (ClientError, TimeoutError):
-		logger.info("aiohttp error, rescheduling send_job")
-		await schedule_send_job()
-	except Exception as e:
-		logger.exception(e)
-
-async def schedule_send_job():
-	await asyncio.sleep(SEND_JOB)
-	asyncio.get_event_loop().create_task(send_job())
-
 # Don't make them wait when bot first launches
 initial_ts=datetime.datetime.now() - datetime.timedelta(seconds=SPAM_THRESHOLD)
 last_big_tippers = {}
@@ -610,13 +487,10 @@ async def on_ready():
 	logger.info("ID: %s", client.user.id)
 	create_spam_dicts()
 	await client.change_presence(activity=discord.Game(settings.playing_status))
-	logger.info("Starting send_job")
-	asyncio.get_event_loop().create_task(send_job())
 	logger.info("Continuing outstanding giveaway")
 	asyncio.get_event_loop().create_task(start_giveaway_timer())
-	logger.info("Starting receive check job")
-	asyncio.get_event_loop().create_task(receive_check_job())
 
+# TODO implement
 async def notify_of_withdraw(user_id, txid):
 	"""Notify user of withdraw with a block explorer link"""
 	user = await client.get_user_info(int(user_id))
@@ -1016,7 +890,7 @@ async def do_tipsplit(message, user_list=None):
 		balance = await wallet.get_balance(user)
 		user_balance = balance['available']
 		if user_balance < amount:
-			await add_x_reaction(ctx.message)
+			await add_x_reaction(message)
 			await post_dm(message.author, INSUFFICIENT_FUNDS_TEXT)
 			return
 		# Distribute tips

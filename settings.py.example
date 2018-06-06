@@ -1,10 +1,8 @@
 # Discord
-discord_bot_id = '';
-discord_bot_token = '';
-# (Optional) bot name
-# discord_bot_name = 'NANO Tip Bot'
+discord_bot_id = ''
+discord_bot_token = ''
 # Nano node wallet ID
-wallet = '';
+wallet = ''
 # Exempt users list (these user IDs will not be able to receive tips
 exempt_users = [ discord_bot_id, '395828286548344834', '405250059240996864', '418425979942207499' ]
 # Restricted roles for certain commands
@@ -21,8 +19,6 @@ giveaway_minimum = 1000000
 giveaway_max_duration=60
 # Default giveaway duration for giveaways started by bot
 giveaway_auto_duration=30
-# Reboot node script on timeout
-reboot_script_path="./scripts/reboot_node.sh"
 # Set channels here you do not want to allow spam in comma-separated (IE commands like `giveaawaystats`
 no_spam_channels=[403628311965597697]
 # command prefix

@@ -4,8 +4,11 @@ import util
 import settings
 import random
 import secrets
+
+import tasks
+
 from peewee import *
-from playhouse.sqliteq import SqliteQueueDatabase
+from playhouse.postgres_ext  import PostgresqlExtDatabase
 
 # TODO - Redesign the schema
 # - TipBot grew into more than a tip bot quickly as features piled on
@@ -53,11 +56,12 @@ TIP_RANDOM_WAIT = 10
 # (Seconds) How long user mus wait between tipfavorites
 TIP_FAVORITES_WAIT = 150
 
-db = SqliteQueueDatabase('nanotipbot.db')
+db = PostgresqlExtDatabase('graham_tipbot', user='graham', password='password', host='localhost', port=5432)
 
 logger = util.get_logger("db")
 
 ### User Stuff
+@db.connection_context()
 def get_accounts():
 	u = User.select()
 	accts = []
@@ -65,6 +69,7 @@ def get_accounts():
 		accts.append(a.wallet_address)
 	return accts
 
+@db.connection_context()
 def get_user_by_id(user_id, user_name=None):
 	try:
 		user = User.get(user_id=str(user_id))
@@ -76,6 +81,7 @@ def get_user_by_id(user_id, user_name=None):
 		# logger.debug('user %s does not exist !', user_id)
 		return None
 
+@db.connection_context()
 def get_user_by_wallet_address(address):
 	try:
 		user = User.get(wallet_address=address)
@@ -84,9 +90,11 @@ def get_user_by_wallet_address(address):
 		# logger.debug('wallet %s does not exist !', address)
 		return None
 
+@db.connection_context()
 def user_exists(user_id):
 	return User.select().where(User.user_id == user_id).count() > 0
 
+@db.connection_context()
 def get_active_users(since_minutes):
 	since_ts = datetime.datetime.now() - datetime.timedelta(minutes=since_minutes)
 	users = User.select().where(User.last_msg > since_ts).order_by(User.user_id)
@@ -98,6 +106,7 @@ def get_active_users(since_minutes):
 			return_ids.append(user.user_id)
 	return return_ids
 
+@db.connection_context()
 def get_address(user_id):
 	logger.info('getting wallet address for user %d ...', user_id)
 	user = get_user_by_id(user_id)
@@ -106,6 +115,7 @@ def get_address(user_id):
 	else:
 		return user.wallet_address
 
+@db.connection_context()
 def get_top_users(count):
 	users = User.select().where((User.tipped_amount > 0) & (User.stats_ban == False)).order_by(User.tipped_amount.desc()).limit(count)
 	return_data = []
@@ -113,6 +123,7 @@ def get_top_users(count):
 		return_data.append({'index': idx + 1, 'name': user.user_name, 'amount': user.tipped_amount})
 	return return_data
 
+@db.connection_context()
 def get_giveaway_winners(count):
 	winners = Giveaway.select().where((Giveaway.active == False) & (Giveaway.winner_id.is_null(False))).order_by(Giveaway.end_time.desc()).limit(count)
 	return_data = []
@@ -121,6 +132,7 @@ def get_giveaway_winners(count):
 		return_data.append({'index': idx + 1, 'name': user.user_name, 'amount': winner.amount + winner.tip_amount})
 	return return_data
 
+@db.connection_context()
 def get_tip_stats(user_id):
 	user_id = str(user_id)
 	user = get_user_by_id(user_id)
@@ -143,6 +155,7 @@ def get_tip_stats(user_id):
 	return {'rank':rank, 'total':tipped_amount, 'average':average,'top':float(top_tip) / 1000000}
 
 # Update tip stats
+@db.connection_context()
 def update_tip_stats(user, tip, rain=False, giveaway=False):
 	(User.update(
 		tipped_amount=(User.tipped_amount + (tip / 1000000)),
@@ -185,16 +198,19 @@ def update_tip_stats(user, tip, rain=False, giveaway=False):
 			.where(User.id == user.id)
 		).execute()
 
+@db.connection_context()
 def update_tip_total(user_id, new_total):
 	user_id = str(user_id)
 	User.update(tipped_amount = new_total).where(User.user_id == user_id).execute()
 	return
 
+@db.connection_context()
 def update_tip_count(user_id, new_count):
 	user_id = str(user_id)
 	User.update(tip_count = new_count).where(User.user_id == user_id).execute()
 	return
 
+@db.connection_context()
 def update_pending(user_id, send=0, receive=0):
 	user_id=str(user_id)
 	return (User.update(
@@ -203,6 +219,7 @@ def update_pending(user_id, send=0, receive=0):
 		    ).where(User.user_id == user_id)
 		).execute()
 
+@db.connection_context()
 def create_user(user_id, user_name, wallet_address):
 	user_id=str(user_id)
 	user = User(user_id=user_id,
@@ -213,6 +230,7 @@ def create_user(user_id, user_name, wallet_address):
 	return user
 
 ### Transaction Stuff
+@db.connection_context()
 def create_transaction(src_usr, uuid, to_addr, amt, target_id=None, giveaway_id=0):
 	# Increment amount of giveaway TX if user has already donated to giveaway
 	if giveaway_id != 0:
@@ -242,12 +260,19 @@ def create_transaction(src_usr, uuid, to_addr, amt, target_id=None, giveaway_id=
 	update_pending(src_usr.user_id, send=amt)
 	if target_id is not None:
 		update_pending(target_id, receive=amt)
+	if tx.giveawayid == 0:
+		process_transaction(tx)
 	return tx
 
+def process_transaction(tx):
+	tasks.send_transaction.delay(tx)
+
+@db.connection_context()
 def update_last_withdraw(user_id):
 	user_id = str(user_id)
 	User.update(last_withdraw=datetime.datetime.now()).where(User.user_id == user_id).execute()
 
+@db.connection_context()
 def get_last_withdraw_delta(user_id):
 	user_id = str(user_id)
 	try:
@@ -257,6 +282,7 @@ def get_last_withdraw_delta(user_id):
 	except User.DoesNotExist:
 		return None
 
+@db.connection_context()
 def get_unprocessed_transactions():
 	# We don't simply return the txs list cuz that causes issues with database locks in the thread
 	txs = Transaction.select().where((Transaction.processed == False) & (Transaction.giveawayid == 0)).order_by(Transaction.created)
@@ -265,12 +291,14 @@ def get_unprocessed_transactions():
 		return_data.append({'uid':tx.uid,'source_address':tx.source_address,'to_address':tx.to_address,'amount':tx.amount,'attempts':tx.attempts})
 	return return_data
 
+@db.connection_context()
 def process_giveaway_transactions(giveaway_id, winner_user_id):
 	txs = Transaction.select().where(Transaction.giveawayid == giveaway_id)
-	winner = get_user_by_id(winner_user_id);
+	winner = get_user_by_id(winner_user_id)
 	pending_receive = 0
 	for tx in txs:
 		pending_receive += int(tx.amount)
+		process_transaction(tx)
 	update_pending(winner_user_id, receive=pending_receive)
 	(Transaction.update(
 			to_address = winner.wallet_address,
@@ -278,7 +306,9 @@ def process_giveaway_transactions(giveaway_id, winner_user_id):
 		    ).where(
 			(Transaction.giveawayid == giveaway_id)
 	)).execute()
+
 # Start Giveaway
+@db.connection_context()
 def start_giveaway(user_id, user_name, amount, end_time, channel, entry_fee = 0):
 	user_id=str(user_id)
 	channel=str(channel)
@@ -307,6 +337,7 @@ def start_giveaway(user_id, user_name, amount, end_time, channel, entry_fee = 0)
 	giveaway.save()
 	return (giveaway, deleted)
 
+@db.connection_context()
 def get_giveaway():
 	try:
 		giveaway = Giveaway.get(active=True)
@@ -314,6 +345,7 @@ def get_giveaway():
 	except:
 		return None
 
+@db.connection_context()
 def update_giveaway_transactions(giveawayid):
 	tip_sum = 0
 	txs = Transaction.select().where(Transaction.giveawayid == -1)
@@ -327,6 +359,7 @@ def update_giveaway_transactions(giveawayid):
 
 	return float(tip_sum)/ 1000000
 
+@db.connection_context()
 def add_tip_to_giveaway(amount):
 	giveawayupdt = (Giveaway
 				.update(
@@ -334,6 +367,7 @@ def add_tip_to_giveaway(amount):
 				).where(Giveaway.active == True)
 			).execute()
 
+@db.connection_context()
 def get_tipgiveaway_sum():
 	tip_sum = 0
 	txs = Transaction.select().where(Transaction.giveawayid == -1)
@@ -342,6 +376,7 @@ def get_tipgiveaway_sum():
 	return tip_sum
 
 # Get tipgiveaway contributions
+@db.connection_context()
 def get_tipgiveaway_contributions(user_id, giveawayid=-1):
 	tip_sum = 0
 	user = get_user_by_id(user_id)
@@ -350,11 +385,13 @@ def get_tipgiveaway_contributions(user_id, giveawayid=-1):
 		tip_sum += int(tx.amount)
 	return tip_sum
 
+@db.connection_context()
 def is_banned(user_id):
 	user_id=str(user_id)
 	banned = BannedUser.select().where(BannedUser.user_id == user_id).count()
 	return banned > 0
 
+@db.connection_context()
 def ban_user(user_id):
 	user_id = str(user_id)
 	already_banned = is_banned(user_id)
@@ -364,21 +401,25 @@ def ban_user(user_id):
 	ban.save()
 	return True
 
+@db.connection_context()
 def statsban_user(user_id):
 	user_id = str(user_id)
 	banned = User.update(stats_ban = True).where(User.user_id == user_id).execute()
 	return banned > 0
 
+@db.connection_context()
 def unban_user(user_id):
 	user_id = str(user_id)
 	deleted = BannedUser.delete().where(BannedUser.user_id == user_id).execute()
 	return deleted > 0
 
+@db.connection_context()
 def statsunban_user(user_id):
 	user_id = str(user_id)
 	unbanned = User.update(stats_ban = False).where(User.user_id == user_id).execute()
 	return unbanned > 0
 
+@db.connection_context()
 def get_banned():
 	banned = BannedUser.select(BannedUser.user_id)
 	users = User.select(User.user_name).where(User.user_id.in_(banned))
@@ -390,6 +431,7 @@ def get_banned():
 	ret += "```"
 	return ret
 
+@db.connection_context()
 def get_statsbanned():
 	statsbanned = User.select().where(User.stats_ban == True)
 	if statsbanned.count() == 0:
@@ -400,9 +442,11 @@ def get_statsbanned():
 	ret += "```"
 	return ret
 
+@db.connection_context()
 def is_frozen(user_id):
 	return FrozenUser.select().where(FrozenUser.user_id == user_id).count() > 0
 
+@db.connection_context()
 def freeze(user):
 	if not is_frozen(user.id):
 		fu = FrozenUser(user_id=user.id, user_name=user.name)
@@ -410,11 +454,13 @@ def freeze(user):
 		return saved > 0
 	return False
 
+@db.connection_context()
 def unfreeze(user_id):
 	if not is_frozen(user_id):
 		return False
 	return FrozenUser.delete().where(FrozenUser.user_id==user_id).execute() > 0
 
+@db.connection_context()
 def frozen():
 	frozen = FrozenUser.select()
 	if frozen.count() == 0:
@@ -426,6 +472,7 @@ def frozen():
 	return ret
 
 # Returns winning user
+@db.connection_context()
 def finish_giveaway():
 	contestants = Contestant.select(Contestant.user_id).order_by(Contestant.user_id)
 	contestant_ids = []
@@ -444,6 +491,7 @@ def finish_giveaway():
 	return giveaway
 
 # Returns True is contestant added, False if contestant already exists
+@db.connection_context()
 def add_contestant(user_id):
 	user_id=str(user_id)
 	exists = Contestant.select().where(Contestant.user_id == user_id).count() > 0
@@ -453,6 +501,7 @@ def add_contestant(user_id):
 	contestant.save()
 	return True
 
+@db.connection_context()
 def get_ticket_status(user_id):
 	user_id = str(user_id)
 	try:
@@ -474,11 +523,13 @@ def get_ticket_status(user_id):
 			"So far you've contributed {0} naneroo towards the next one.\n" +
 			"I'll automatically enter you into the next giveaway if the fee is <= {0} naneroo").format(contributions)
 
+@db.connection_context()
 def contestant_exists(user_id):
 	user_id = str(user_id)
 	c = Contestant.select().where(Contestant.user_id == user_id).count()
 	return c > 0
 
+@db.connection_context()
 def is_active_giveaway():
 	giveaway = Giveaway.select().where(Giveaway.active==True).count()
 	if giveaway > 0:
@@ -486,6 +537,7 @@ def is_active_giveaway():
 	return False
 
 # Gets giveaway stats
+@db.connection_context()
 def get_giveaway_stats():
 	try:
 		giveaway = Giveaway.get(active=True)
@@ -494,6 +546,7 @@ def get_giveaway_stats():
 	except Giveaway.DoesNotExist:
 		return None
 
+@db.connection_context()
 def inc_tx_attempts(uid):
 	tx = Transaction.get(uid = uid)
 	if tx is not None:
@@ -501,12 +554,14 @@ def inc_tx_attempts(uid):
 		tx.save()
 	return
 
+@db.connection_context()
 def update_top_tips(user_id, month=0,day=0,alltime=0):
 	return (User.update(top_tip = User.top_tip + alltime,
 			    top_tip_month = User.top_tip_month + month,
 		 	    top_tip_day = User.top_tip_day + day
 		  	   ).where(User.user_id == user_id)).execute()
 
+@db.connection_context()
 def get_top_tips():
 	dt = datetime.datetime.now()
 	past_dt = dt - datetime.timedelta(days=1) # Date 24H ago
@@ -546,29 +601,26 @@ def get_top_tips():
 
 	return result
 
-# Marks TX as sent
-def mark_transaction_sent(uuid, amt, source_id, target_id=None):
+# Marks TX as processed and adds the block hash
+@db.connection_context()
+def mark_transaction_processed(uuid, amt, source_id, tranid, target_id=None):
 	tu = (Transaction.update(
-			sent = True
+			sent = True,
+			processed = True,
+			tran_id = tranid
 		    ).where(
 			(Transaction.uid == uuid) &
-			(Transaction.sent == False)
+			(Transaction.processed == False)
 	)).execute()
 	if tu > 0:
 		update_pending(source_id,send=amt)
 		if target_id is not None:
 			update_pending(target_id, receive=amt)
 
-# This adds block to our TX
-def mark_transaction_processed(uuid, tranid):
-	(Transaction.update(
-		tran_id = tranid,
-		processed = True
-	).where(Transaction.uid == uuid)).execute()
-
 # Return false if last message was < LAST_MSG_TIME
 # If > LAST_MSG_TIME, return True and update the user
 # Also return true, if user does not have a tip bot acct yet
+@db.connection_context()
 def last_msg_check(user_id, content, is_private):
 	user = get_user_by_id(user_id)
 	if user is None:
@@ -581,6 +633,7 @@ def last_msg_check(user_id, content, is_private):
 		update_last_msg(user, since_last_msg_s, content, is_private)
 	return True
 
+@db.connection_context()
 def update_last_msg(user, delta, content, is_private):
 	content_adjusted = unicode_strip(content)
 	words = content_adjusted.split(' ')
@@ -616,6 +669,7 @@ def update_last_msg(user, delta, content, is_private):
 	).execute()
 	return
 
+@db.connection_context()
 def unicode_strip(content):
 	pattern = re.compile("["
 			u"\U0001F600-\U0001F64F"
@@ -626,6 +680,7 @@ def unicode_strip(content):
 			"]+", flags=re.UNICODE)
 	return pattern.sub(r'',content)
 
+@db.connection_context()
 def mark_user_active(user):
 	if user is None:
 		return
@@ -638,6 +693,7 @@ def mark_user_active(user):
 ## Favorites
 
 # Return true if favorite added
+@db.connection_context()
 def add_favorite(user_id, favorite_id):
 	user_id=str(user_id)
 	favorite_id=str(favorite_id)
@@ -657,6 +713,7 @@ def add_favorite(user_id, favorite_id):
 	return False
 
 # Returns true if favorite deleted
+@db.connection_context()
 def remove_favorite(user_id, favorite_id=None,identifier=None):
 
 	if favorite_id is None and identifier is None:
@@ -669,6 +726,7 @@ def remove_favorite(user_id, favorite_id=None,identifier=None):
 		return UserFavorite.delete().where((UserFavorite.user_id == user_id) & (UserFavorite.identifier == identifier)).execute() > 0
 
 # Returns list of favorites for user ID
+@db.connection_context()
 def get_favorites_list(user_id):
 	user_id = str(user_id)
 	favorites = UserFavorite.select().where(UserFavorite.user_id==user_id).order_by(UserFavorite.identifier)
@@ -684,6 +742,7 @@ def get_favorites_list(user_id):
 	return return_data
 
 # Returns list of muted for user id
+@db.connection_context()
 def get_muted(user_id):
 	user_id = str(user_id)
 	muted = MutedList.select().where(MutedList.user_id==user_id)
@@ -693,12 +752,14 @@ def get_muted(user_id):
 	return return_data
 
 # Return True if muted
+@db.connection_context()
 def muted(source_user, target_user):
 	source_user = str(source_user)
 	target_user = str(target_user)
 	return MutedList.select().where((MutedList.user_id==source_user) & (MutedList.muted_id==target_user)).count() > 0
 
 # Return false if already muted, True if muted
+@db.connection_context()
 def mute(source_user, target_user, target_name):
 	if muted(source_user, target_user):
 		return False
@@ -709,6 +770,7 @@ def mute(source_user, target_user, target_name):
 	return True
 
 # Return a number > 0 if user was unmuted
+@db.connection_context()
 def unmute(source_user, target_user):
 	source_user = str(source_user)
 	target_user = str(target_user)
@@ -716,6 +778,7 @@ def unmute(source_user, target_user):
 
 
 # Returns seconds user must wait to tiprandom again
+@db.connection_context()
 def tiprandom_check(user):
 	delta = (datetime.datetime.now() - user.last_random).total_seconds()
 	if TIP_RANDOM_WAIT > delta:
@@ -725,6 +788,7 @@ def tiprandom_check(user):
 		return 0
 
 # Returns seconds user must wait to tipfavorites again
+@db.connection_context()
 def tipfavorites_check(user):
 	delta = (datetime.datetime.now() -user.last_favorites).total_seconds()
 	if TIP_FAVORITES_WAIT > delta:
@@ -821,6 +885,6 @@ class FrozenUser(BaseModel):
 def create_db():
 	db.connect()
 	db.create_tables([User, Transaction, Giveaway, Contestant, BannedUser, UserFavorite, MutedList, FrozenUser], safe=True)
-	logger.debug("DB Connected")
+	db.close()
 
 create_db()
