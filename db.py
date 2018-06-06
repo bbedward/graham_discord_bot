@@ -1,3 +1,4 @@
+import json
 import re
 import datetime
 import util
@@ -5,10 +6,11 @@ import settings
 import random
 import secrets
 
-import tasks
+from tasks import send_transaction
 
 from peewee import *
 from playhouse.postgres_ext  import PostgresqlExtDatabase
+from playhouse.shortcuts import model_to_dict
 
 # TODO - Redesign the schema
 # - TipBot grew into more than a tip bot quickly as features piled on
@@ -56,7 +58,7 @@ TIP_RANDOM_WAIT = 10
 # (Seconds) How long user mus wait between tipfavorites
 TIP_FAVORITES_WAIT = 150
 
-db = PostgresqlExtDatabase('graham_tipbot', user='graham', password='password', host='localhost', port=5432)
+db = PostgresqlExtDatabase(settings.database, user=settings.database_user, password=settings.database_password, host='localhost', port=5432)
 
 logger = util.get_logger("db")
 
@@ -265,7 +267,7 @@ def create_transaction(src_usr, uuid, to_addr, amt, target_id=None, giveaway_id=
 	return tx
 
 def process_transaction(tx):
-	tasks.send_transaction.delay(tx)
+	send_transaction.delay(tx_to_dict(tx))
 
 @db.connection_context()
 def update_last_withdraw(user_id):
@@ -282,14 +284,8 @@ def get_last_withdraw_delta(user_id):
 	except User.DoesNotExist:
 		return None
 
-@db.connection_context()
-def get_unprocessed_transactions():
-	# We don't simply return the txs list cuz that causes issues with database locks in the thread
-	txs = Transaction.select().where((Transaction.processed == False) & (Transaction.giveawayid == 0)).order_by(Transaction.created)
-	return_data = []
-	for tx in txs:
-		return_data.append({'uid':tx.uid,'source_address':tx.source_address,'to_address':tx.to_address,'amount':tx.amount,'attempts':tx.attempts})
-	return return_data
+def tx_to_dict(tx):
+	return {'uid':tx.uid,'source_address':tx.source_address,'to_address':tx.to_address,'amount':tx.amount,'attempts':tx.attempts}
 
 @db.connection_context()
 def process_giveaway_transactions(giveaway_id, winner_user_id):
@@ -806,26 +802,29 @@ class User(BaseModel):
 	user_id = CharField(unique=True)
 	user_name = CharField()
 	wallet_address = CharField(unique=True)
-	tipped_amount = FloatField(default=0.0, constraints=[SQL('DEFAULT 0.0')])
-	pending_receive = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
-	pending_send = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
-	tip_count = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
-	created = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
-	last_msg = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
-	last_msg_rain = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
-	last_msg_count = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
-	top_tip = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
-	top_tip_ts = DateTimeField(default=datetime.datetime.now(),constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
-	top_tip_month = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
-	top_tip_month_ts = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
-	top_tip_day = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
-	top_tip_day_ts = DateTimeField(default=datetime.datetime.now(),constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
-	last_withdraw = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
-	stats_ban = BooleanField(default=False, constraints=[SQL('DEFAULT 0')])
-	rain_amount = FloatField(default=0.0, constraints=[SQL('DEFAULT 0.0')])
-	giveaway_amount = FloatField(default=0.0, constraints=[SQL('DEFAULT 0.0')])
-	last_random = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
-	last_favorites = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
+	tipped_amount = FloatField(default=0.0)
+	pending_receive = IntegerField(default=0)
+	pending_send = IntegerField(default=0)
+	tip_count = IntegerField(default=0)
+	created = DateTimeField(default=datetime.datetime.now())
+	last_msg = DateTimeField(default=datetime.datetime.now())
+	last_msg_rain = DateTimeField(default=datetime.datetime.now())
+	last_msg_count = IntegerField(default=0)
+	top_tip = IntegerField(default=0)
+	top_tip_ts = DateTimeField(default=datetime.datetime.now())
+	top_tip_month = IntegerField(default=0)
+	top_tip_month_ts = DateTimeField(default=datetime.datetime.now())
+	top_tip_day = IntegerField(default=0)
+	top_tip_day_ts = DateTimeField(default=datetime.datetime.now())
+	last_withdraw = DateTimeField(default=datetime.datetime.now())
+	stats_ban = BooleanField(default=False)
+	rain_amount = FloatField(default=0.0,)
+	giveaway_amount = FloatField(default=0.0)
+	last_random = DateTimeField(default=datetime.datetime.now())
+	last_favorites = DateTimeField(default=datetime.datetime.now())
+
+	class Meta:
+		db_table='users'
 
 # Transaction table, keep trac of sends to process
 class Transaction(BaseModel):
@@ -833,11 +832,11 @@ class Transaction(BaseModel):
 	source_address = CharField()
 	to_address = CharField(null = True)
 	amount = CharField()
-	sent = BooleanField(default=False, constraints=[SQL('DEFAULT 0')])
-	processed = BooleanField(default=False, constraints=[SQL('DEFAULT 0')])
-	created = DateTimeField(default=datetime.datetime.now(), constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
+	sent = BooleanField(default=False)
+	processed = BooleanField(default=False)
+	created = DateTimeField(default=datetime.datetime.now())
 	tran_id = CharField(default='', null=True)
-	attempts = IntegerField(default=0, constraints=[SQL('DEFAULT 0')])
+	attempts = IntegerField(default=0)
 	giveawayid = IntegerField(null = True)
 
 # Giveaway table, keep track of current giveaway
@@ -865,7 +864,7 @@ class BannedUser(BaseModel):
 class UserFavorite(BaseModel):
 	user_id = CharField()
 	favorite_id = CharField()
-	created = DateTimeField(default=datetime.datetime.now(),constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
+	created = DateTimeField(default=datetime.datetime.now())
 	identifier = IntegerField() # Identifier makes it easy for user to remove this favorite
 
 # Muted management
@@ -873,7 +872,7 @@ class MutedList(BaseModel):
 	user_id = CharField()
 	muted_id = CharField()
 	muted_name = CharField()
-	created = DateTimeField(default=datetime.datetime.now(),constraints=[SQL('DEFAULT CURRENT_TIMESTAMP')])
+	created = DateTimeField(default=datetime.datetime.now())
 
 # Separate table for frozen so we can freeze even users not registered with bot
 class FrozenUser(BaseModel):
@@ -883,8 +882,7 @@ class FrozenUser(BaseModel):
 
 
 def create_db():
-	db.connect()
-	db.create_tables([User, Transaction, Giveaway, Contestant, BannedUser, UserFavorite, MutedList, FrozenUser], safe=True)
-	db.close()
+	with db.connection_context():
+		db.create_tables([User, Transaction, Giveaway, Contestant, BannedUser, UserFavorite, MutedList, FrozenUser], safe=True)
 
 create_db()
