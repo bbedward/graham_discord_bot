@@ -55,7 +55,7 @@ def send_transaction(self, tx):
         logger.debug("RPC Response")
         if 'block' in wallet_output:
             txid = wallet_output['block']
-            r.rpush('send_finished', self.request.id)
+            r.rpush('/send_finished', self.request.id)
             return {"success": {"source":source_address, "txid":txid, "uid":uid, "destination":to_address, "amount":amount}}
 #        else:
 #            # Not sure what happen but we'll retry a few times

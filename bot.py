@@ -489,14 +489,20 @@ r = redis.StrictRedis()
 async def process_finished_tx():
 	"""Use blocking get on redis queue to process results"""
 	# This will block until it receives a result
-	q, resp	= await asyncio.get_event_loop().run_in_executor(None, r.blpop('send_finished'))
+	logger.info("waiting for werk")
+	q, resp	= await asyncio.get_event_loop().run_in_executor(None, r.blpop, '/send_finished')
+	logger.info("Retrieving result")
 	task_id = resp.decode('utf-8')
+	logger.info("taskID: %s", task_id)
 	task = celery.result.AsyncResult(task_id, app=app)
-	result = task.result
-	if 'success' not in result:
+	# AsyncResult.get() is also blocking so we use run_in_executor
+	result = await asyncio.get_event_loop().run_in_executor(None, task.get)
+	if result is None or 'success' not in result:
+		logger.info("Bad result")
 		pass # TODO error handling
 	else:
-		mark_tx_processed(result['success']['source'],
+		logger.info("Good result")
+		await mark_tx_processed(result['success']['source'],
 						  result['success']['txid'],
 						  result['success']['uid'],
 						  result['success']['destination'],
