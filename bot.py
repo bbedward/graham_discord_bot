@@ -14,12 +14,15 @@ import asyncio
 import uuid
 import datetime
 import redis
+import celery.result
 
 import wallet
 import util
 import settings
 import db
 import paginator
+
+from tasks import app
 
 logger = util.get_logger("main")
 
@@ -487,10 +490,17 @@ async def process_finished_tx():
 	"""Use blocking get on redis queue to process results"""
 	# This will block until it receives a result
 	q, resp	= await asyncio.get_event_loop().run_in_executor(None, r.blpop('send_finished'))
-	if 'success' not in resp:
+	task_id = resp.decode('utf-8')
+	task = celery.result.AsyncResult(task_id, app=app)
+	result = task.result
+	if 'success' not in result:
 		pass # TODO error handling
 	else:
-		mark_tx_processed(resp['success']['source'], resp['success']['txid'], resp['success']['uid'], resp['success']['destination'], resp['success']['amount'])
+		mark_tx_processed(result['success']['source'],
+						  result['success']['txid'],
+						  result['success']['uid'],
+						  result['success']['destination'],
+						  result['success']['amount'])
 	# Re-watch
 	asyncio.get_event_loop().create_task(process_finished_tx())
 
