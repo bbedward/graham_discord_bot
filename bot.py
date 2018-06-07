@@ -491,6 +491,8 @@ async def process_finished_tx():
 		pass # TODO error handling
 	else:
 		mark_tx_processed(resp['success']['source'], resp['success']['txid'], resp['success']['uid'], resp['success']['destination'], resp['success']['amount'])
+	# Re-watch
+	asyncio.get_event_loop().create_task(process_finished_tx())
 
 async def mark_tx_processed(source_address, block, uid, to_address, amount):
 	src_usr = db.get_user_by_wallet_address(source_address)
@@ -517,6 +519,8 @@ async def on_ready():
 	await client.change_presence(activity=discord.Game(settings.playing_status))
 	logger.info("Continuing outstanding giveaway")
 	asyncio.get_event_loop().create_task(start_giveaway_timer())
+	logger.info("Starting TX watcher tas")
+	asyncio.get_event_loop().create_task(process_finished_tx())
 
 # TODO implement
 async def notify_of_withdraw(user_id, txid):
