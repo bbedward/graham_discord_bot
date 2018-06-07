@@ -15,6 +15,7 @@ import uuid
 import datetime
 import redis
 import celery.result
+from celery.task.control import revoke
 
 import wallet
 import util
@@ -22,7 +23,7 @@ import settings
 import db
 import paginator
 
-from tasks import app
+from tasks import app, pocket_task
 
 logger = util.get_logger("main")
 
@@ -45,7 +46,7 @@ RAIN_DELTA=30
 # Spam Threshold (Seconds) - how long to output certain commands (e.g. bigtippers)
 SPAM_THRESHOLD=60
 # Withdraw Cooldown (Seconds) - how long a user must wait between withdraws
-WITHDRAW_COOLDOWN=300
+WITHDRAW_COOLDOWN=10
 # Change command prefix to whatever you want to begin commands with
 COMMAND_PREFIX=settings.command_prefix
 # Pool giveaway auto amount (1%)
@@ -485,7 +486,30 @@ def create_spam_dicts():
 			last_winners[c.id] = initial_ts
 			last_gs[c.id] = initial_ts
 
+### Redis stuff
+
+async def pocket_pending_tx():
+	# Trigger message for pocket job
+	accts = db.get_accounts()
+	task = pocket_task.delay(accts)
+	# Block until we get the result
+	future = asyncio.get_event_loop().run_in_executor(None, task.get)
+	try:
+		result = await asyncio.wait_for(future, 300, loop=asyncio.get_event_loop())
+	except asyncio.futures.TimeoutError:
+		revoke(task.id, terminate=True)
+		result = None
+	if result is not None:
+		logger.info("Pocketed %d transactions", result)
+	else:
+		logger.info("pocket_task returned null")
+	logger.info("Re-running pocket_task in 60 seconds...")
+	await asyncio.sleep(60)
+	logger.info("Pocket task trigger")
+	asyncio.get_event_loop().create_task(pocket_pending_tx())
+
 r = redis.StrictRedis()
+MAX_TX_RETRIES=3
 async def process_finished_tx():
 	"""Use blocking get on redis queue to process results"""
 	# This will block until it receives a result
@@ -497,17 +521,28 @@ async def process_finished_tx():
 	task = celery.result.AsyncResult(task_id, app=app)
 	# AsyncResult.get() is also blocking so we use run_in_executor
 	result = await asyncio.get_event_loop().run_in_executor(None, task.get)
-	if result is None or 'success' not in result:
-		logger.info("Bad result")
-		pass # TODO error handling
-	else:
-		logger.info("Good result")
+	if result is None :
+		logger.error("process_finished_tx() got null result from task ID: %s", task_id)
+	elif 'error' in result:
+		logger.error("processed_finished_tx() got error result: %s", result['error'])
+		tx = result['tx']
+		# TODO I mean i'm sure we could used built-in retry functionality
+		if tx['attempts'] >= 3:
+			logger.error("Max retry attempts exceeded TX UID: %s", tx['uid'])
+			await mark_tx_processed(tx['source_address'], 'invalid', tx['uid'], tx['to_address'], tx['amount'])
+		else:
+			logger.info("Retry attempt #%d for TX UID: %s", tx['attempts'], tx['uid'])
+			db.inc_tx_attempts(tx['uid'])
+			tx['attempts'] = tx['attempts'] + 1
+			db.process_transaction(tx)
+	elif 'success' in result:
+		logger.info("TX Processed: %s", result['success']['txid'])
 		await mark_tx_processed(result['success']['source'],
 						  result['success']['txid'],
 						  result['success']['uid'],
 						  result['success']['destination'],
 						  result['success']['amount'])
-	# Re-watch
+	# Wait for next one
 	asyncio.get_event_loop().create_task(process_finished_tx())
 
 async def mark_tx_processed(source_address, block, uid, to_address, amount):
@@ -523,7 +558,7 @@ async def mark_tx_processed(source_address, block, uid, to_address, amount):
 	db.mark_transaction_processed(uid, pending_delta, source_id, block, target_id)
 	logger.info('TX processed. UID: %s, HASH: %s', uid, block)
 	if target_id is None and to_address != DONATION_ADDRESS and block != 'invalid':
-		await notify_of_withdraw(target_id, block)
+		await notify_of_withdraw(source_id, block)
 
 @client.event
 async def on_ready():
@@ -535,10 +570,11 @@ async def on_ready():
 	await client.change_presence(activity=discord.Game(settings.playing_status))
 	logger.info("Continuing outstanding giveaway")
 	asyncio.get_event_loop().create_task(start_giveaway_timer())
-	logger.info("Starting TX watcher tas")
+	logger.info("Starting TX processor")
 	asyncio.get_event_loop().create_task(process_finished_tx())
+	logger.info("Starting receive trigger job")
+	asyncio.get_event_loop().create_task(pocket_pending_tx())
 
-# TODO implement
 async def notify_of_withdraw(user_id, txid):
 	"""Notify user of withdraw with a block explorer link"""
 	user = await client.get_user_info(int(user_id))

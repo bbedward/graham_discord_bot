@@ -9,7 +9,7 @@ import secrets
 from tasks import send_transaction
 
 from peewee import *
-from playhouse.postgres_ext  import PostgresqlExtDatabase
+from playhouse.pool  import PooledPostgresqlExtDatabase
 from playhouse.shortcuts import model_to_dict
 
 # TODO - Redesign the schema
@@ -47,25 +47,25 @@ from playhouse.shortcuts import model_to_dict
 LAST_MSG_TIME = 1
 
 # How many messages consider a user rain eligible
-LAST_MSG_RAIN_COUNT = 5
+LAST_MSG_RAIN_COUNT = 1
 # (Seconds) How spaced out the messages must be
-LAST_MSG_RAIN_DELTA = 60
+LAST_MSG_RAIN_DELTA = 1
 # How many words messages must contain
-LAST_MSG_RAIN_WORDS = 3
+LAST_MSG_RAIN_WORDS = 1
 
 # (Seconds) How long user must wait between tiprandom
 TIP_RANDOM_WAIT = 10
 # (Seconds) How long user mus wait between tipfavorites
 TIP_FAVORITES_WAIT = 150
 
-db = PostgresqlExtDatabase(settings.database, user=settings.database_user, password=settings.database_password, host='localhost', port=5432)
+db = PooledPostgresqlExtDatabase(settings.database, user=settings.database_user, password=settings.database_password, host='localhost', port=5432, max_connections=50)
 
 logger = util.get_logger("db")
 
 ### User Stuff
 @db.connection_context()
 def get_accounts():
-	u = User.select()
+	u = User.select(User.wallet_address)
 	accts = []
 	for a in u:
 		accts.append(a.wallet_address)
@@ -293,6 +293,7 @@ def process_giveaway_transactions(giveaway_id, winner_user_id):
 	winner = get_user_by_id(winner_user_id)
 	pending_receive = 0
 	for tx in txs:
+		tx.to_address = winner.wallet_address
 		pending_receive += int(tx.amount)
 		process_transaction(tx)
 	update_pending(winner_user_id, receive=pending_receive)
