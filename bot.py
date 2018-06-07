@@ -1,3 +1,5 @@
+# TODO lets organize this and group jobs together, utilities together, commands together
+
 import discord
 from discord.ext import commands
 from discord.ext.commands import Bot
@@ -11,6 +13,7 @@ import errno
 import asyncio
 import uuid
 import datetime
+import redis
 
 import wallet
 import util
@@ -48,7 +51,7 @@ TIPGIVEAWAY_AUTO_ENTRY=int(.01 * GIVEAWAY_MINIMUM)
 # HELP menu header
 AUTHOR_HEADER="Graham v{0} (NANO Tip Bot)".format(BOT_VERSION)
 
-DONATION_ADDRESS="xrb_1hmefcfq35td5f6rkh15hbpr4bkkhyyhmfhm7511jaka811bfp17xhkboyxo"
+DONATION_ADDRESS='xrb_1hmefcfq35td5f6rkh15hbpr4bkkhyyhmfhm7511jaka811bfp17xhkboyxo'
 
 # Command DOC (TRIGGER, CMD, Overview, Info)
 '''
@@ -478,6 +481,31 @@ def create_spam_dicts():
 			last_top_tips[c.id] = initial_ts
 			last_winners[c.id] = initial_ts
 			last_gs[c.id] = initial_ts
+
+r = redis.StrictRedis()
+async def process_finished_tx():
+	"""Use blocking get on redis queue to process results"""
+	# This will block until it receives a result
+	q, resp	= await asyncio.get_event_loop().run_in_executor(None, r.blpop('send_finished'))
+	if 'success' not in resp:
+		pass # TODO error handling
+	else:
+		mark_tx_processed(resp['success']['source'], resp['success']['txid'], resp['success']['uid'], resp['success']['destination'], resp['success']['amount'])
+
+async def mark_tx_processed(source_address, block, uid, to_address, amount):
+	src_usr = db.get_user_by_wallet_address(source_address)
+	trg_usr = db.get_user_by_wallet_address(to_address)
+	source_id=None
+	target_id=None
+	pending_delta = int(amount) * -1
+	if src_usr is not None:
+		source_id=src_usr.user_id
+	if trg_usr is not None:
+		target_id=trg_usr.user_id
+	db.mark_transaction_processed(uid, pending_delta, source_id, block, target_id)
+	logger.info('TX processed. UID: %s, HASH: %s', uid, block)
+	if target_id is None and to_address != DONATION_ADDRESS and block != 'invalid':
+		await notify_of_withdraw(target_id, block)
 
 @client.event
 async def on_ready():
