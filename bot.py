@@ -27,7 +27,7 @@ from tasks import app, pocket_task
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "3.0-alpha1"
+BOT_VERSION = "3.0.0"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -46,7 +46,7 @@ RAIN_DELTA=30
 # Spam Threshold (Seconds) - how long to output certain commands (e.g. bigtippers)
 SPAM_THRESHOLD=60
 # Withdraw Cooldown (Seconds) - how long a user must wait between withdraws
-WITHDRAW_COOLDOWN=10
+WITHDRAW_COOLDOWN=300
 # Change command prefix to whatever you want to begin commands with
 COMMAND_PREFIX=settings.command_prefix
 # Pool giveaway auto amount (1%)

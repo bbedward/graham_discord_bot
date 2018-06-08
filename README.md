@@ -29,10 +29,16 @@ Recommend using with a GPU/OpenCL configured node (or work peer) on busier disco
 
 ## Getting started
 
+1) These instructions are pretty rough, if someone wants to make wiki entries or PRs to improve them b my guest
+
+2) Instructions assume ubuntu 18.04 or greater. Any debian-based distribution should work with these as long as you have python 3.6+ (3.5 will NOT work)
+
+3) Yea it's possible to run on centOS or gentoo or arch or slackware or windows or OSX or whateva you want. But that's up to you to figure out, i dont rly want to tech support and troubleshoot other installations
+
 ### Requirements
 
 ```
-sudo apt install python3 python3-dev libcurl4-openssl-dev git
+sudo apt install python3 python3-dev libcurl4-openssl-dev git redis-server postgresql
 ```
 
 (Optional - to run with pm2)
@@ -49,6 +55,33 @@ Note: python 3.6+ is required. On older distributions you may need to source a t
 ```
 cd ~
 git clone https://github.com/bbedward/Graham_Nano_Tip_Bot.git nanotipbot
+```
+
+### Setting up a PostgreSQL database and user
+
+Use:
+```
+sudo -u postgres psql
+```
+To open a postgres prompt as the `postgres` user.
+
+```
+create role tipbot_user with login password 'mypassword';
+```
+Use whatever username and password you want, you will need to remember the postgres username `tipbot_user` and password `mypassword` for later tip bot configuration.
+
+```
+create database graham;
+grant all privileges on database graham to tipbot_user;
+```
+Creates a database `graham` and grants privileges on that database to `tipbot_user`
+
+so our bot settings under this example look like:
+
+```
+database='graham'
+database_user='tipbot_user'
+database_password='mypassword'
 ```
 
 ### Set up NANO Node
@@ -88,6 +121,8 @@ cp settings.py.example settings.py
 
 Then open settings.py with any text editor and add your bot's client ID, token, and the wallet ID from earlier
 
+Also you will need the postgres database name, user, and password from earlier
+
 ### Virtualenv + python requirements
 
 ```
@@ -98,26 +133,103 @@ pip install -r requirements.txt
 
 ### Running with PM2
 
+Bot:
 ```
-pm2 start bot.py --interpreter=~/nanotipbot/venv/bin/python
+pm2 start graham_bot.sh
 pm2 save
 ```
+
+Backend/TX Processor:
+```
+pm2 start graham_backend.sh
+pm2 save
+```
+
+You can view logs under ~/.pm2/logs/
+
+e.g.: `tail -f ~/.pm2/logs/graham-bot-error-0.log` to follow the bot logs
+
+or
+
+`tail -f ~/.pm2/logs/graham-backend-error-0.log` to follow the worker logs`
 
 ### Running normally
 
 ```
-venv/bin/python bot.py
+./graham_bot.sh
 ```
 
 or in background:
 
 ```
-nohup venv/bin/python bot.py &
+nohup ./graham_bot.sh &
 ```
 
-## Database backups
+Backend:
 
-There exists a script in scripts/cron called `nanotipbotbackup`. Highly recommend you use this or something better to backup the tip bot database.
+```
+./graham_backend.sh
+```
 
-Simply toss the script in cron.hourly, crontab, cron.daily, whatever - and update the backup path and database path.
+or in background:
 
+```
+nohup ./graham_backend.sh &
+```
+
+# Graham 2.5 -> 3.0 migration path
+
+
+First stop the bot completely, git pull, and install pre-reqs:
+
+```
+apt install redis-server postgresql pgloader
+```
+
+and python pre-reqs:
+
+```
+./venv/bin/pip install -U -r requirements.txt
+```
+
+Backup anything you fear may be lost
+
+Run migration pre-reqs on old table
+
+```
+sqlite3 nanotipbot.db < sql/3.0/migrate.sql
+```
+
+Create database/user/password for postgres
+
+```
+sudo -u postgres psql
+```
+
+in  postgres prompt:
+
+```
+create database graham;
+create role graham_user with login password 'password';
+grant all privileges on database graham to graham_user;
+\q
+```
+
+Run the migration:
+```
+sudo cp nanotipbot.db /var/lib/postgresql
+sudo chown postgres:postgres /var/lib/postgresql/nanotipbot.db
+sudo -u postgres pgloader /var/lib/postgresql/nanotipbot.db postgresql:///graham
+```
+
+If all went well , run the post-migrate
+
+Use database name as argument from above (graham or whatever you used):
+
+```
+sudo -u postgres ./sql/3.0/post_migrate.sh graham
+```
+
+??? profit
+
+If you have issues migrating contact me and i'll help if I'm availabl

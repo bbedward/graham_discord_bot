@@ -47,18 +47,18 @@ from playhouse.shortcuts import model_to_dict
 LAST_MSG_TIME = 1
 
 # How many messages consider a user rain eligible
-LAST_MSG_RAIN_COUNT = 1
+LAST_MSG_RAIN_COUNT = 5
 # (Seconds) How spaced out the messages must be
-LAST_MSG_RAIN_DELTA = 1
+LAST_MSG_RAIN_DELTA = 60
 # How many words messages must contain
-LAST_MSG_RAIN_WORDS = 1
+LAST_MSG_RAIN_WORDS = 3
 
 # (Seconds) How long user must wait between tiprandom
 TIP_RANDOM_WAIT = 10
 # (Seconds) How long user mus wait between tipfavorites
 TIP_FAVORITES_WAIT = 150
 
-db = PooledPostgresqlExtDatabase(settings.database, user=settings.database_user, password=settings.database_password, host='localhost', port=5432, max_connections=50)
+db = PooledPostgresqlExtDatabase(settings.database, user=settings.database_user, password=settings.database_password, host='localhost', port=5432, max_connections=16)
 
 logger = util.get_logger("db")
 
@@ -833,12 +833,14 @@ class Transaction(BaseModel):
 	source_address = CharField()
 	to_address = CharField(null = True)
 	amount = CharField()
-	sent = BooleanField(default=False)
 	processed = BooleanField(default=False)
 	created = DateTimeField(default=datetime.datetime.now())
 	tran_id = CharField(default='', null=True)
 	attempts = IntegerField(default=0)
 	giveawayid = IntegerField(null = True)
+
+	class Meta:
+		db_table='transactions'
 
 # Giveaway table, keep track of current giveaway
 class Giveaway(BaseModel):
