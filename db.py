@@ -98,7 +98,7 @@ def user_exists(user_id):
 
 @db.connection_context()
 def get_active_users(since_minutes):
-	since_ts = datetime.datetime.now() - datetime.timedelta(minutes=since_minutes)
+	since_ts = datetime.datetime.utcnow() - datetime.timedelta(minutes=since_minutes)
 	users = User.select().where(User.last_msg > since_ts).order_by(User.user_id)
 	return_ids = []
 	for user in users:
@@ -168,22 +168,22 @@ def update_tip_stats(user, tip, rain=False, giveaway=False):
 	if tip > int(float(user.top_tip)):
 		(User.update(
 			top_tip = tip,
-			top_tip_ts = datetime.datetime.now()
+			top_tip_ts = datetime.datetime.utcnow()
 			).where(User.id == user.id)
 			).execute()
 	# Update monthly tip if necessary
-	if user.top_tip_month_ts.month != datetime.datetime.now().month or tip > int(float(user.top_tip_month)):
+	if user.top_tip_month_ts.month != datetime.datetime.utcnow().month or tip > int(float(user.top_tip_month)):
 		(User.update(
 			top_tip_month = tip,
-			top_tip_month_ts = datetime.datetime.now()
+			top_tip_month_ts = datetime.datetime.utcnow()
 			).where(User.id == user.id)
 			).execute()
 	# Update 24H tip if necessary
-	delta = datetime.datetime.now() - user.top_tip_day_ts
+	delta = datetime.datetime.utcnow() - user.top_tip_day_ts
 	if delta.total_seconds() > 86400 or tip > int(float(user.top_tip_day)):
 		(User.update(
 			top_tip_day = tip,
-			top_tip_day_ts = datetime.datetime.now()
+			top_tip_day_ts = datetime.datetime.utcnow()
 			).where(User.id == user.id)
 			).execute()
 	# Update rain or giveaway stats
@@ -272,14 +272,14 @@ def process_transaction(tx):
 @db.connection_context()
 def update_last_withdraw(user_id):
 	user_id = str(user_id)
-	User.update(last_withdraw=datetime.datetime.now()).where(User.user_id == user_id).execute()
+	User.update(last_withdraw=datetime.datetime.utcnow()).where(User.user_id == user_id).execute()
 
 @db.connection_context()
 def get_last_withdraw_delta(user_id):
 	user_id = str(user_id)
 	try:
 		user = User.select(User.last_withdraw).where(User.user_id == user_id).get()
-		delta = (datetime.datetime.now() - user.last_withdraw).total_seconds()
+		delta = (datetime.datetime.utcnow() - user.last_withdraw).total_seconds()
 		return delta
 	except User.DoesNotExist:
 		return None
@@ -560,7 +560,7 @@ def update_top_tips(user_id, month=0,day=0,alltime=0):
 
 @db.connection_context()
 def get_top_tips():
-	dt = datetime.datetime.now()
+	dt = datetime.datetime.utcnow()
 	past_dt = dt - datetime.timedelta(days=1) # Date 24H ago
 	month_str = dt.strftime("%B")
 	month_num = "{0:02d}".format(dt.month) # Sqlite uses 2 digit month (with leading 0)
@@ -602,7 +602,6 @@ def get_top_tips():
 @db.connection_context()
 def mark_transaction_processed(uuid, amt, source_id, tranid, target_id=None):
 	tu = (Transaction.update(
-			sent = True,
 			processed = True,
 			tran_id = tranid
 		    ).where(
@@ -623,7 +622,7 @@ def last_msg_check(user_id, content, is_private):
 	if user is None:
 		return True
 	# Get difference in seconds between now and last msg
-	since_last_msg_s = (datetime.datetime.now() - user.last_msg).total_seconds()
+	since_last_msg_s = (datetime.datetime.utcnow() - user.last_msg).total_seconds()
 	if since_last_msg_s < LAST_MSG_TIME:
 		return False
 	else:
@@ -654,10 +653,10 @@ def update_last_msg(user, delta, content, is_private):
 			break
 	if delta >= 1800:
 		user.last_msg_count = 0
-	if adjusted_count >= LAST_MSG_RAIN_WORDS and not is_private and (datetime.datetime.now() - user.last_msg_rain).total_seconds() > LAST_MSG_RAIN_DELTA:
+	if adjusted_count >= LAST_MSG_RAIN_WORDS and not is_private and (datetime.datetime.utcnow() - user.last_msg_rain).total_seconds() > LAST_MSG_RAIN_DELTA:
 		user.last_msg_count += 1
-		user.last_msg_rain = datetime.datetime.now()
-	user.last_msg=datetime.datetime.now()
+		user.last_msg_rain = datetime.datetime.utcnow()
+	user.last_msg=datetime.datetime.utcnow()
 	(User.update(
 		last_msg_count = user.last_msg_count,
 		last_msg_rain = user.last_msg_rain,
@@ -777,21 +776,21 @@ def unmute(source_user, target_user):
 # Returns seconds user must wait to tiprandom again
 @db.connection_context()
 def tiprandom_check(user):
-	delta = (datetime.datetime.now() - user.last_random).total_seconds()
+	delta = (datetime.datetime.utcnow() - user.last_random).total_seconds()
 	if TIP_RANDOM_WAIT > delta:
 		return (TIP_RANDOM_WAIT - delta)
 	else:
-		User.update(last_random=datetime.datetime.now()).where(User.user_id == user.user_id).execute()
+		User.update(last_random=datetime.datetime.utcnow()).where(User.user_id == user.user_id).execute()
 		return 0
 
 # Returns seconds user must wait to tipfavorites again
 @db.connection_context()
 def tipfavorites_check(user):
-	delta = (datetime.datetime.now() -user.last_favorites).total_seconds()
+	delta = (datetime.datetime.utcnow() -user.last_favorites).total_seconds()
 	if TIP_FAVORITES_WAIT > delta:
 		return (TIP_FAVORITES_WAIT - delta)
 	else:
-		User.update(last_favorites=datetime.datetime.now()).where(User.user_id == user.user_id).execute()
+		User.update(last_favorites=datetime.datetime.utcnow()).where(User.user_id == user.user_id).execute()
 		return 0
 
 # Base Model
@@ -807,22 +806,22 @@ class User(BaseModel):
 	pending_receive = IntegerField(default=0)
 	pending_send = IntegerField(default=0)
 	tip_count = IntegerField(default=0)
-	created = DateTimeField(default=datetime.datetime.now())
-	last_msg = DateTimeField(default=datetime.datetime.now())
-	last_msg_rain = DateTimeField(default=datetime.datetime.now())
+	created = DateTimeField(default=datetime.datetime.utcnow())
+	last_msg = DateTimeField(default=datetime.datetime.utcnow())
+	last_msg_rain = DateTimeField(default=datetime.datetime.utcnow())
 	last_msg_count = IntegerField(default=0)
 	top_tip = IntegerField(default=0)
-	top_tip_ts = DateTimeField(default=datetime.datetime.now())
+	top_tip_ts = DateTimeField(default=datetime.datetime.utcnow())
 	top_tip_month = IntegerField(default=0)
-	top_tip_month_ts = DateTimeField(default=datetime.datetime.now())
+	top_tip_month_ts = DateTimeField(default=datetime.datetime.utcnow())
 	top_tip_day = IntegerField(default=0)
-	top_tip_day_ts = DateTimeField(default=datetime.datetime.now())
-	last_withdraw = DateTimeField(default=datetime.datetime.now())
+	top_tip_day_ts = DateTimeField(default=datetime.datetime.utcnow())
+	last_withdraw = DateTimeField(default=datetime.datetime.utcnow())
 	stats_ban = BooleanField(default=False)
 	rain_amount = FloatField(default=0.0,)
 	giveaway_amount = FloatField(default=0.0)
-	last_random = DateTimeField(default=datetime.datetime.now())
-	last_favorites = DateTimeField(default=datetime.datetime.now())
+	last_random = DateTimeField(default=datetime.datetime.utcnow())
+	last_favorites = DateTimeField(default=datetime.datetime.utcnow())
 
 	class Meta:
 		db_table='users'
@@ -834,7 +833,7 @@ class Transaction(BaseModel):
 	to_address = CharField(null = True)
 	amount = CharField()
 	processed = BooleanField(default=False)
-	created = DateTimeField(default=datetime.datetime.now())
+	created = DateTimeField(default=datetime.datetime.utcnow())
 	tran_id = CharField(default='', null=True)
 	attempts = IntegerField(default=0)
 	giveawayid = IntegerField(null = True)
@@ -867,7 +866,7 @@ class BannedUser(BaseModel):
 class UserFavorite(BaseModel):
 	user_id = CharField()
 	favorite_id = CharField()
-	created = DateTimeField(default=datetime.datetime.now())
+	created = DateTimeField(default=datetime.datetime.utcnow())
 	identifier = IntegerField() # Identifier makes it easy for user to remove this favorite
 
 # Muted management
@@ -875,13 +874,13 @@ class MutedList(BaseModel):
 	user_id = CharField()
 	muted_id = CharField()
 	muted_name = CharField()
-	created = DateTimeField(default=datetime.datetime.now())
+	created = DateTimeField(default=datetime.datetime.utcnow())
 
 # Separate table for frozen so we can freeze even users not registered with bot
 class FrozenUser(BaseModel):
 	user_id = IntegerField(unique=True)
 	user_name = CharField()
-	created = DateTimeField(default=datetime.datetime.now())
+	created = DateTimeField(default=datetime.datetime.utcnow())
 
 
 def create_db():

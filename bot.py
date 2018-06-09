@@ -468,7 +468,7 @@ client = Bot(command_prefix=COMMAND_PREFIX)
 client.remove_command('help')
 
 # Don't make them wait when bot first launches
-initial_ts=datetime.datetime.now() - datetime.timedelta(seconds=SPAM_THRESHOLD)
+initial_ts=datetime.datetime.utcnow() - datetime.timedelta(seconds=SPAM_THRESHOLD)
 last_big_tippers = {}
 last_top_tips = {}
 last_winners = {}
@@ -518,23 +518,19 @@ async def process_finished_tx():
 	logger.info("Retrieving result")
 	task_id = resp.decode('utf-8')
 	logger.info("taskID: %s", task_id)
-	task = celery.result.AsyncResult(task_id, app=app)
-	# AsyncResult.get() is also blocking so we use run_in_executor
-	result = await asyncio.get_event_loop().run_in_executor(None, task.get)
+	try:
+		task = celery.result.AsyncResult(task_id, app=app)
+		# AsyncResult.get() is also blocking so we use run_in_executor
+		result = await asyncio.get_event_loop().run_in_executor(None, task.get)
+	except Exception:
+		r.rpush(task_id)
+		asyncio.get_event_loop().create_task(process_finished_tx())
+		return
 	if result is None :
 		logger.error("process_finished_tx() got null result from task ID: %s", task_id)
 	elif 'error' in result:
 		logger.error("processed_finished_tx() got error result: %s", result['error'])
 		tx = result['tx']
-		# TODO I mean i'm sure we could used built-in retry functionality
-		if tx['attempts'] >= 3:
-			logger.error("Max retry attempts exceeded TX UID: %s", tx['uid'])
-			await mark_tx_processed(tx['source_address'], 'invalid', tx['uid'], tx['to_address'], tx['amount'])
-		else:
-			logger.info("Retry attempt #%d for TX UID: %s", tx['attempts'], tx['uid'])
-			db.inc_tx_attempts(tx['uid'])
-			tx['attempts'] = tx['attempts'] + 1
-			db.process_transaction(tx)
 	elif 'success' in result:
 		logger.info("TX Processed: %s", result['success']['txid'])
 		await mark_tx_processed(result['success']['source'],
@@ -577,8 +573,9 @@ async def on_ready():
 
 async def notify_of_withdraw(user_id, txid):
 	"""Notify user of withdraw with a block explorer link"""
-	user = await client.get_user_info(int(user_id))
-	await post_dm(user, WITHDRAW_PROCESSED_TEXT, settings.block_explorer, txid)
+	if user_id is not None:
+		user = await client.get_user_info(int(user_id))
+		await post_dm(user, WITHDRAW_PROCESSED_TEXT, settings.block_explorer, txid)
 
 def is_private(channel):
 	"""Check if a discord channel is private"""
@@ -1172,7 +1169,7 @@ async def givearai(ctx):
 			await add_x_reaction(message)
 			await post_dm(message.author, INSUFFICIENT_FUNDS_TEXT)
 			return
-		end_time = datetime.datetime.now() + datetime.timedelta(minutes=duration)
+		end_time = datetime.datetime.utcnow() + datetime.timedelta(minutes=duration)
 		nano_amt = amount / 1000000
 		tipped_amount = db.get_tipgiveaway_sum() / 1000000
 		giveaway,deleted = db.start_giveaway(message.author.id, message.author.name, nano_amt, end_time, message.channel.id, entry_fee=fee)
@@ -1258,7 +1255,7 @@ async def tip_giveaway(message, ticket=False):
 			tipgiveaway_sum = db.get_tipgiveaway_sum()
 			nano_amt = float(tipgiveaway_sum)/ 1000000
 			if tipgiveaway_sum >= GIVEAWAY_MINIMUM:
-				end_time = datetime.datetime.now() + datetime.timedelta(minutes=GIVEAWAY_AUTO_DURATION)
+				end_time = datetime.datetime.utcnow() + datetime.timedelta(minutes=GIVEAWAY_AUTO_DURATION)
 				db.start_giveaway(client.user.id, client.user.name, 0, end_time, message.channel.id,entry_fee=fee)
 				await post_response(message, GIVEAWAY_STARTED_FEE, client.user.name, nano_amt, nano_amt, fee)
 				asyncio.get_event_loop().create_task(start_giveaway_timer())
@@ -1288,16 +1285,16 @@ async def giveawaystats(ctx):
 		return
 	if not is_private(message.channel):
 		if message.channel.id not in last_gs:
-			last_gs[message.channel.id] = datetime.datetime.now()
-		if 5 > (datetime.datetime.now() - last_gs[message.channel.id]).total_seconds():
+			last_gs[message.channel.id] = datetime.datetime.utcnow()
+		if 5 > (datetime.datetime.utcnow() - last_gs[message.channel.id]).total_seconds():
 			return
-		last_gs[message.channel.id] = datetime.datetime.now()
+		last_gs[message.channel.id] = datetime.datetime.utcnow()
 	stats = db.get_giveaway_stats()
 	if stats is None:
 		for_next = GIVEAWAY_MINIMUM - db.get_tipgiveaway_sum()
 		await post_response(message, GIVEAWAY_STATS_INACTIVE, for_next)
 	else:
-		end = stats['end'] - datetime.datetime.now()
+		end = stats['end'] - datetime.datetime.utcnow()
 		end_s = int(end.total_seconds())
 		str_delta = time.strftime("%M Minutes and %S Seconds", time.gmtime(end_s))
 		fee = stats['fee']
@@ -1310,7 +1307,7 @@ async def start_giveaway_timer():
 	giveaway = db.get_giveaway()
 	if giveaway is None:
 		return
-	delta = (giveaway.end_time - datetime.datetime.now()).total_seconds()
+	delta = (giveaway.end_time - datetime.datetime.utcnow()).total_seconds()
 	if delta <= 0:
 		await finish_giveaway(0)
 		return
@@ -1335,12 +1332,12 @@ async def winners(ctx):
 	global last_winners
 	if not is_private(message.channel):
 		if message.channel.id not in last_winners:
-			last_winners[message.channel.id] = datetime.datetime.now()
-		tdelta = datetime.datetime.now() - last_winners[message.channel.id]
+			last_winners[message.channel.id] = datetime.datetime.utcnow()
+		tdelta = datetime.datetime.utcnow() - last_winners[message.channel.id]
 		if SPAM_THRESHOLD > tdelta.seconds:
 			await post_response(message, WINNERS_SPAM, (SPAM_THRESHOLD - tdelta.seconds))
 			return
-		last_winners[message.channel.id] = datetime.datetime.now()
+		last_winners[message.channel.id] = datetime.datetime.utcnow()
 	winners = db.get_giveaway_winners(WINNERS_COUNT)
 	if len(winners) == 0:
 		await post_response(message, WINNERS_EMPTY)
@@ -1377,12 +1374,12 @@ async def leaderboard(ctx):
 	global last_big_tippers
 	if not is_private(message.channel):
 		if message.channel.id not in last_big_tippers:
-			last_big_tippers[message.channel.id] = datetime.datetime.now()
-		tdelta = datetime.datetime.now() - last_big_tippers[message.channel.id]
+			last_big_tippers[message.channel.id] = datetime.datetime.utcnow()
+		tdelta = datetime.datetime.utcnow() - last_big_tippers[message.channel.id]
 		if SPAM_THRESHOLD > tdelta.seconds:
 			await post_response(message, TOP_SPAM, (SPAM_THRESHOLD - tdelta.seconds))
 			return
-		last_big_tippers[message.channel.id] = datetime.datetime.now()
+		last_big_tippers[message.channel.id] = datetime.datetime.utcnow()
 	top_users = db.get_top_users(TOP_TIPPERS_COUNT)
 	if len(top_users) == 0:
 		await post_response(message, TOP_HEADER_EMPTY_TEXT)
@@ -1420,12 +1417,12 @@ async def toptips(ctx):
 	global last_top_tips
 	if not is_private(message.channel):
 		if not message.channel.id in last_top_tips:
-			last_top_tips[message.channel.id] = datetime.datetime.now()
-		tdelta = datetime.datetime.now() - last_top_tips[message.channel.id]
+			last_top_tips[message.channel.id] = datetime.datetime.utcnow()
+		tdelta = datetime.datetime.utcnow() - last_top_tips[message.channel.id]
 		if SPAM_THRESHOLD > tdelta.seconds:
 			await post_response(message, TOPTIP_SPAM, (SPAM_THRESHOLD - tdelta.seconds))
 			return
-		last_top_tips[message.channel.id] = datetime.datetime.now()
+		last_top_tips[message.channel.id] = datetime.datetime.utcnow()
 	top_tips_msg = db.get_top_tips()
 	await post_response(message, top_tips_msg)
 

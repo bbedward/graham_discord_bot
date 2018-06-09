@@ -31,7 +31,7 @@ def communicate_wallet(wallet_command):
 	parsed_json = json.loads(body.decode('iso-8859-1'))
 	return parsed_json
 
-@app.task(bind=True)
+@app.task(bind=True, max_retries=10)
 def send_transaction(self, tx):
     try:
         source_address = tx['source_address']
@@ -59,15 +59,14 @@ def send_transaction(self, tx):
             r.rpush('/send_finished', self.request.id)
             return {"success": {"source":source_address, "txid":txid, "uid":uid, "destination":to_address, "amount":amount}}
         else:
-            # Return TX to client with invalid response code
-            r.rpush('/send_finished', self.request.id)
-            return {"error": "Invalid node response", "tx": tx}
+            self.retry()
     except pycurl.error:
-        return {"error":"pycurl error", "tx":tx}
+        self.retry()
     except Exception as e:
         # Just log these because i'm not sure offhand what other types of exceptions
         # we may get here
         logger.exception(e)
+        self.retry()
 
 def pocket_tx(account, block):
 	action = {
