@@ -78,6 +78,7 @@ def get_aliases(dict, exclude=''):
 ### All commands
 
 TIP_UNIT = "BANANO" if settings.banano else "naneroo"
+TIP_PREFIX = "ban" if settings.banano else "tip"
 BALANCE = {
 		"TRIGGER"  : ["balance", "bal", "$"],
 		"CMD"      : "{0}balance".format(COMMAND_PREFIX),
@@ -110,32 +111,32 @@ WITHDRAW = {
 
 TIP = {
 		"TRIGGER"  : ["ban", "b"] if settings.banano else ["tip", "t"],
-		"CMD"      : "{0}tip, takes: amount <*users>".format(COMMAND_PREFIX),
+		"CMD"      : "{0}{1}, takes: amount <*users>".format(COMMAND_PREFIX, TIP_PREFIX),
 		"OVERVIEW" : "Send a tip to mentioned users",
-		"INFO"     : ("Tip specified amount to mentioned user(s) (minimum tip is 1 {1})" +
+		"INFO"     : ("Tip specified amount to mentioned user(s) (minimum tip is 1 {2})" +
 		"\nThe recipient(s) will be notified of your tip via private message" +
 		"\nSuccessful tips will be deducted from your available balance immediately" +
-		"\nExample: `{0}tip 2 @user1 @user2` would send 2 to user1 and 2 to user2").format(COMMAND_PREFIX, TIP_UNIT)
+		"\nExample: `{0}{1} 2 @user1 @user2` would send 2 to user1 and 2 to user2").format(COMMAND_PREFIX, TIP_PREFIX, TIP_UNIT)
 }
 
 TIPSPLIT = {
 		"TRIGGER"  : ["bansplit", "bsplit", "bs"] if settings.banano else ["tipsplit", "tsplit"],
-		"CMD"      : "{0}tipsplit, takes: amount, <*users>".format(COMMAND_PREFIX),
+		"CMD"      : "{0}{1}split, takes: amount, <*users>".format(COMMAND_PREFIX, TIP_PREFIX),
 		"OVERVIEW" : "Split a tip among mentioned uses",
-		"INFO"     : "Distributes a tip evenly to all mentioned users.\nExample: `{0}tipsplit 2 @user1 @user2` would send 1 to user1 and 1 to user2".format(COMMAND_PREFIX)
+		"INFO"     : "Distributes a tip evenly to all mentioned users.\nExample: `{0}{1}split 2 @user1 @user2` would send 1 to user1 and 1 to user2".format(COMMAND_PREFIX, TIP_PREFIX)
 }
 
 TIPRANDOM = {
 		"TRIGGER"  : ["banrandom", "br"] if settings.banano else ["tiprandom", "tr"],
-		"CMD"      : "{0}tiprandom, takes: amount".format(COMMAND_PREFIX),
+		"CMD"      : "{0}{1}random, takes: amount".format(COMMAND_PREFIX, TIP_PREFIX),
 		"OVERVIEW" : "Tips a random active user",
 		"INFO"     : ("Tips amount to a random active user. Active user list picked using same logic as rain" +
-				"\n**Minimum tiprandom amount: {0} {1}**").format(settings.tiprandom_minimum, TIP_UNIT)
+				"\n**Minimum {2}random amount: {0} {1}**").format(settings.tiprandom_minimum, TIP_UNIT, TIP_PREFIX)
 }
 
 RAIN = {
 		"TRIGGER"  : ["brain"] if settings.banano else ["rain"],
-		"CMD"      : "{0}rain, takes: amount".format(COMMAND_PREFIX),
+		"CMD"      : "{0}{1}, takes: amount".format(COMMAND_PREFIX, "brain" if settings.banano else "rain"),
 		"OVERVIEW" : "Split tip among all active* users",
 		"INFO"     : ("Distribute <amount> evenly to users who are eligible.\n" +
 				"Eligibility is determined based on your *recent* activity **and** contributions to public channels. " +
@@ -246,10 +247,10 @@ FAVORITES = {
 
 TIP_FAVORITES = {
 		"TRIGGER"  : ["banfavs", "banfavorites", "banfavourties", "bf"] if settings.banano else ["tipfavs", "tipfavorites", "tipfavourites", "tf"],
-		"CMD"      : "{0}tipfavorites, takes: amount".format(COMMAND_PREFIX),
+		"CMD"      : "{0}{1}favorites, takes: amount".format(COMMAND_PREFIX, TIP_PREFIX),
 		"OVERVIEW" : "Tip your entire favorites list",
 		"INFO"     : ("Tip everybody in your favorites list specified amount" +
-				"\nExample: `{0}tipfavorites 1000` Distributes 1000 to your entire favorites list (similar to `{0}tipsplit`)").format(COMMAND_PREFIX)
+				"\nExample: `{0}{1}favorites 1000` Distributes 1000 to your entire favorites list (similar to `{0}{1}split`)").format(COMMAND_PREFIX, TIP_PREFIX)
 }
 
 TIP_AUTHOR = {
@@ -404,7 +405,7 @@ DEPOSIT_TEXT_2="{0}"
 DEPOSIT_TEXT_3="QR: {0}"
 
 # generic tip replies (apply to numerous tip commands)
-INSUFFICIENT_FUNDS_TEXT="You don't have enough nano in your available balance!"
+INSUFFICIENT_FUNDS_TEXT="You don't have enough {0} in your available balance!".format(TIP_UNIT)
 TIP_RECEIVED_TEXT="You were tipped {0} " + TIP_UNIT + " by {1}. You can mute tip notifications from this person using `" + COMMAND_PREFIX + "mute {2}`"
 TIP_SELF="No valid recipients found in your tip.\n(You cannot tip yourself and certain other users are exempt from receiving tips)"
 
@@ -1726,7 +1727,7 @@ async def walletfor(ctx, user: discord.Member = None, user_id: str = None):
 	if user is None and user_id is None:
 		await post_usage(ctx.message, WALLET_FOR)
 		return
-	wa = None;
+	wa = None
 	if user is not None:
 		wa = db.get_address(user.id)
 	else:
