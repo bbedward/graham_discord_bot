@@ -1,6 +1,8 @@
 import logging
 import logging.handlers
 
+RAW_PER_BAN=100000000000000000000000000000
+RAW_PER_RAI=1000000000000000000000000
 
 class TipBotException(Exception):
 	def __init__(self, error_type):

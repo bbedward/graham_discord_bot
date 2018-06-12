@@ -14,7 +14,7 @@ logger_newuser = util.get_logger('usr', log_file='user_creation.log')
 async def communicate_wallet_async(wallet_command):
 	conn = aiohttp.TCPConnector(family=socket.AF_INET6,resolver=aiohttp.AsyncResolver())
 	async with aiohttp.ClientSession(connector=conn) as session:
-		async with session.post("http://[::1]:7076",json=wallet_command, timeout=300) as resp:
+		async with session.post("http://{0}:{1}".format(settings.node_ip, settings.node_port),json=wallet_command, timeout=300) as resp:
 			return await resp.json()
 
 async def create_or_fetch_user(user_id, user_name):
@@ -55,8 +55,8 @@ async def get_balance(user):
 			return None
 		actual_balance = int(wallet_output['balance'])
 		pending_balance = int(wallet_output['pending'])
-		actual_balance = actual_balance / 1000000000000000000000000
-		pending_balance = pending_balance / 1000000000000000000000000
+		actual_balance = (actual_balance / util.RAW_PER_BAN) if settings.banano else (actual_balance / util.RAW_PER_RAI)
+		pending_balance = (pending_balance / util.RAW_PER_BAN) if settings.banano else (pending_balance / util.RAW_PER_RAI)
 		return {'actual':int(actual_balance),
 			'available': int(actual_balance) - user.pending_send,
 			'pending_send': user.pending_send,
@@ -71,10 +71,15 @@ async def make_transaction_to_address(source_user, amount, withdraw_address, uid
 				  'account': withdraw_address}
 		address_validation = await communicate_wallet_async(wallet_command)
 
-		if (((withdraw_address[:4] == 'xrb_' and len(withdraw_address) != 64)
-		    or (withdraw_address[:5] == 'nano_' and len(withdraw_address) != 65))
-		    or address_validation['valid'] != '1'):
-			raise util.TipBotException('invalid_address')
+		if settings.banano:
+			if ((withdraw_address[:4] == 'ban_' and len(withdraw_address) != 64)
+			    or address_validation['valid'] != '1'):
+				raise util.TipBotException('invalid_address')
+		else:
+			if (((withdraw_address[:4] == 'xrb_' and len(withdraw_address) != 64)
+			    or (withdraw_address[:5] == 'nano_' and len(withdraw_address) != 65))
+			    or address_validation['valid'] != '1'):
+				raise util.TipBotException('invalid_address')
 
 	amount = int(amount)
 	if amount >= 1:

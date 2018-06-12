@@ -6,6 +6,7 @@ import redis
 import json
 import settings
 import pycurl
+import util
 
 # TODO (besides test obvi)
 # - receive logic
@@ -19,8 +20,8 @@ app.conf.CELERY_MAX_CACHED_RESULTS = -1
 def communicate_wallet(wallet_command):
 	buffer = BytesIO()
 	c = pycurl.Curl()
-	c.setopt(c.URL, '[::1]')
-	c.setopt(c.PORT, 7076)
+	c.setopt(c.URL, settings.node_ip)
+	c.setopt(c.PORT, settings.node_port)
 	c.setopt(c.POSTFIELDS, json.dumps(wallet_command))
 	c.setopt(c.WRITEFUNCTION, buffer.write)
 	c.setopt(c.TIMEOUT, 300)
@@ -39,13 +40,13 @@ def send_transaction(self, tx):
         amount = tx['amount']
         uid = tx['uid']
         attempts = tx['attempts']
-        raw_withdraw_amt = str(amount) + '000000000000000000000000'
+        raw_withdraw_amt = int(amount) * util.RAW_PER_BAN if settings.banano else int(amount) * util.RAW_PER_RAI
         wallet_command = {
             'action': 'send',
             'wallet': settings.wallet,
             'source': source_address,
             'destination': to_address,
-            'amount': int(raw_withdraw_amt),
+            'amount': raw_withdraw_amt,
             'id': uid
         }
         logger.debug("RPC Send")
@@ -86,7 +87,7 @@ def pocket_task(accounts):
 		accts_pending_action = {
 			"action":"accounts_pending",
 			"accounts":accounts,
-			"threshold":1000000000000000000000000,
+			"threshold":util.RAW_PER_BAN if settings.banano else util.RAW_PER_RAI,
 			"count":5
 		}
 		resp = communicate_wallet(accts_pending_action)

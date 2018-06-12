@@ -28,7 +28,7 @@ from tasks import app, pocket_task
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "3.0.1"
+BOT_VERSION = "3.1.0"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -54,7 +54,7 @@ COMMAND_PREFIX=settings.command_prefix
 TIPGIVEAWAY_AUTO_ENTRY=int(.01 * GIVEAWAY_MINIMUM)
 
 # HELP menu header
-AUTHOR_HEADER="Graham v{0} (NANO Tip Bot)".format(BOT_VERSION)
+AUTHOR_HEADER="Graham v{0} ({1} Edition)".format(BOT_VERSION, "BANANO" if settings.banano else "NANO")
 
 DONATION_ADDRESS='xrb_1hmefcfq35td5f6rkh15hbpr4bkkhyyhmfhm7511jaka811bfp17xhkboyxo'
 
@@ -77,16 +77,17 @@ def get_aliases(dict, exclude=''):
 
 ### All commands
 
+TIP_UNIT = "BANANO" if settings.banano else "naneroo"
 BALANCE = {
-		"TRIGGER"  : ["balance", "bal", "$", "b"],
+		"TRIGGER"  : ["balance", "bal", "$"],
 		"CMD"      : "{0}balance".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Display balance of your account",
-		"INFO"     : ("Displays the balance of your tip account (in naneroo) as described:" +
+		"INFO"     : ("Displays the balance of your tip account (in {0}) as described:" +
 				"\nActual Balance: The actual balance in your tip account" +
 				"\nAvailable Balance: The balance you are able to tip with (Actual - Pending Send)" +
 				"\nPending Send: Tips you have sent, but have not yet been broadcasted to network" +
 				"\nPending Receipt: Tips that have been sent to you, but have not yet been pocketed by the node. " +
-				"\nPending funds will be available for tip/withdraw after they have been pocketed by the node")
+				"\nPending funds will be available for tip/withdraw after they have been pocketed by the node").format(TIP_UNIT)
 }
 
 DEPOSIT ={
@@ -104,36 +105,36 @@ WITHDRAW = {
 		"OVERVIEW" : "Allows you to withdraw from your tip account",
 		"INFO"     : ("Withdraws specified amount to specified address, " +
 				"if amount isn't specified your entire tip account balance will be withdrawn" +
-				"\nExample: `{0}withdraw xrb_111111111111111111111111111111111111111111111111111hifc8npp 1000` - Withdraws 1000 naneroo").format(COMMAND_PREFIX)
+				"\nExample: `{0}withdraw xrb_111111111111111111111111111111111111111111111111111hifc8npp 1000` - Withdraws 1000 {1}").format(COMMAND_PREFIX, TIP_UNIT)
 }
 
 TIP = {
-		"TRIGGER"  : ["tip", "t"],
+		"TRIGGER"  : ["ban", "b"] if settings.banano else ["tip", "t"],
 		"CMD"      : "{0}tip, takes: amount <*users>".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Send a tip to mentioned users",
-		"INFO"     : ("Tip specified amount to mentioned user(s) (minimum tip is 1 naneroo)" +
+		"INFO"     : ("Tip specified amount to mentioned user(s) (minimum tip is 1 {1})" +
 		"\nThe recipient(s) will be notified of your tip via private message" +
 		"\nSuccessful tips will be deducted from your available balance immediately" +
-		"\nExample: `{0}tip 2 @user1 @user2` would send 2 to user1 and 2 to user2").format(COMMAND_PREFIX)
+		"\nExample: `{0}tip 2 @user1 @user2` would send 2 to user1 and 2 to user2").format(COMMAND_PREFIX, TIP_UNIT)
 }
 
 TIPSPLIT = {
-		"TRIGGER"  : ["tipsplit", "tsplit"],
+		"TRIGGER"  : ["bansplit", "bsplit", "bs"] if settings.banano else ["tipsplit", "tsplit"],
 		"CMD"      : "{0}tipsplit, takes: amount, <*users>".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Split a tip among mentioned uses",
 		"INFO"     : "Distributes a tip evenly to all mentioned users.\nExample: `{0}tipsplit 2 @user1 @user2` would send 1 to user1 and 1 to user2".format(COMMAND_PREFIX)
 }
 
 TIPRANDOM = {
-		"TRIGGER"  : ["tiprandom", "tr"],
+		"TRIGGER"  : ["banrandom", "br"] if settings.banano else ["tiprandom", "tr"],
 		"CMD"      : "{0}tiprandom, takes: amount".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Tips a random active user",
 		"INFO"     : ("Tips amount to a random active user. Active user list picked using same logic as rain" +
-				"\n**Minimum tiprandom amount: {0} naneroo**").format(settings.tiprandom_minimum)
+				"\n**Minimum tiprandom amount: {0} {1}**").format(settings.tiprandom_minimum, TIP_UNIT)
 }
 
 RAIN = {
-		"TRIGGER"  : ["rain"],
+		"TRIGGER"  : ["brain"] if settings.banano else ["rain"],
 		"CMD"      : "{0}rain, takes: amount".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Split tip among all active* users",
 		"INFO"     : ("Distribute <amount> evenly to users who are eligible.\n" +
@@ -141,7 +142,7 @@ RAIN = {
 				"Several factors are considered in picking who receives rain. If you aren't receiving it, you aren't contributing enough or your contributions are low-quality/spammy.\n" +
 				"Note: Users who have a status of 'offline' or 'do not disturb' do not receive rain.\n" +
 				"Example: `{0}rain 1000` - distributes 1000 evenly to eligible users (similar to `tipsplit`)" +
-				"\n**Minimum rain amount: {1} naneroo**").format(COMMAND_PREFIX, RAIN_MINIMUM)
+				"\n**Minimum rain amount: {1} {2}**").format(COMMAND_PREFIX, RAIN_MINIMUM, TIP_UNIT)
 }
 
 START_GIVEAWAY = {
@@ -152,9 +153,9 @@ START_GIVEAWAY = {
 				"\nEntry fees are added to the total prize pool" +
 				"\nGiveaway will end and choose random winner after (duration)" +
 				"\nExample: `{0}giveaway 1000 fee=5 duration=30` - Starts a giveaway of 1000, with fee of 5, duration of 30 minutes" +
-				"\n**Minimum required to sponsor a giveaway: {1} naneroo**" +
+				"\n**Minimum required to sponsor a giveaway: {1} {4}**" +
 				"\n**Minimum giveaway duration: {2} minutes**" +
-				"\n**Maximum giveaway duration: {3} minutes**").format(COMMAND_PREFIX, GIVEAWAY_MINIMUM, GIVEAWAY_MIN_DURATION, GIVEAWAY_MAX_DURATION)
+				"\n**Maximum giveaway duration: {3} minutes**").format(COMMAND_PREFIX, GIVEAWAY_MINIMUM, GIVEAWAY_MIN_DURATION, GIVEAWAY_MAX_DURATION, TIP_UNIT)
 }
 
 ENTER = {
@@ -167,14 +168,14 @@ ENTER = {
 }
 
 TIPGIVEAWAY = {
-		"TRIGGER"  : ["tipgiveaway", "tg"],
+		"TRIGGER"  : ["donate"] if settings.banano else ["tipgiveaway", "tg"],
 		"CMD"      : "{0}tipgiveaway, takes: amount".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Add to present or future giveaway prize pool",
 		"INFO"     : ("Add <amount> to the current giveaway pool\n"+
 				"If there is no giveaway, one will be started when minimum is reached." +
-				"\nTips >= {0} naneroo automatically enter you for giveaways sponsored by the community." +
+				"\nTips >= {0} {2} automatically enter you for giveaways sponsored by the community." +
 				"\nDonations count towards the next giveaways entry fee" +
-				"\nExample: `{1}tipgiveaway 1000` - Adds 1000 to giveaway pool").format(TIPGIVEAWAY_AUTO_ENTRY, COMMAND_PREFIX)
+				"\nExample: `{1}tipgiveaway 1000` - Adds 1000 to giveaway pool").format(TIPGIVEAWAY_AUTO_ENTRY, COMMAND_PREFIX, TIP_UNIT)
 }
 
 TICKETSTATUS = {
@@ -244,7 +245,7 @@ FAVORITES = {
 }
 
 TIP_FAVORITES = {
-		"TRIGGER"  : ["tipfavs", "tipfavorites", "tipfavourites", "tf"],
+		"TRIGGER"  : ["banfavs", "banfavorites", "banfavourties", "bf"] if settings.banano else ["tipfavs", "tipfavorites", "tipfavourites", "tf"],
 		"CMD"      : "{0}tipfavorites, takes: amount".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Tip your entire favorites list",
 		"INFO"     : ("Tip everybody in your favorites list specified amount" +
@@ -347,12 +348,12 @@ STATSBANNED = {
 
 INCREASETIPTOTAL = {
 		"CMD"      : "{0}increasetips (amount) (user)".format(COMMAND_PREFIX),
-		"INFO"     : "Increases users tip total by (amount), for stats purposes. Amount is in NANO and not naneroo"
+		"INFO"     : "Increases users tip total by (amount), for stats purposes. Amount is in NANO or BANANO (not naneroo)"
 }
 
 DECREASETIPTOTAL = {
 		"CMD"      : "{0}decreasetips (amount) (user)".format(COMMAND_PREFIX),
-		"INFO"     : "Decreases users tip total by (amount), for stats purposes. Amount is in NANO and not naneroo"
+		"INFO"     : "Decreases users tip total by (amount), for stats purposes. Amount is in NANO or BANANO (not naneroo)"
 }
 
 SETTOPTIP = {
@@ -386,10 +387,16 @@ COMMANDS = {
 ### Response Templates###
 
 # balance
-BALANCE_TEXT=(	"```Actual Balance   : {0} naneroo ({1:.6f} NANO)\n" +
-		"Available Balance: {2} naneroo ({3:.6f} NANO)\n" +
-		"Pending Send     : {4} naneroo ({5:.6f} NANO)\n" +
-		"Pending Receipt  : {6} naneroo ({7:.6f} NANO)```")
+if settings.banano:
+	BALANCE_TEXT=(	"```Actual Balance   : {0:,.2f} BANANO\n" +
+					"Available Balance: {1:,.2f} BANANO\n" +
+					"Pending Send     : {2:,.2f} BANANO\n" +
+					"Pending Receipt  : {3:,.2f} BANANO```")
+else:
+	BALANCE_TEXT=(	"```Actual Balance   : {0} naneroo ({1:.6f} NANO)\n" +
+					"Available Balance: {2} naneroo ({3:.6f} NANO)\n" +
+					"Pending Send     : {4} naneroo ({5:.6f} NANO)\n" +
+					"Pending Receipt  : {6} naneroo ({7:.6f} NANO)```")
 
 # deposit (split into 3 for easy copypasting address on mobile)
 DEPOSIT_TEXT="Your wallet address is:"
@@ -398,13 +405,13 @@ DEPOSIT_TEXT_3="QR: {0}"
 
 # generic tip replies (apply to numerous tip commands)
 INSUFFICIENT_FUNDS_TEXT="You don't have enough nano in your available balance!"
-TIP_RECEIVED_TEXT="You were tipped {0} naneroo by {1}. You can mute tip notifications from this person using `" + COMMAND_PREFIX + "mute {2}`"
+TIP_RECEIVED_TEXT="You were tipped {0} " + TIP_UNIT + " by {1}. You can mute tip notifications from this person using `" + COMMAND_PREFIX + "mute {2}`"
 TIP_SELF="No valid recipients found in your tip.\n(You cannot tip yourself and certain other users are exempt from receiving tips)"
 
 # withdraw
 WITHDRAW_SUCCESS_TEXT="Withdraw has been queued for processing, I'll send you a link to the transaction after I've broadcasted it to the network!"
 WITHDRAW_PROCESSED_TEXT="Withdraw processed:\nTransaction: {0}{1}\nIf you have an issue with a withdraw please wait **24 hours** before contacting my master."
-WITHDRAW_NO_BALANCE_TEXT="You have no NANO to withdraw"
+WITHDRAW_NO_BALANCE_TEXT="You have no {0} to withdraw".format(TIP_UNIT)
 WITHDRAW_INVALID_ADDRESS_TEXT="Withdraw address is not valid"
 WITHDRAW_COOLDOWN_TEXT="You need to wait {0:.2f} seconds before making another withdraw"
 WITHDRAW_INSUFFICIENT_BALANCE="Your balance isn't high enough to withdraw that much"
@@ -416,7 +423,10 @@ TOP_SPAM="No more big tippers for {0} seconds"
 
 # tipstats (individual)
 STATS_ACCT_NOT_FOUND_TEXT="I could not find an account for you, try private messaging me `{0}register`".format(COMMAND_PREFIX)
-STATS_TEXT="You are rank #{0}, you've tipped a total of {1:.6f} NANO, your average tip is {2:.6f} NANO, and your biggest tip of all time is {3:.6f} NANO"
+if settings.banano:
+	STATS_TEXT="You are rank #{0}, you've tipped a total of {1:.2f} BANANO, your average tip is {2:.2f} BANANO, and your biggest tip of all time is {3:.2f} BANANO"
+else:
+	STATS_TEXT="You are rank #{0}, you've tipped a total of {1:.6f} NANO, your average tip is {2:.6f} NANO, and your biggest tip of all time is {3:.6f} NANO"
 
 # tipsplit
 TIPSPLIT_SMALL="Tip amount is too small to be distributed to that many users"
@@ -425,19 +435,34 @@ TIPSPLIT_SMALL="Tip amount is too small to be distributed to that many users"
 RAIN_NOBODY="I couldn't find anybody eligible to receive rain"
 
 # giveaway (all giveaway related commands)
-GIVEAWAY_EXISTS="There's already an active giveaway"
-GIVEAWAY_STARTED="{0} has sponsored a giveaway of {1:.6f} NANO, including community contributions the total pot is {2:.6f} NANO!\nUse:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "tipgiveaway` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
-GIVEAWAY_STARTED_FEE="{0} has sponsored a giveaway of {1:.6f} NANO, including community contributions the total pot is {2:.6f} NANO! The entry fee is {3} naneroo.\nUse:\n - `" + COMMAND_PREFIX + "ticket {3}` to buy your ticket\n - `" + COMMAND_PREFIX + "tipgiveaway` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
-GIVEAWAY_FEE_TOO_HIGH="A giveaway has started where the entry fee is higher than your donations! Use `{0}ticketstatus` to see how much you need to enter!".format(COMMAND_PREFIX)
-GIVEAWAY_MAX_FEE="Giveaway entry fee cannot be more than 5% of the prize pool"
-GIVEAWAY_ENDED="Congratulations! <@{0}> was the winner of the giveaway! They have been sent {1:.6f} NANO!"
-GIVEAWAY_STATS_NF="There are {0} entries to win {1:.6f} NANO ending in {2} - sponsored by {3}.\nUse:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "tipgiveaway` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check status of your entry"
-GIVEAWAY_STATS_FEE="There are {0} entries to win {1:.6f} NANO ending in {2} - sponsored by {3}.\nEntry fee: {4} naneroo. Use:\n - `" + COMMAND_PREFIX + "ticket {4}` to enter\n - `" + COMMAND_PREFIX + "tipgiveaway` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
-GIVEAWAY_STATS_INACTIVE="There are no active giveaways\n{0} naneroo required to to automatically start one! Use\n - `" + COMMAND_PREFIX + "tipgiveaway` to donate to the next giveaway.\n - `" + COMMAND_PREFIX + "givearai` to sponsor your own giveaway\n - `" + COMMAND_PREFIX + "ticketstatus` to see how much you've already donated to the next giveaway"
-ENTER_ADDED="You've been successfully entered into the giveaway"
-ENTER_DUP="You've already entered the giveaway"
-TIPGIVEAWAY_NO_ACTIVE="There are no active giveaways. Check giveaway status using `{0}giveawaystats`, or donate to the next one using `{0}tipgiveaway`".format(COMMAND_PREFIX)
-TIPGIVEAWAY_ENTERED_FUTURE="With your gorgeous donation I have reserved your ticket for the next community sponsored giveaway!"
+if settings.banano:
+	GIVEAWAY_EXISTS="There's already an active giveaway"
+	GIVEAWAY_STARTED="{0} has sponsored a giveaway of {1:.2f} BANANO! Use:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "donate` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
+	GIVEAWAY_STARTED_FEE="{0} has sponsored a giveaway of {1:.2f} BANANO! The entry fee is {2} BANANO. Use:\n - `" + COMMAND_PREFIX + "ticket {2}` to buy your ticket\n - `" + COMMAND_PREFIX + "donate` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
+	GIVEAWAY_FEE_TOO_HIGH="A giveaway has started where the entry fee is higher than your donations! Use `{0}ticketstatus` to see how much you need to enter!".format(COMMAND_PREFIX)
+	GIVEAWAY_MAX_FEE="Giveaway entry fee cannot be more than 5% of the prize pool"
+	GIVEAWAY_ENDED="Congratulations! <@{0}> was the winner of the giveaway! They have been sent {1:.2f} BANANO!"
+	GIVEAWAY_STATS_NF="There are {0} entries to win {1:.2f} BANANO ending in {2} - sponsored by {3}.\nUse:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "donate` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check status of your entry"
+	GIVEAWAY_STATS_FEE="There are {0} entries to win {1:.2f} BANANO ending in {2} - sponsored by {3}.\nEntry fee: {4} BANANO. Use:\n - `" + COMMAND_PREFIX + "ticket {4}` to enter\n - `" + COMMAND_PREFIX + "donate` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
+	GIVEAWAY_STATS_INACTIVE="There are no active giveaways\n{0} BANANO required to to automatically start one! Use\n - `" + COMMAND_PREFIX + "donate` to donate to the next giveaway.\n - `" + COMMAND_PREFIX + "giveaway` to sponsor your own giveaway\n - `" + COMMAND_PREFIX + "ticketstatus` to see how much you've already donated to the next giveaway"
+	ENTER_ADDED="You've been successfully entered into the giveaway"
+	ENTER_DUP="You've already entered the giveaway"
+	TIPGIVEAWAY_NO_ACTIVE="There are no active giveaways. Check giveaway status using `{0}giveawaystats`, or donate to the next one using `{0}tipgiveaway`".format(COMMAND_PREFIX)
+	TIPGIVEAWAY_ENTERED_FUTURE="With your bantastic donation I have reserved your ticket for the next community sponsored giveaway!"
+else:
+	GIVEAWAY_EXISTS="There's already an active giveaway"
+	GIVEAWAY_STARTED="{0} has sponsored a giveaway of {1:.6f} NANO, including community contributions the total pot is {2:.6f} NANO!\nUse:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "tipgiveaway` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
+	GIVEAWAY_STARTED_FEE="{0} has sponsored a giveaway of {1:.6f} NANO, including community contributions the total pot is {2:.6f} NANO! The entry fee is {3} naneroo.\nUse:\n - `" + COMMAND_PREFIX + "ticket {3}` to buy your ticket\n - `" + COMMAND_PREFIX + "tipgiveaway` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
+	GIVEAWAY_FEE_TOO_HIGH="A giveaway has started where the entry fee is higher than your donations! Use `{0}ticketstatus` to see how much you need to enter!".format(COMMAND_PREFIX)
+	GIVEAWAY_MAX_FEE="Giveaway entry fee cannot be more than 5% of the prize pool"
+	GIVEAWAY_ENDED="Congratulations! <@{0}> was the winner of the giveaway! They have been sent {1:.6f} NANO!"
+	GIVEAWAY_STATS_NF="There are {0} entries to win {1:.6f} NANO ending in {2} - sponsored by {3}.\nUse:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "tipgiveaway` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check status of your entry"
+	GIVEAWAY_STATS_FEE="There are {0} entries to win {1:.6f} NANO ending in {2} - sponsored by {3}.\nEntry fee: {4} naneroo. Use:\n - `" + COMMAND_PREFIX + "ticket {4}` to enter\n - `" + COMMAND_PREFIX + "tipgiveaway` to add to the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
+	GIVEAWAY_STATS_INACTIVE="There are no active giveaways\n{0} naneroo required to to automatically start one! Use\n - `" + COMMAND_PREFIX + "tipgiveaway` to donate to the next giveaway.\n - `" + COMMAND_PREFIX + "givearai` to sponsor your own giveaway\n - `" + COMMAND_PREFIX + "ticketstatus` to see how much you've already donated to the next giveaway"
+	ENTER_ADDED="You've been successfully entered into the giveaway"
+	ENTER_DUP="You've already entered the giveaway"
+	TIPGIVEAWAY_NO_ACTIVE="There are no active giveaways. Check giveaway status using `{0}giveawaystats`, or donate to the next one using `{0}tipgiveaway`".format(COMMAND_PREFIX)
+	TIPGIVEAWAY_ENTERED_FUTURE="With your gorgeous donation I have reserved your ticket for the next community sponsored giveaway!"
 
 # toptips
 TOPTIP_SPAM="No more top tips for {0} seconds"
@@ -548,7 +573,7 @@ async def mark_tx_processed(source_address, block, uid, to_address, amount):
 
 @client.event
 async def on_ready():
-	logger.info("NANO Tip Bot v%s started", BOT_VERSION)
+	logger.info("Graham v%s started.", BOT_VERSION)
 	logger.info("Discord.py API version %s", discord.__version__)
 	logger.info("Name: %s", client.user.name)
 	logger.info("ID: %s", client.user.id)
@@ -666,12 +691,12 @@ def build_help():
 	# Info
 	entries = [paginator.Entry(TIP_AUTHOR['CMD'], TIP_AUTHOR['OVERVIEW'])]
 	author=AUTHOR_HEADER + " - by bbedward"
-	description=("**Reviews**:\n" + "'10/10 True Masterpiece' - NANO Core Team" +
+	description=("**Reviews**:\n" + "'10/10 True Masterpiece' - That one guy" +
 			"\n'0/10 Didn't get rain' - Almost everybody else\n\n" +
-			"NANO Tip Bot is completely free to use and open source." +
+			"This bot is completely free to use and open source." +
 			" Developed by bbedward (reddit: /u/bbedward, discord: bbedward#9246)" +
 			"\nFeel free to send tips, suggestions, and feedback.\n\n" +
-			"Consider using my node as a representative to help decentralize the NANO network!\n" +
+			"Consider using this node as a representative to help decentralize the network!\n" +
 			"Representative Address: {0}\n\n"
 			"github: https://github.com/bbedward/Graham_Nano_Tip_Bot").format(settings.representative)
 	pages.append(paginator.Page(entries=entries, author=author,description=description))
@@ -717,21 +742,26 @@ async def balance(ctx):
 			return
 		balances = await wallet.get_balance(user)
 		actual = balances['actual']
-		actualnano = actual / 1000000
 		available = balances['available']
-		availablenano = available / 1000000
 		send = balances['pending_send']
-		sendnano = send / 1000000
 		receive = balances['pending']
-		receivenano = receive / 1000000
-		await post_response(message, BALANCE_TEXT,	"{:,}".format(actual),
-								actualnano,
-								"{:,}".format(available),
-								availablenano,
-								"{:,}".format(send),
-								sendnano,
-								"{:,}".format(receive),
-								receivenano)
+		if settings.banano:
+			await post_response(message, BALANCE_TEXT, actual, available, send, receive)
+		else:
+			# NANO-version uses micro units so we show the NANO-equivalent for convenience
+			receivenano = receive / 1000000
+			actualnano = actual / 1000000
+			availablenano = available / 1000000
+			sendnano = send / 1000000
+			receivenano = receive / 1000000
+			await post_response(message, BALANCE_TEXT,	"{:,}".format(actual),
+									actualnano,
+									"{:,}".format(available),
+									availablenano,
+									"{:,}".format(send),
+									sendnano,
+									"{:,}".format(receive),
+									receivenano)
 
 @client.command(aliases=get_aliases(DEPOSIT, exclude='deposit'))
 async def deposit(ctx):
@@ -771,7 +801,7 @@ async def withdraw(ctx):
 			if withdraw_amount == 0:
 				withdraw_amount = amount
 			elif 1 > withdraw_amount:
-				await post_response(message, "Minimum withdraw is 1 naneroo")
+				await post_response(message, "Minimum withdraw is 1 {0}", TIP_UNIT)
 				return
 			else:
 				withdraw_amount = abs(withdraw_amount)
@@ -875,7 +905,7 @@ async def do_tip(message, rand=False):
 				msg = TIP_RECEIVED_TEXT
 				if rand:
 					msg += ". You were randomly chosen by {0}'s `tiprandom`".format(message.author.name)
-					await post_dm(message.author, "{0} was the recipient of your random {1} naneroo tip", member.name, actual_amt, skip_dnd=True)
+					await post_dm(message.author, "{0} was the recipient of your random {1} {2} tip", member.name, actual_amt, TIP_UNIT, skip_dnd=True)
 				if not db.muted(member.id, message.author.id):
 					await post_dm(member, msg, actual_amt, message.author.name, message.author.id, skip_dnd=True)
 		# Post message reactions
@@ -1215,11 +1245,11 @@ async def tip_giveaway(message, ticket=False):
 				owed = fee - contributions
 				await post_dm(message.author,
 					"You were NOT entered into the giveaway!\n" +
-					"This giveaway has a fee of **{0} naneroo**\n" +
-					"You've donated **{1} naneroo** so far\n" +
-					"You need **{2} naneroo** to enter\n" +
+					"This giveaway has a fee of **{0} {5}**\n" +
+					"You've donated **{1} {5}** so far\n" +
+					"You need **{2} {5}** to enter\n" +
 					"You may enter using `{3}sticket {4}`"
-					, fee, contributions, owed, COMMAND_PREFIX, owed)
+					, fee, contributions, owed, COMMAND_PREFIX, owed, TIP_UNIT)
 				return
 		uid = str(uuid.uuid4())
 		await wallet.make_transaction_to_address(user, amount, None, uid, giveaway_id=giveawayid)
