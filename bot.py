@@ -13,6 +13,7 @@ import errno
 import asyncio
 import uuid
 import datetime
+import json
 import redis
 import celery.result
 from celery.task.control import revoke
@@ -27,7 +28,7 @@ from tasks import app, pocket_task
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "3.0.0"
+BOT_VERSION = "3.0.1"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -514,30 +515,19 @@ async def process_finished_tx():
 	"""Use blocking get on redis queue to process results"""
 	# This will block until it receives a result
 	logger.info("waiting for werk")
-	q, resp	= await asyncio.get_event_loop().run_in_executor(None, r.blpop, '/send_finished')
-	logger.info("Retrieving result")
-	task_id = resp.decode('utf-8')
-	logger.info("taskID: %s", task_id)
+	q, result = await asyncio.get_event_loop().run_in_executor(None, r.blpop, '/tx_completed')
 	try:
-		task = celery.result.AsyncResult(task_id, app=app)
-		# AsyncResult.get() is also blocking so we use run_in_executor
-		result = await asyncio.get_event_loop().run_in_executor(None, task.get)
-	except Exception:
-		r.rpush(task_id)
-		asyncio.get_event_loop().create_task(process_finished_tx())
-		return
-	if result is None :
-		logger.error("process_finished_tx() got null result from task ID: %s", task_id)
-	elif 'error' in result:
-		logger.error("processed_finished_tx() got error result: %s", result['error'])
-		tx = result['tx']
-	elif 'success' in result:
-		logger.info("TX Processed: %s", result['success']['txid'])
-		await mark_tx_processed(result['success']['source'],
-						  result['success']['txid'],
-						  result['success']['uid'],
-						  result['success']['destination'],
-						  result['success']['amount'])
+		result = json.loads(result.decode('utf-8').replace("'", "\""))
+		if 'success' in result:
+			logger.info("TX Processed: %s", result['success']['txid'])
+			await mark_tx_processed(result['success']['source'],
+							  result['success']['txid'],
+							  result['success']['uid'],
+							  result['success']['destination'],
+							  result['success']['amount'])
+	except Exception as e:
+		logger.exception(e)
+		r.rpush('/tx_completed', result)
 	# Wait for next one
 	asyncio.get_event_loop().create_task(process_finished_tx())
 

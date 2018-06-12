@@ -56,17 +56,19 @@ def send_transaction(self, tx):
             # Also pocket these timely
             logger.info("Pocketing tip for %s, block %s", to_address, txid)
             pocket_tx(to_address, txid)
-            r.rpush('/send_finished', self.request.id)
-            return {"success": {"source":source_address, "txid":txid, "uid":uid, "destination":to_address, "amount":amount}}
+            ret = json.dumps({"success": {"source":source_address, "txid":txid, "uid":uid, "destination":to_address, "amount":amount}})
+            r.rpush('/tx_completed', ret)
+            return ret
         else:
-            self.retry()
+            self.retry(countdown=3*self.request.retries)
+            return {"status":"retrying"}
     except pycurl.error:
-        self.retry()
+        self.retry(countdown=3*self.request.retries)
+        return {"status":"retrying"}
     except Exception as e:
-        # Just log these because i'm not sure offhand what other types of exceptions
-        # we may get here
         logger.exception(e)
-        self.retry()
+        self.retry(countdown=3*self.request.retries)
+        return {"status":"retrying"}
 
 def pocket_tx(account, block):
 	action = {
