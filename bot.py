@@ -1041,7 +1041,7 @@ async def tipfavorites(ctx):
 			user_list.append(discord_user)
 	await do_tipsplit(message, user_list=user_list)
 
-@client.command()
+@client.command(aliases=get_aliases(RAIN, exclude='rain'))
 async def rain(ctx):
 	message = ctx.message
 	if is_private(message.channel):
