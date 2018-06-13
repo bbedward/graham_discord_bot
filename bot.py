@@ -1187,8 +1187,8 @@ async def givearai(ctx):
 			await post_dm(message.author, INSUFFICIENT_FUNDS_TEXT)
 			return
 		end_time = datetime.datetime.utcnow() + datetime.timedelta(minutes=duration)
-		nano_amt = amount / 1000000
-		tipped_amount = db.get_tipgiveaway_sum() / 1000000
+		nano_amt = amount if settings.banano else amount / 1000000
+		tipped_amount = db.get_tipgiveaway_sum() if settings.banano else db.get_tipgiveaway_sum() / 1000000
 		giveaway,deleted = db.start_giveaway(message.author.id, message.author.name, nano_amt, end_time, message.channel.id, entry_fee=fee)
 		uid = str(uuid.uuid4())
 		await wallet.make_transaction_to_address(user, amount, None, uid, giveaway_id=giveaway.id)
@@ -1228,7 +1228,7 @@ async def tip_giveaway(message, ticket=False):
 			await add_x_reaction(message)
 			await post_dm(message.author, INSUFFICIENT_FUNDS_TEXT)
 			return
-		nano_amt = amount / 1000000
+		nano_amt = amount if settings.banano else amount / 1000000
 		if giveaway is not None:
 			db.add_tip_to_giveaway(nano_amt)
 			giveawayid = giveaway.id
@@ -1270,7 +1270,7 @@ async def tip_giveaway(message, ticket=False):
 		# If tip sum is >= GIVEAWAY MINIMUM then start giveaway
 		if giveaway is None:
 			tipgiveaway_sum = db.get_tipgiveaway_sum()
-			nano_amt = float(tipgiveaway_sum)/ 1000000
+			nano_amt = tipgiveaway_sum if settings.banano else float(tipgiveaway_sum)/ 1000000
 			if tipgiveaway_sum >= GIVEAWAY_MINIMUM:
 				end_time = datetime.datetime.utcnow() + datetime.timedelta(minutes=GIVEAWAY_AUTO_DURATION)
 				db.start_giveaway(client.user.id, client.user.name, 0, end_time, message.channel.id,entry_fee=fee)
