@@ -438,7 +438,7 @@ RAIN_NOBODY="I couldn't find anybody eligible to receive rain"
 if settings.banano:
 	GIVEAWAY_EXISTS="There's already an active giveaway"
 	GIVEAWAY_STARTED="{0} has sponsored a giveaway of {1:.2f} BANANO! Use:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "donate` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
-	GIVEAWAY_STARTED_FEE="{0} has sponsored a giveaway of {1:.2f} BANANO! The entry fee is {2} BANANO. Use:\n - `" + COMMAND_PREFIX + "ticket {2}` to buy your ticket\n - `" + COMMAND_PREFIX + "donate` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
+	GIVEAWAY_STARTED_FEE="{0} has sponsored a giveaway of {1:.2f} BANANO, including community contributions the total pot is {2:.2f} BANANO! The entry fee is {3} BANANO.\nUse:\n - `" + COMMAND_PREFIX + "ticket {3}` to buy your ticket\n - `" + COMMAND_PREFIX + "donate` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
 	GIVEAWAY_FEE_TOO_HIGH="A giveaway has started where the entry fee is higher than your donations! Use `{0}ticketstatus` to see how much you need to enter!".format(COMMAND_PREFIX)
 	GIVEAWAY_MAX_FEE="Giveaway entry fee cannot be more than 5% of the prize pool"
 	GIVEAWAY_ENDED="Congratulations! <@{0}> was the winner of the giveaway! They have been sent {1:.2f} BANANO!"
