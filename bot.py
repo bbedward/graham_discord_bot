@@ -28,7 +28,7 @@ from tasks import app, pocket_task
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "3.1.0"
+BOT_VERSION = "3.1.1"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -92,8 +92,8 @@ BALANCE = {
 }
 
 DEPOSIT ={
-		"TRIGGER"  : ["deposit", "register"],
-		"CMD"      : "{0}deposit or {0}register".format(COMMAND_PREFIX),
+		"TRIGGER"  : ["deposit", "register", "wallet", "address"],
+		"CMD"      : "{0}deposit or {0}register or {0}wallet or {0}address".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Shows your account address",
 		"INFO"     : ("Displays your tip bot account address along with a QR code" +
 				"\n- Send NANO to this address to increase your tip bot balance" +
@@ -303,7 +303,7 @@ WALLET_FOR = {
 }
 
 USER_FOR_WALLET = {
-		"CMD"      : "{0}userforwallet, takes: user".format(COMMAND_PREFIX),
+		"CMD"      : "{0}userforwallet, takes: address".format(COMMAND_PREFIX),
 		"INFO"     : "Returns user owning wallet address"
 }
 
@@ -411,7 +411,7 @@ TIP_SELF="No valid recipients found in your tip.\n(You cannot tip yourself and c
 
 # withdraw
 WITHDRAW_SUCCESS_TEXT="Withdraw has been queued for processing, I'll send you a link to the transaction after I've broadcasted it to the network!"
-WITHDRAW_PROCESSED_TEXT="Withdraw processed:\nTransaction: {0}{1}\nIf you have an issue with a withdraw please wait **24 hours** before contacting my master."
+WITHDRAW_PROCESSED_TEXT="Withdraw processed:\nTransaction: {0}block/{1}\nIf you have an issue with a withdraw please wait **24 hours** before contacting my master."
 WITHDRAW_NO_BALANCE_TEXT="You have no {0} to withdraw".format(TIP_UNIT)
 WITHDRAW_INVALID_ADDRESS_TEXT="Withdraw address is not valid"
 WITHDRAW_COOLDOWN_TEXT="You need to wait {0:.2f} seconds before making another withdraw"
@@ -1731,9 +1731,14 @@ async def walletfor(ctx, user: discord.Member = None, user_id: str = None):
 	if user is not None:
 		wa = db.get_address(user.id)
 	else:
-		wa = db.get_address(user_id)
+		user = db.get_user_by_id(user_id)
+		wa = user.wallet_address
 	if wa is not None:
-		await post_dm(ctx.message.author, "Address for user: {0}", wa)
+		await post_dm(ctx.message.author,
+					  "Address for user: '{0}' with Discord ID {1}: {2} {3}account/{2}",
+					  user.name if isinstance(user, discord.Member) else user.user_name, 
+					  user.id if isinstance(user, discord.Member) else user.user_id,
+					  wa, settings.block_explorer)
 	else:
 		await post_dm(ctx.message.author, "Could not find address for user")
 
@@ -1751,7 +1756,7 @@ async def increasetips(ctx, amount: float = -1.0, user: discord.Member = None):
 		return
 	u = db.get_user_by_id(user.id)
 	if u is None or 0 > amount:
-		await post_usage(ctx.message, INCREASETIPS)
+		await post_usage(ctx.message, INCREASETIPTOTAL)
 		return
 	new_total = u.tipped_amount + amount
 	db.update_tip_total(user.id, new_total)
@@ -1763,7 +1768,7 @@ async def reducetips(ctx, amount: float = -1.0, user: discord.Member = None):
 		return
 	u = db.get_user_by_id(user.id)
 	if u is None or amount < 0:
-		await post_usage(ctx.message, DECREASETIPS)
+		await post_usage(ctx.message, DECREASETIPTOTAL)
 		return
 	new_total = u.tipped_amount - amount
 	db.update_tip_total(user.id, new_total)
