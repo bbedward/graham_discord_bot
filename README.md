@@ -215,11 +215,23 @@ grant all privileges on database graham to graham_user;
 \q
 ```
 
+**Note the username, password, and database name used here**
+
+In this example they are:
+
+```
+database: 'graham'
+user: 'graham_user'
+password: 'password'
+```
+
+Substitute the values below with yours if they are different
+
 Run the migration:
 ```
 sudo cp nanotipbot.db /var/lib/postgresql
 sudo chown postgres:postgres /var/lib/postgresql/nanotipbot.db
-sudo -u postgres pgloader /var/lib/postgresql/nanotipbot.db postgresql:///graham
+sudo -u postgres pgloader /var/lib/postgresql/nanotipbot.db postgresql://graham_user:password@localhost:5432/graham
 ```
 
 If all went well , run the post-migrate
@@ -227,7 +239,7 @@ If all went well , run the post-migrate
 Use database name as argument from above (graham or whatever you used):
 
 ```
-sudo -u postgres ./sql/3.0/post_migrate.sh graham
+sudo -u postgres ./sql/3.0/post_migrate.sh graham_user password graham
 ```
 
 ??? profit

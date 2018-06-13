@@ -1,5 +1,5 @@
 #!/bin/bash
-psql postgresql:///${1} << EOF
+psql postgresql://${1}:${2}@localhost:5432/${3} << EOF
 	alter table users alter column stats_ban drop default;
 	alter table users alter stats_ban type bool using stats_ban::int::boolean;
 	alter table users alter column stats_ban set default false;
@@ -22,8 +22,29 @@ psql postgresql:///${1} << EOF
 	alter table userfavorite alter created type timestamp using created ;
 	alter table mutedlist alter created type timestamp using created ;
 	alter table frozenuser alter created type timestamp using created ;
-# ADD ME LATER	alter table * owner (postgres_user_name)
-# Change all to utcnow()
-#
+	create sequence user_seq;
+	create sequence transaction_seq;
+	create sequence giveaway_seq;
+	create sequence contestant_seq;
+	create sequence banned_seq;
+	create sequence fav_seq;
+	create sequence muted_seq;
+	create sequence frozen_seq;
+	select setval('user_seq', (select max(id)+1 from users), false);
+	select setval('transaction_seq', (select max(id)+1 from transactions), false);
+	select setval('giveaway_seq', (select max(id)+1 from giveaway), false);
+	select setval('contestant_seq', (select max(id)+1 from contestant), false);
+	select setval('banned_seq', (select max(id)+1 from banneduser), false);
+	select setval('fav_seq', (select max(id)+1 from userfavorite), false);
+	select setval('muted_seq', (select max(id)+1 from mutedlist), false);
+	select setval('frozen_seq', (select max(id)+1 from frozenuser), false);
+	alter table only users alter column id set default nextval('user_seq');
+	alter table only transactions alter column id set default nextval('transaction_seq');
+	alter table only giveaway alter column id set default nextval('giveaway_seq');
+	alter table only contestant alter column id set default nextval('contestant_seq');
+	alter table only banneduser alter column id set default nextval('banned_seq');
+	alter table only userfavorite alter column id set default nextval('fav_seq');
+	alter table only mutedlist alter column id set default nextval('muted_seq');
+	alter table only frozenuser alter column id set default nextval('frozen_seq');
 EOF
 
