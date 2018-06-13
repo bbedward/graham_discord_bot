@@ -168,7 +168,7 @@ ENTER = {
 }
 
 TIPGIVEAWAY = {
-		"TRIGGER"  : ["donate"] if settings.banano else ["tipgiveaway", "tg"],
+		"TRIGGER"  : ["donate", "d"] if settings.banano else ["tipgiveaway", "tg"],
 		"CMD"      : "{0}tipgiveaway, takes: amount".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Add to present or future giveaway prize pool",
 		"INFO"     : ("Add <amount> to the current giveaway pool\n"+
@@ -499,19 +499,22 @@ last_big_tippers = {}
 last_top_tips = {}
 last_winners = {}
 last_gs = {}
+last_blocks = {}
 def create_spam_dicts():
 	"""map every channel the client can see to datetime objects
 	   this way we can have channel-specific spam prevention"""
 	global last_big_tippers
 	global last_top_tips
 	global last_winners
+	global last_gs
+	global last_blocks
 	for c in client.get_all_channels():
 		if not is_private(c):
 			last_big_tippers[c.id] = initial_ts
 			last_top_tips[c.id] = initial_ts
 			last_winners[c.id] = initial_ts
 			last_gs[c.id] = initial_ts
-
+			last_blocks[c.id] = initial_ts
 ### Redis stuff
 
 last_task = None
@@ -1619,6 +1622,21 @@ async def unmute(ctx):
 		await post_dm(message.author, "{0} users have been unmuted!", unmute_count)
 	else:
 		await post_dm(message.author, "I couldn't find anybody in your message to unmute!")
+
+@client.command()
+async def blocks(ctx):
+	message = ctx.message
+	global last_blocks
+	if not is_private(message.channel):
+		if message.channel.id not in last_blocks:
+			last_blocks[message.channel.id] = datetime.datetime.utcnow()
+		tdelta = datetime.datetime.utcnow() - last_blocks[message.channel.id]
+		if SPAM_THRESHOLD > tdelta.seconds:
+			await post_response(message, "No more blocks for {0} seconds", (SPAM_THRESHOLD - tdelta.seconds))
+			return
+		last_blocks[message.channel.id] = datetime.datetime.utcnow()
+	count, unchecked = await wallet.get_blocks()
+	await post_response(message, "```Count: {0:,}\nUnchecked: {1:,}```", int(count), int(unchecked))
 
 @client.command()
 async def banned(ctx):

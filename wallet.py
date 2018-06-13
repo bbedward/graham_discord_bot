@@ -17,6 +17,11 @@ async def communicate_wallet_async(wallet_command):
 		async with session.post("http://{0}:{1}".format(settings.node_ip, settings.node_port),json=wallet_command, timeout=300) as resp:
 			return await resp.json()
 
+async def get_blocks():
+	wallet_command = {'action':'block_count'}
+	wallet_output = await communicate_wallet_async(wallet_command)
+	return (wallet_output['count'], wallet_output['unchecked'])
+
 async def create_or_fetch_user(user_id, user_name):
 	logger.info('attempting to fetch user %s ...', user_id)
 	user = db.get_user_by_id(user_id)
