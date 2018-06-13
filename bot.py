@@ -1940,42 +1940,53 @@ async def add_x_reaction(message):
 	return
 
 async def react_to_message(message, amount):
-	if amount > 0:
-		await message.add_reaction('\U00002611') # check mark
-	if amount > 0 and amount < 1000:
-		await message.add_reaction('\U0001F1F8') # S
-		await message.add_reaction('\U0001F1ED') # H
-		await message.add_reaction('\U0001F1F7') # R
-		await message.add_reaction('\U0001F1EE') # I
-		await message.add_reaction('\U0001F1F2') # M
-		await message.add_reaction('\U0001F1F5') # P
-	elif amount >= 1000 and amount < 10000:
-		await message.add_reaction('\U0001F1E8') # C
-		await message.add_reaction('\U0001F1F7') # R
-		await message.add_reaction('\U0001F1E6') # A
-		await message.add_reaction('\U0001F1E7') # B
-	elif amount >= 10000 and amount < 100000:
-		await message.add_reaction('\U0001F1FC') # W
-		await message.add_reaction('\U0001F1E6') # A
-		await message.add_reaction('\U0001F1F1') # L
-		await message.add_reaction('\U0001F1F7') # R
-		await message.add_reaction('\U0001F1FA') # U
-		await message.add_reaction('\U0001F1F8') # S
-	elif amount >= 100000 and amount < 1000000:
-		await message.add_reaction('\U0001F1F8') # S
-		await message.add_reaction('\U0001F1ED') # H
-		await message.add_reaction('\U0001F1E6') # A
-		await message.add_reaction('\U0001F1F7') # R
-		await message.add_reaction('\U0001F1F0') # K
-	elif amount >= 1000000:
-		await message.add_reaction('\U0001F1F2') # M
-		await message.add_reaction('\U0001F1EA') # E
-		await message.add_reaction('\U0001F1EC') # G
-		await message.add_reaction('\U0001F1E6') # A
-		await message.add_reaction('\U0001F1F1') # L
-		await message.add_reaction('\U0001F1E9') # D
-		await message.add_reaction('\U0001F1F4') # O
-		await message.add_reaction('\U0001F1F3') # N
+	if settings.banano:
+		if amount > 0:
+			await message.add_reaction('\:tip:425878628119871488') # TIP mark
+			await message.add_reaction('\:tick:425880814266351626') # check mark
+		if amount > 0 and amount < 50:
+			await message.add_reaction('\U0001F987') # S
+		elif amount >= 50 and amount < 250:
+			await message.add_reaction('\U0001F412') # C
+		elif amount >= 250:
+			await message.add_reaction('\U0001F98D') # W
+	else:
+		if amount > 0:
+			await message.add_reaction('\U00002611') # check mark
+		if amount > 0 and amount < 1000:
+			await message.add_reaction('\U0001F1F8') # S
+			await message.add_reaction('\U0001F1ED') # H
+			await message.add_reaction('\U0001F1F7') # R
+			await message.add_reaction('\U0001F1EE') # I
+			await message.add_reaction('\U0001F1F2') # M
+			await message.add_reaction('\U0001F1F5') # P
+		elif amount >= 1000 and amount < 10000:
+			await message.add_reaction('\U0001F1E8') # C
+			await message.add_reaction('\U0001F1F7') # R
+			await message.add_reaction('\U0001F1E6') # A
+			await message.add_reaction('\U0001F1E7') # B
+		elif amount >= 10000 and amount < 100000:
+			await message.add_reaction('\U0001F1FC') # W
+			await message.add_reaction('\U0001F1E6') # A
+			await message.add_reaction('\U0001F1F1') # L
+			await message.add_reaction('\U0001F1F7') # R
+			await message.add_reaction('\U0001F1FA') # U
+			await message.add_reaction('\U0001F1F8') # S
+		elif amount >= 100000 and amount < 1000000:
+			await message.add_reaction('\U0001F1F8') # S
+			await message.add_reaction('\U0001F1ED') # H
+			await message.add_reaction('\U0001F1E6') # A
+			await message.add_reaction('\U0001F1F7') # R
+			await message.add_reaction('\U0001F1F0') # K
+		elif amount >= 1000000:
+			await message.add_reaction('\U0001F1F2') # M
+			await message.add_reaction('\U0001F1EA') # E
+			await message.add_reaction('\U0001F1EC') # G
+			await message.add_reaction('\U0001F1E6') # A
+			await message.add_reaction('\U0001F1F1') # L
+			await message.add_reaction('\U0001F1E9') # D
+			await message.add_reaction('\U0001F1F4') # O
+			await message.add_reaction('\U0001F1F3') # N
 
 # Start the bot
 client.run(settings.discord_bot_token)
