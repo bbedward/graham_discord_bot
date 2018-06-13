@@ -1377,7 +1377,10 @@ async def winners(ctx):
 			padding = " " * ((max_l - len(winner_nm)) + 1)
 			response += winner_nm
 			response += padding
-			response += 'won {0:.6f} NANO'.format(winner['amount'])
+			if settings.banano:
+				response += 'won {0:.2f} BANANO'.format(winner['amount'])
+			else:
+				response += 'won {0:.6f} NANO'.format(winner['amount'])
 			response += '\n'
 		response += "```"
 		await post_response(message, response)
