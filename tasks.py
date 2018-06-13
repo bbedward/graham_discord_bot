@@ -61,14 +61,14 @@ def send_transaction(self, tx):
             r.rpush('/tx_completed', ret)
             return ret
         else:
-            self.retry(countdown=3*self.request.retries)
+            self.retry(countdown=2**self.request.retries)
             return {"status":"retrying"}
     except pycurl.error:
-        self.retry(countdown=3*self.request.retries)
+        self.retry(countdown=2**self.request.retries)
         return {"status":"retrying"}
     except Exception as e:
         logger.exception(e)
-        self.retry(countdown=3*self.request.retries)
+        self.retry(countdown=2**self.request.retries)
         return {"status":"retrying"}
 
 def pocket_tx(account, block):
