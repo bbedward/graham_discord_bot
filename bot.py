@@ -16,7 +16,6 @@ import datetime
 import json
 import redis
 import celery.result
-from celery.task.control import revoke
 
 import wallet
 import util
@@ -515,23 +514,17 @@ def create_spam_dicts():
 
 ### Redis stuff
 
+last_task = None
 async def pocket_pending_tx():
-	# Trigger message for pocket job
-	accts = db.get_accounts()
-	task = pocket_task.delay(accts)
-	# Block until we get the result
-	future = asyncio.get_event_loop().run_in_executor(None, task.get)
-	try:
-		result = await asyncio.wait_for(future, 300, loop=asyncio.get_event_loop())
-	except asyncio.futures.TimeoutError:
-		revoke(task.id, terminate=True)
-		result = None
-	if result is not None:
-		logger.info("Pocketed %d transactions", result)
+	global last_task
+	if last_task is None or last_task.ready():
+		# Trigger message for pocket job
+		accts = db.get_accounts()
+		last_task = pocket_task.delay(accts)
 	else:
-		logger.info("pocket_task returned null")
-	logger.info("Re-running pocket_task in 60 seconds...")
-	await asyncio.sleep(60)
+		logger.info("last pocket_task not complete")
+	logger.info("Re-running pocket_task in 120 seconds...")
+	await asyncio.sleep(120)
 	logger.info("Pocket task trigger")
 	asyncio.get_event_loop().create_task(pocket_pending_tx())
 
