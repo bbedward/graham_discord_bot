@@ -55,7 +55,7 @@ TIPGIVEAWAY_AUTO_ENTRY=int(.01 * GIVEAWAY_MINIMUM)
 # HELP menu header
 AUTHOR_HEADER="Graham v{0} ({1} Edition)".format(BOT_VERSION, "BANANO" if settings.banano else "NANO")
 
-DONATION_ADDRESS='xrb_1hmefcfq35td5f6rkh15hbpr4bkkhyyhmfhm7511jaka811bfp17xhkboyxo'
+DONATION_ADDRESS='ban_3jb1fp4diu79wggp7e171jdpxp95auji4moste6gmc55pptwerfjqu48okse' if settings.banano else 'xrb_1hmefcfq35td5f6rkh15hbpr4bkkhyyhmfhm7511jaka811bfp17xhkboyxo'
 
 # Command DOC (TRIGGER, CMD, Overview, Info)
 '''
