@@ -191,7 +191,11 @@ nohup ./graham_backend.sh &
 First stop the bot completely, git pull, and install pre-reqs:
 
 ```
-apt install redis-server postgresql pgloader
+sudo apt install redis-server postgresql ruby ruby-dev libsqlite3-dev libpq-dev
+```
+
+```
+sudo gem install sequel pg sqlite3
 ```
 
 and python pre-reqs:
@@ -237,9 +241,7 @@ Substitute the values below with yours if they are different
 
 Run the migration:
 ```
-sudo cp nanotipbot.db /var/lib/postgresql
-sudo chown postgres:postgres /var/lib/postgresql/nanotipbot.db
-sudo -u postgres pgloader /var/lib/postgresql/nanotipbot.db postgresql://graham_user:password@localhost:5432/graham
+sudo sequel -C sqlite://nanotipbot.db postgresql://graham_user:password@localhost:5432/graham
 ```
 
 If all went well , run the post-migrate
