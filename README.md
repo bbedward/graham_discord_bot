@@ -1,4 +1,4 @@
-# Graham (a NANO currency Tip Bot for Discord)
+# Graham (a NANO/BANANO currency Tip Bot for Discord)
 
 Graham is an open source, free to use nano bot for discord.
 
@@ -84,15 +84,21 @@ database_user='tipbot_user'
 database_password='mypassword'
 ```
 
-### Set up NANO Node
+### Set up BA/NANO Node
 
 You can follow the lovely guide here for setting up a docker nano node if you don't already have one running:
 
 https://1nano.co/support-the-network/
 
+Banano:
+
+https://github.com/BananoCoin/banano/wiki
+
 You need rpc_enable and enable_control set to 'true' in the config.json
 
 ### Create wallet for tip bot
+
+Note: substitute rai_node with bananode for banano
 
 ```
 docker <container_id> exec rai_node --wallet_create
@@ -120,6 +126,8 @@ cp settings.py.example settings.py
 ```
 
 Then open settings.py with any text editor and add your bot's client ID, token, and the wallet ID from earlier
+
+set banano=True for banano
 
 Also you will need the postgres database name, user, and password from earlier
 
