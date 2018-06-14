@@ -14,7 +14,7 @@ A few of the features included in this bot:
 - Interactive help for user friendliness
 
 ## Commands
-#### For Graham(Nano Edition), replace . with ?
+#### For Graham(Nano Edition), replace "." with "?"
 ### Command Overview
 - .balance
 Display balance of your account
@@ -448,8 +448,11 @@ If you have issues migrating contact me and i'll help if I'm available
 Graham v3.1.1 (BANANO Edition) - by bbedward
 Reviews:
 '10/10 True Masterpiece' - That one guy
+
 '0/10 Didn't get rain' - Almost everybody else
+
 '8/10' imroved readme - Computer_Genius
+
 This bot is completely free to use and open source. Developed by bbedward (reddit: /u/bbedward, discord: bbedward#9246)
 Feel free to send tips, suggestions, and feedback.
 
