@@ -1111,7 +1111,7 @@ async def ticket(ctx):
 		await remove_message(message)
 		return
 	giveaway = db.get_giveaway()
-	if db.is_banned(message.author.id):
+	if db.is_banned(message.author.id) or db.is_frozen(message.author.id):
 		await post_dm(message.author, "You may not enter giveaways at this time")
 	elif giveaway.entry_fee == 0:
 		entered = db.add_contestant(message.author.id)
@@ -1215,6 +1215,8 @@ async def tip_giveaway(message, ticket=False):
 		return
 	elif paused:
 		await pause_msg(message)
+		return
+	elif db.is_frozen(message.author.id):
 		return
 	try:
 		giveaway = db.get_giveaway()
