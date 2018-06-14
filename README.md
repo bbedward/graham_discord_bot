@@ -11,56 +11,76 @@ A few of the features included in this bot:
 - bot-wide statistics (`leaderboard`,`toptips`,`winners`)
 - individual favorites list (`addfavorite`,`removefavorite`,`tipfavorites`,`favorites`)
 - Administration commands for specific users or roles (see `adminhelp`)
-- Interactive help for user friendly-ness
-
-And much more than listed here probably
+- Interactive help for user friendliness
 
 ## Commands
-
+#### For Graham(Nano Edition), replace . with ?
 ### Command Overview
 .balance
 Display balance of your account
-.deposit or .register or .wallet or .address
+
+.deposit/.register/.wallet/.address
 Shows your account address
+
 .withdraw, takes: address (optional amount)
 Allows you to withdraw from your tip account
+
 .ban, takes: amount <*users>
 Send a tip to mentioned users
+
 .bansplit, takes: amount, <*users>
 Split a tip among mentioned uses
+
 .banrandom, takes: amount
 Tips a random active user
+
 .brain, takes: amount
 Split tip among all active* users
+
 .givearai, takes: amount, fee=(amount), duration=(minutes)
 Sponsor a giveaway
+
 .ticket, takes: fee (conditional)
+
 .tipgiveaway, takes: amount
 Add to present or future giveaway prize pool
+
 .ticketstatus
 Check if you are entered into the current giveaway
+
 .giveawaystats or .goldenticket
 Display statistics relevant to the current giveaway
+
 .winners
 Display previous giveaway winners
-.leaderboard or .ballers
+
+.leaderboard/.ballers
 Display the all-time tip leaderboard
+
 .toptips
 Display largest individual tips
+
 .tipstats
 Display your personal tipping stats
+
 .addfavorite, takes: *users
 Add users to your favorites list
+
 .removefavorite, takes: *users or favorite ID
 Removes users from your favorites list
+
 .favorites
 View your favorites list
+
 .banfavorites, takes: amount
 Tip your entire favorites list
+
 .mute, takes: user id
 Block tip notifications when sent by this user
+
 .unmute, takes: user id
 Unblock tip notificaitons sent by this user
+
 .muted
 View list of users you have muted
 
@@ -73,13 +93,15 @@ Available Balance: The balance you are able to tip with (Actual - Pending Send)
 Pending Send: Tips you have sent, but have not yet been broadcasted to network
 Pending Receipt: Tips that have been sent to you, but have not yet been pocketed by the node. 
 Pending funds will be available for tip/withdraw after they have been pocketed by the node
-.deposit or .register or .wallet or .address
+
+.deposit/.register/.wallet/.address
 Displays your tip bot account address along with a QR code
 - Send NANO to this address to increase your tip bot balance
 - If you do not have a tip bot account yet, this command will create one for you (receiving a tip automatically creates an account too)
+
 .withdraw, takes: address (optional amount)
 Withdraws specified amount to specified address, if amount isn't specified your entire tip account balance will be withdrawn
-Example: .withdraw xrb_111111111111111111111111111111111111111111111111111hifc8npp 1000 - Withdraws 1000 BANANO
+Example: .withdraw xrb_1111111111111111111111111111111154651111111111111111hifc8npp 1000 - Withdraws 1000 BANANO
 
 ### Tipping Commands
 
@@ -88,18 +110,22 @@ Tip specified amount to mentioned user(s) (minimum tip is 1 BANANO)
 The recipient(s) will be notified of your tip via private message
 Successful tips will be deducted from your available balance immediately
 Example: .ban 2 @user1 @user2 would send 2 to user1 and 2 to user2
+
 .bansplit, takes: amount, <*users>
 Distributes a tip evenly to all mentioned users.
 Example: .bansplit 2 @user1 @user2 would send 1 to user1 and 1 to user2
+
 .banrandom, takes: amount
 Tips amount to a random active user. Active user list picked using same logic as rain
 Minimum banrandom amount: 10 BANANO
+
 .brain, takes: amount
 Distribute <amount> evenly to users who are eligible.
 Eligibility is determined based on your recent activity and contributions to public channels. Several factors are considered in picking who receives rain. If you aren't receiving it, you aren't contributing enough or your contributions are low-quality/spammy.
 Note: Users who have a status of 'offline' or 'do not disturb' do not receive rain.
 Example: .rain 1000 - distributes 1000 evenly to eligible users (similar to tipsplit)
 Minimum rain amount: 1500 BANANO
+
 .tipauthor, takes: amount
 Donate to the author of this bot
 
@@ -113,16 +139,19 @@ Example: .giveaway 1000 fee=5 duration=30 - Starts a giveaway of 1000, with fee 
 Minimum required to sponsor a giveaway: 1000 BANANO
 Minimum giveaway duration: 5 minutes
 Maximum giveaway duration: 60 minutes
+
 .ticket, takes: fee (conditional)
 Enter the current giveaway, if there is one. Takes (fee) as argument only if there's an entry fee.
  Fee will go towards the prize pool and be deducted from your available balance immediately
 Example: .ticket (to enter a giveaway without a fee), .ticket 10 (to enter a giveaway with a fee of 10)
+
 .tipgiveaway, takes: amount
 Add <amount> to the current giveaway pool
 If there is no giveaway, one will be started when minimum is reached.
 Tips >= 10 BANANO automatically enter you for giveaways sponsored by the community.
 Donations count towards the next giveaways entry fee
 Example: .tipgiveaway 1000 - Adds 1000 to giveaway pool
+
 .ticketstatus
 Check if you are entered into the current giveaway
   
@@ -131,12 +160,16 @@ Check if you are entered into the current giveaway
 Individual, bot-wide, and giveaway stats
 .giveawaystats or .goldenticket
 Display statistics relevant to the current giveaway
+
 .winners
 Display previous giveaway winners
+
 .leaderboard or .ballers
 Display the all-time tip leaderboard
+
 .toptips
 Display the single largest tips for the past 24 hours, current month, and all time
+
 .tipstats
 Display your personal tipping stats (rank, total tipped, and average tip)
 
@@ -145,12 +178,15 @@ How to interact with your favorites list
 .addfavorite, takes: *users
 Adds mentioned users to your favorites list.
 Example: .addfavorite @user1 @user2 @user3 - Adds user1,user2,user3 to your favorites
+
 .removefavorite, takes: *users or favorite ID
 Removes users from your favorites list. You can either @mention the user in a public channel or use the ID in your favorites list
 Example 1: .removefavorite @user1 @user2 - Removes user1 and user2 from your favorites
 Example 2: .removefavorite 1 6 3 - Removes favorites with ID : 1, 6, and 3
+
 .favorites
 View your favorites list. Use .addfavorite to add favorites to your list and .removefavorite to remove favories
+
 .banfavorites, takes: amount
 Tip everybody in your favorites list specified amount
 Example: .banfavorites 1000 Distributes 1000 to your entire favorites list (similar to .bansplit)
@@ -159,8 +195,10 @@ Example: .banfavorites 1000 Distributes 1000 to your entire favorites list (simi
 Handle how tip bot gives you notifications
 .mute, takes: user id
 When someone is spamming you with tips and you can't take it anymore
+
 .unmute, takes: user id
 When the spam is over and you want to know they still love you
+
 .muted
 Are you really gonna drunk dial?
 
@@ -171,7 +209,7 @@ Graham is designed so that every tip is a real transaction on the NANO/BANANO ne
 
 Some highlights:
 
-- Transactions are queued and processed synchronously in a worker thread, while bot activity is handled in a main thread.
+- Transactions are queued and processed synchronously in a worker thread, while bot activity is handled in a main thread
 - User data, transactions, and all other persisted data is stored using the Peewee ORM with Sqlite
 - Operates with a single NANO/BANANO wallet, with 1 account per user
 
@@ -183,7 +221,7 @@ Recommend using with a GPU/OpenCL configured node (or work peer) on busier disco
 
 2) Instructions assume ubuntu 18.04 or greater. Any debian-based distribution should work with these as long as you have python 3.6+ (3.5 will NOT work)
 
-3) Yea it's possible to run on centOS or gentoo or arch or slackware or windows or OSX or whateva you want. But that's up to you to figure out, i dont rly want to tech support and troubleshoot other installations
+3) Yes, it's possible to run on centOS or gentoo or arch or slackware or windows or OSX or whateva you want. But that's up to you to figure out, i dont rly want to tech support and troubleshoot other installations
 
 ### Requirements
 
