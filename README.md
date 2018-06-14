@@ -19,69 +19,69 @@ A few of the features included in this bot:
 - .balance
 Display balance of your account
 
-.deposit/.register/.wallet/.address
+- .deposit/.register/.wallet/.address
 Shows your account address
 
-.withdraw, takes: address (optional amount)
+- .withdraw, takes: address (optional amount)
 Allows you to withdraw from your tip account
 
-.ban, takes: amount <*users>
+- .ban, takes: amount <*users>
 Send a tip to mentioned users
 
-.bansplit, takes: amount, <*users>
+- .bansplit, takes: amount, <*users>
 Split a tip among mentioned uses
 
-.banrandom, takes: amount
+- .banrandom, takes: amount
 Tips a random active user
 
-.brain, takes: amount
+- .brain, takes: amount
 Split tip among all active* users
 
-.givearai, takes: amount, fee=(amount), duration=(minutes)
+- .givearai, takes: amount, fee=(amount), duration=(minutes)
 Sponsor a giveaway
 
-.ticket, takes: fee (conditional)
+- .ticket, takes: fee (conditional)
 
-.tipgiveaway, takes: amount
+- .tipgiveaway, takes: amount
 Add to present or future giveaway prize pool
 
-.ticketstatus
+- .ticketstatus
 Check if you are entered into the current giveaway
 
-.giveawaystats or .goldenticket
+- .giveawaystats or .goldenticket
 Display statistics relevant to the current giveaway
 
-.winners
+- .winners
 Display previous giveaway winners
 
-.leaderboard/.ballers
+- .leaderboard/.ballers
 Display the all-time tip leaderboard
 
-.toptips
+- .toptips
 Display largest individual tips
 
-.tipstats
+-.tipstats
 Display your personal tipping stats
 
-.addfavorite, takes: *users
+- .addfavorite, takes: *users
 Add users to your favorites list
 
-.removefavorite, takes: *users or favorite ID
+- .removefavorite, takes: *users or favorite ID
 Removes users from your favorites list
 
-.favorites
+- .favorites
 View your favorites list
 
-.banfavorites, takes: amount
+- .banfavorites, takes: amount
 Tip your entire favorites list
 
-.mute, takes: user id
+- .mute, takes: user id
 Block tip notifications when sent by this user
 
-.unmute, takes: user id
+- .unmute, takes: user id
 Unblock tip notificaitons sent by this user
 
-.muted
+- .muted
 View list of users you have muted
 
 ### Account Commands
