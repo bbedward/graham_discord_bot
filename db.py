@@ -518,7 +518,7 @@ def get_ticket_status(user_id):
 	except Giveaway.DoesNotExist:
 		contributions = get_tipgiveaway_contributions(user_id)
 		return ("There is no active giveaway.\n" +
-			"So far you've contributed {0} naneroo towards the next one.\n" +
+			"So far you've contributed {0} {1} towards the next one.\n" +
 			"I'll automatically enter you into the next giveaway if the fee is <= {0} {1}").format(contributions, "BANANO" if settings.banano else "naneroo")
 
 @db.connection_context()
@@ -564,13 +564,26 @@ def get_top_tips():
 	dt = datetime.datetime.utcnow()
 	past_dt = dt - datetime.timedelta(days=1) # Date 24H ago
 	month_str = dt.strftime("%B")
-	month_num = "{0:02d}".format(dt.month) # Sqlite uses 2 digit month (with leading 0)
-	amount = fn.MAX(User.top_tip).alias('amount')
-	amount_day = fn.MAX(User.top_tip_day).alias('amount')
-	amount_month = fn.MAX(User.top_tip_month).alias('amount')
-	top_24h = User.select(amount_day, User.user_name).where((User.top_tip_day_ts > past_dt) & (User.stats_ban == False)).order_by(User.top_tip_day_ts).limit(1)
-	top_month = User.select(amount_month, User.user_name).where((fn.strftime("%m", User.top_tip_month_ts) == month_num) & (User.stats_ban == False)).order_by(User.top_tip_month_ts).limit(1)
-	top_at = User.select(amount, User.user_name).where(User.stats_ban == False).order_by(User.top_tip_ts).limit(1)
+	top_24h = (User.select(User.top_tip_day.alias('amount'), User.user_name)
+			.where((User.top_tip_day_ts > past_dt) &
+				(User.stats_ban == False))
+			.group_by(User.user_name, User.top_tip_day)
+			.having(User.top_tip_day == fn.MAX(User.top_tip_day))
+			.order_by(User.top_tip_day.desc())
+			.limit(1))
+	top_month = (User.select(User.top_tip_month.alias('amount'), User.user_name)
+			.where((fn.date_part('month', User.top_tip_month_ts) == str(dt.month)) &
+				(User.stats_ban == False))
+			.group_by(User.user_name, User.top_tip_month)
+			.having(User.top_tip_month == fn.MAX(User.top_tip_month))
+			.order_by(User.top_tip_month.desc())
+			.limit(1))
+	top_at = (User.select(User.top_tip.alias('amount'), User.user_name)
+			.where(User.stats_ban == False)
+			.group_by(User.user_name, User.top_tip)
+			.having(User.top_tip == fn.MAX(User.top_tip))
+			.order_by(User.top_tip.desc())
+			.limit(1))
 	# Formatted output
 	user24h = None
 	monthuser = None

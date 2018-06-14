@@ -1425,7 +1425,7 @@ async def leaderboard(ctx):
 			padding = " " * ((max_l - len(top_user_nm)) + 1)
 			response += top_user_nm
 			response += padding
-			response += '- {0:.6f} NANO'.format(top_user['amount'])
+			response += '- {0:.2f} BANANO'.format(top_user['amount']) if settings.banano else '- {0:.6f} NANO'.format(top_user['amount'])
 			response += '\n'
 		response += "```"
 		await post_response(message, response)
