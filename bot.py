@@ -438,7 +438,7 @@ RAIN_NOBODY="I couldn't find anybody eligible to receive rain"
 if settings.banano:
 	GIVEAWAY_EXISTS="There's already an active giveaway"
 	GIVEAWAY_STARTED="{0} has sponsored a giveaway of {1:.2f} BANANO! Use:\n - `" + COMMAND_PREFIX + "ticket` to enter\n - `" + COMMAND_PREFIX + "donate` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
-	GIVEAWAY_STARTED_FEE="{0} has sponsored a giveaway of {1:.2f} BANANO! The entry fee is {2} BANANO. Use:\n - `" + COMMAND_PREFIX + "ticket {2}` to buy your ticket\n - `" + COMMAND_PREFIX + "donate` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
+	GIVEAWAY_STARTED_FEE="{0} has sponsored a giveaway of {1:.2f} BANANO, including community contributions the total pot is {2:.2f} BANANO! The entry fee is {3} BANANO.\nUse:\n - `" + COMMAND_PREFIX + "ticket {3}` to buy your ticket\n - `" + COMMAND_PREFIX + "donate` to increase the pot\n - `" + COMMAND_PREFIX + "ticketstatus` to check the status of your entry"
 	GIVEAWAY_FEE_TOO_HIGH="A giveaway has started where the entry fee is higher than your donations! Use `{0}ticketstatus` to see how much you need to enter!".format(COMMAND_PREFIX)
 	GIVEAWAY_MAX_FEE="Giveaway entry fee cannot be more than 5% of the prize pool"
 	GIVEAWAY_ENDED="Congratulations! <@{0}> was the winner of the giveaway! They have been sent {1:.2f} BANANO!"
@@ -1041,7 +1041,7 @@ async def tipfavorites(ctx):
 			user_list.append(discord_user)
 	await do_tipsplit(message, user_list=user_list)
 
-@client.command()
+@client.command(aliases=get_aliases(RAIN, exclude='rain'))
 async def rain(ctx):
 	message = ctx.message
 	if is_private(message.channel):
@@ -1187,8 +1187,8 @@ async def givearai(ctx):
 			await post_dm(message.author, INSUFFICIENT_FUNDS_TEXT)
 			return
 		end_time = datetime.datetime.utcnow() + datetime.timedelta(minutes=duration)
-		nano_amt = amount / 1000000
-		tipped_amount = db.get_tipgiveaway_sum() / 1000000
+		nano_amt = amount if settings.banano else amount / 1000000
+		tipped_amount = db.get_tipgiveaway_sum() if settings.banano else db.get_tipgiveaway_sum() / 1000000
 		giveaway,deleted = db.start_giveaway(message.author.id, message.author.name, nano_amt, end_time, message.channel.id, entry_fee=fee)
 		uid = str(uuid.uuid4())
 		await wallet.make_transaction_to_address(user, amount, None, uid, giveaway_id=giveaway.id)
@@ -1230,7 +1230,7 @@ async def tip_giveaway(message, ticket=False):
 			await add_x_reaction(message)
 			await post_dm(message.author, INSUFFICIENT_FUNDS_TEXT)
 			return
-		nano_amt = amount / 1000000
+		nano_amt = amount if settings.banano else amount / 1000000
 		if giveaway is not None:
 			db.add_tip_to_giveaway(nano_amt)
 			giveawayid = giveaway.id
@@ -1272,7 +1272,7 @@ async def tip_giveaway(message, ticket=False):
 		# If tip sum is >= GIVEAWAY MINIMUM then start giveaway
 		if giveaway is None:
 			tipgiveaway_sum = db.get_tipgiveaway_sum()
-			nano_amt = float(tipgiveaway_sum)/ 1000000
+			nano_amt = tipgiveaway_sum if settings.banano else float(tipgiveaway_sum)/ 1000000
 			if tipgiveaway_sum >= GIVEAWAY_MINIMUM:
 				end_time = datetime.datetime.utcnow() + datetime.timedelta(minutes=GIVEAWAY_AUTO_DURATION)
 				db.start_giveaway(client.user.id, client.user.name, 0, end_time, message.channel.id,entry_fee=fee)
@@ -1379,7 +1379,10 @@ async def winners(ctx):
 			padding = " " * ((max_l - len(winner_nm)) + 1)
 			response += winner_nm
 			response += padding
-			response += 'won {0:.6f} NANO'.format(winner['amount'])
+			if settings.banano:
+				response += 'won {0:.2f} BANANO'.format(winner['amount'])
+			else:
+				response += 'won {0:.6f} NANO'.format(winner['amount'])
 			response += '\n'
 		response += "```"
 		await post_response(message, response)
@@ -1942,42 +1945,53 @@ async def add_x_reaction(message):
 	return
 
 async def react_to_message(message, amount):
-	if amount > 0:
-		await message.add_reaction('\U00002611') # check mark
-	if amount > 0 and amount < 1000:
-		await message.add_reaction('\U0001F1F8') # S
-		await message.add_reaction('\U0001F1ED') # H
-		await message.add_reaction('\U0001F1F7') # R
-		await message.add_reaction('\U0001F1EE') # I
-		await message.add_reaction('\U0001F1F2') # M
-		await message.add_reaction('\U0001F1F5') # P
-	elif amount >= 1000 and amount < 10000:
-		await message.add_reaction('\U0001F1E8') # C
-		await message.add_reaction('\U0001F1F7') # R
-		await message.add_reaction('\U0001F1E6') # A
-		await message.add_reaction('\U0001F1E7') # B
-	elif amount >= 10000 and amount < 100000:
-		await message.add_reaction('\U0001F1FC') # W
-		await message.add_reaction('\U0001F1E6') # A
-		await message.add_reaction('\U0001F1F1') # L
-		await message.add_reaction('\U0001F1F7') # R
-		await message.add_reaction('\U0001F1FA') # U
-		await message.add_reaction('\U0001F1F8') # S
-	elif amount >= 100000 and amount < 1000000:
-		await message.add_reaction('\U0001F1F8') # S
-		await message.add_reaction('\U0001F1ED') # H
-		await message.add_reaction('\U0001F1E6') # A
-		await message.add_reaction('\U0001F1F7') # R
-		await message.add_reaction('\U0001F1F0') # K
-	elif amount >= 1000000:
-		await message.add_reaction('\U0001F1F2') # M
-		await message.add_reaction('\U0001F1EA') # E
-		await message.add_reaction('\U0001F1EC') # G
-		await message.add_reaction('\U0001F1E6') # A
-		await message.add_reaction('\U0001F1F1') # L
-		await message.add_reaction('\U0001F1E9') # D
-		await message.add_reaction('\U0001F1F4') # O
-		await message.add_reaction('\U0001F1F3') # N
+	if settings.banano:
+		if amount > 0:
+			await message.add_reaction('\:tip:425878628119871488') # TIP mark
+			await message.add_reaction('\:tick:425880814266351626') # check mark
+		if amount > 0 and amount < 50:
+			await message.add_reaction('\U0001F987') # S
+		elif amount >= 50 and amount < 250:
+			await message.add_reaction('\U0001F412') # C
+		elif amount >= 250:
+			await message.add_reaction('\U0001F98D') # W
+	else:
+		if amount > 0:
+			await message.add_reaction('\U00002611') # check mark
+		if amount > 0 and amount < 1000:
+			await message.add_reaction('\U0001F1F8') # S
+			await message.add_reaction('\U0001F1ED') # H
+			await message.add_reaction('\U0001F1F7') # R
+			await message.add_reaction('\U0001F1EE') # I
+			await message.add_reaction('\U0001F1F2') # M
+			await message.add_reaction('\U0001F1F5') # P
+		elif amount >= 1000 and amount < 10000:
+			await message.add_reaction('\U0001F1E8') # C
+			await message.add_reaction('\U0001F1F7') # R
+			await message.add_reaction('\U0001F1E6') # A
+			await message.add_reaction('\U0001F1E7') # B
+		elif amount >= 10000 and amount < 100000:
+			await message.add_reaction('\U0001F1FC') # W
+			await message.add_reaction('\U0001F1E6') # A
+			await message.add_reaction('\U0001F1F1') # L
+			await message.add_reaction('\U0001F1F7') # R
+			await message.add_reaction('\U0001F1FA') # U
+			await message.add_reaction('\U0001F1F8') # S
+		elif amount >= 100000 and amount < 1000000:
+			await message.add_reaction('\U0001F1F8') # S
+			await message.add_reaction('\U0001F1ED') # H
+			await message.add_reaction('\U0001F1E6') # A
+			await message.add_reaction('\U0001F1F7') # R
+			await message.add_reaction('\U0001F1F0') # K
+		elif amount >= 1000000:
+			await message.add_reaction('\U0001F1F2') # M
+			await message.add_reaction('\U0001F1EA') # E
+			await message.add_reaction('\U0001F1EC') # G
+			await message.add_reaction('\U0001F1E6') # A
+			await message.add_reaction('\U0001F1F1') # L
+			await message.add_reaction('\U0001F1E9') # D
+			await message.add_reaction('\U0001F1F4') # O
+			await message.add_reaction('\U0001F1F3') # N
 
 # Start the bot
 client.run(settings.discord_bot_token)

@@ -144,7 +144,7 @@ def get_tip_stats(user_id):
 	if not user.stats_ban:
 		tipped_amount = user.tipped_amount
 		tip_count = user.tip_count
-		top_tip = user.top_tip
+		top_tip = user.top_tip if settings.banano else float(top_tip) / 1000000
 	else:
 		tipped_amount = 0
 		tip_count = 0
@@ -154,13 +154,14 @@ def get_tip_stats(user_id):
 		average = 0
 	else:
 		average = tipped_amount / tip_count
-	return {'rank':rank, 'total':tipped_amount, 'average':average,'top':float(top_tip) / 1000000}
+	return {'rank':rank, 'total':tipped_amount, 'average':average,'top':top_tip}
 
 # Update tip stats
 @db.connection_context()
 def update_tip_stats(user, tip, rain=False, giveaway=False):
+	tip_add = tip if settings.banano else tip / 1000000
 	(User.update(
-		tipped_amount=(User.tipped_amount + (tip / 1000000)),
+		tipped_amount=(User.tipped_amount + (tip_add)),
 		tip_count = User.tip_count + 1
 		).where(User.id == user.id)
 		).execute()
@@ -189,13 +190,13 @@ def update_tip_stats(user, tip, rain=False, giveaway=False):
 	# Update rain or giveaway stats
 	if rain:
 		(User.update(
-			rain_amount = User.rain_amount + (tip / 1000000)
+			rain_amount = User.rain_amount + (tip_add)
 			)
 			.where(User.id == user.id)
 		).execute()
 	elif giveaway:
 		(User.update(
-			giveaway_amount = User.giveaway_amount + (tip / 1000000)
+			giveaway_amount = User.giveaway_amount + (tip_add)
 			)
 			.where(User.id == user.id)
 		).execute()
@@ -354,7 +355,7 @@ def update_giveaway_transactions(giveawayid):
 			(Transaction.giveawayid == -1)
 	)).execute()
 
-	return float(tip_sum)/ 1000000
+	return float(tip_sum) if settings.banano else float(tip_sum)/ 1000000
 
 @db.connection_context()
 def add_tip_to_giveaway(amount):
@@ -518,7 +519,7 @@ def get_ticket_status(user_id):
 		contributions = get_tipgiveaway_contributions(user_id)
 		return ("There is no active giveaway.\n" +
 			"So far you've contributed {0} naneroo towards the next one.\n" +
-			"I'll automatically enter you into the next giveaway if the fee is <= {0} naneroo").format(contributions)
+			"I'll automatically enter you into the next giveaway if the fee is <= {0} {1}").format(contributions, "BANANO" if settings.banano else "naneroo")
 
 @db.connection_context()
 def contestant_exists(user_id):
@@ -577,24 +578,33 @@ def get_top_tips():
 
 	for top in top_24h:
 		user24h = top.user_name
-		amount24h = float(top.amount) / 1000000
+		amount24h = float(top.amount) if settings.banano else float(top.amount) / 1000000
 	for top in top_month:
 		monthuser = top.user_name
-		monthamount = float(top.amount) / 1000000
+		monthamount = float(top.amount) if settings.banano else float(top.amount) / 1000000
 	for top in top_at:
 		atuser = top.user_name
-		atamount = float(top.amount) / 1000000
+		atamount = float(top.amount) if settings.banano else float(top.amount) / 1000000
 
 	if user24h is None and monthuser is None and atuser is None:
 		return "```No Tips Found```"
 
 	result = ""
 	if user24h is not None:
-		result += "Biggest tip in the last 24 hours:```{0:.6f} NANO by {1}```".format(amount24h, user24h)
+		if settings.banano:
+			result += "Biggest tip in the last 24 hours:```{0:.2f} BANANO by {1}```".format(amount24h, user24h)
+		else:
+			result += "Biggest tip in the last 24 hours:```{0:.6f} NANO by {1}```".format(amount24h, user24h)
 	if monthuser is not None:
-		result += "Biggest tip in {0}:```{1:.6f} NANO by {2}```".format(month_str, monthamount, monthuser)
+		if settings.banano:
+			result += "Biggest tip in {0}:```{1:.2f} BANANO by {2}```".format(month_str, monthamount, monthuser)
+		else:
+			result += "Biggest tip in {0}:```{1:.6f} NANO by {2}```".format(month_str, monthamount, monthuser)
 	if atuser is not None:
-		result += "Biggest tip of all time:```{0:.6f} NANO by {1}```".format(atamount, atuser)
+		if settings.banano:
+			result += "Biggest tip of all time:```{0:.2f} BANANO by {1}```".format(atamount, atuser)
+		else:
+			result += "Biggest tip of all time:```{0:.6f} NANO by {1}```".format(atamount, atuser)
 
 	return result
 
