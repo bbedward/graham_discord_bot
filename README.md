@@ -60,7 +60,7 @@ Display the all-time tip leaderboard
 - .toptips
 Display largest individual tips
 
--.tipstats
+- .tipstats
 Display your personal tipping stats
 
 - .addfavorite, takes: *users
