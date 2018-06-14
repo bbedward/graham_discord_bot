@@ -17,7 +17,7 @@ And much more than listed here probably
 
 ## Commands
 
-# Command Overview
+### Command Overview
 .balance
 Display balance of your account
 .deposit or .register or .wallet or .address
@@ -64,7 +64,7 @@ Unblock tip notificaitons sent by this user
 .muted
 View list of users you have muted
 
-# Account Commands
+### Account Commands
 
 .balance
 Displays the balance of your tip account (in BANANO) as described:
@@ -81,7 +81,7 @@ Displays your tip bot account address along with a QR code
 Withdraws specified amount to specified address, if amount isn't specified your entire tip account balance will be withdrawn
 Example: .withdraw xrb_111111111111111111111111111111111111111111111111111hifc8npp 1000 - Withdraws 1000 BANANO
 
-# Tipping Commands
+### Tipping Commands
 
 .ban, takes: amount <*users>
 Tip specified amount to mentioned user(s) (minimum tip is 1 BANANO)
@@ -103,7 +103,7 @@ Minimum rain amount: 1500 BANANO
 .tipauthor, takes: amount
 Donate to the author of this bot
 
-# Giveaway Commands
+### Giveaway Commands
 The different ways to interact with the bot's giveaway functionality
 .givearai, takes: amount, fee=(amount), duration=(minutes)
 Start a giveaway with given amount, entry fee, and duration.
@@ -127,7 +127,7 @@ Example: .tipgiveaway 1000 - Adds 1000 to giveaway pool
 Check if you are entered into the current giveaway
   
   
-# Statistics Commands
+### Statistics Commands
 Individual, bot-wide, and giveaway stats
 .giveawaystats or .goldenticket
 Display statistics relevant to the current giveaway
@@ -140,7 +140,7 @@ Display the single largest tips for the past 24 hours, current month, and all ti
 .tipstats
 Display your personal tipping stats (rank, total tipped, and average tip)
 
-# Favorites Commands
+### Favorites Commands
 How to interact with your favorites list
 .addfavorite, takes: *users
 Adds mentioned users to your favorites list.
@@ -155,7 +155,7 @@ View your favorites list. Use .addfavorite to add favorites to your list and .re
 Tip everybody in your favorites list specified amount
 Example: .banfavorites 1000 Distributes 1000 to your entire favorites list (similar to .bansplit)
 
-# Notification Settings
+### Notification Settings
 Handle how tip bot gives you notifications
 .mute, takes: user id
 When someone is spamming you with tips and you can't take it anymore
