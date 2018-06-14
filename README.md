@@ -16,7 +16,7 @@ A few of the features included in this bot:
 ## Commands
 #### For Graham(Nano Edition), replace . with ?
 ### Command Overview
-.balance
+-.balance
 Display balance of your account
 
 .deposit/.register/.wallet/.address
