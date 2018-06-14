@@ -1,6 +1,6 @@
 # Graham (a NANO/BANANO currency Tip Bot for Discord)
 
-Graham is an open source, free to use nano bot for discord.
+Graham is an open source, free to use nano/banano bot for discord.
 
 A few of the features included in this bot:
 
@@ -17,19 +17,19 @@ And much more than listed here probably
 
 ## About
 
-Graham is designed so that every tip is a real transaction on the NANO network.
+Graham is designed so that every tip is a real transaction on the NANO/BANANO network.
 
 Some highlights:
 
 - Transactions are queued and processed synchronously in a worker thread, while bot activity is handled in a main thread.
 - User data, transactions, and all other persisted data is stored using the Peewee ORM with Sqlite
-- Operates with a single NANO wallet, with 1 account per user
+- Operates with a single NANO/BANANO wallet, with 1 account per user
 
 Recommend using with a GPU/OpenCL configured node (or work peer) on busier discord servers due to POW calculation.
 
 ## Getting started
 
-1) These instructions are pretty rough, if someone wants to make wiki entries or PRs to improve them b my guest
+1) These instructions are pretty rough, if someone wants to make wiki entries or PRs to improve them be my guest
 
 2) Instructions assume ubuntu 18.04 or greater. Any debian-based distribution should work with these as long as you have python 3.6+ (3.5 will NOT work)
 
@@ -84,7 +84,6 @@ database_user='tipbot_user'
 database_password='mypassword'
 ```
 
-### Set up BA/NANO Node
 
 You can follow the lovely guide here for setting up a docker nano node if you don't already have one running:
 
