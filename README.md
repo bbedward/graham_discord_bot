@@ -1,6 +1,6 @@
 # Graham (a NANO/BANANO currency Tip Bot for Discord)
 
-Graham is an open source, free to use nano/banano bot for discord.
+BananoBot++/Graham is an open source, free to use nano/banano bot for discord.
 
 A few of the features included in this bot:
 
