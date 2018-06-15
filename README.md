@@ -8,10 +8,7 @@ You can see/use a NANO and BANANO instance of this bot on the [official banano d
 
 
 ## Commands
-#### For Graham(Nano Edition), replace . with ?
 
-
-### Commmand Overview
 - `balance` : Display balance of your accou
 
 - `deposit` or `register` or `wallet` or `address` : Shows account address, or creates one if it doesn't yet exist
