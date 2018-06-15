@@ -144,7 +144,7 @@ def get_tip_stats(user_id):
 	if not user.stats_ban:
 		tipped_amount = user.tipped_amount
 		tip_count = user.tip_count
-		top_tip = user.top_tip if settings.banano else float(top_tip) / 1000000
+		top_tip = user.top_tip if settings.banano else float(user.top_tip) / 1000000
 	else:
 		tipped_amount = 0
 		tip_count = 0
