@@ -1,4 +1,4 @@
-# Graham (a NANO/BANANO currency Tip Bot for Discord)
+# Graham (a NANO/BANANO Currency Tip Bot for Discord)
 
 BananoBot++/Graham is an open source, free to use nano/banano bot for discord.
 
@@ -15,6 +15,8 @@ A few of the features included in this bot:
 
 ## Commands
 #### For Graham(Nano Edition), replace . with ?
+
+
 ### Command Overview
 - .balance
 Display balance of your account
@@ -60,7 +62,7 @@ Display the all-time tip leaderboard
 - .toptips
 Display largest individual tips
 
--.tipstats
+- .tipstats
 Display your personal tipping stats
 
 - .addfavorite, takes: *users
@@ -353,6 +355,7 @@ When the spam is over and you want to know they still love you
 Are you really gonna drunk dial?
 
 
+
 ## About
 
 Graham is designed so that every tip is a real transaction on the NANO/BANANO network.
@@ -594,12 +597,18 @@ sudo -u postgres ./sql/3.0/post_migrate.sh graham_user password graham
 If you have issues migrating contact me and i'll help if I'm available
 
 
+### Contribute
+"Lorem ipsum carrots, enhanced undergraduate developer, but they do occaecat time and vitality, such as labor and obesity. Over the years come, who nostrud exercise, the school district work unless they aliquip advantage from it. Homework if cupidatat consumer to find pleasure wants to be a football cillum he shuns pain, produces no resultant. Excepteur cupidatat blacks are not excepteur, is soothing to the soul, that is, they deserted the general duties of those who are to blame for your troubles. " 
+
 ### Reviews
 Graham v3.1.1 (BANANO Edition) - by bbedward
 Reviews:
 '10/10 True Masterpiece' - That one guy
+
 '0/10 Didn't get rain' - Almost everybody else
+
 '8/10' imroved readme - Computer_Genius
+
 This bot is completely free to use and open source. Developed by bbedward (reddit: /u/bbedward, discord: bbedward#9246)
 Feel free to send tips, suggestions, and feedback.
 
