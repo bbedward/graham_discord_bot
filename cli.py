@@ -1,4 +1,4 @@
-#!/usr/bin/awk BEGIN{a=ARGV[1];sub(/[a-z_.]+$/,"venv/bin/python",a);system(a"\t"ARGV[1])}
+#!./venv/bin/python
 import db
 import argparse
 import sys
@@ -48,4 +48,6 @@ if __name__ == '__main__':
         replay_unprocessed()
     elif options.lookup is not None:
         tran_info(options.lookup)
+    else:
+        parser.print_help()
     sys.exit(0)
