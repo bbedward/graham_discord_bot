@@ -186,7 +186,7 @@ and if you are using the bot for BANANO and not NANO then set:
 banano=True
 ```
 
-### Virtualenv + python requirements
+### 6. Setting up virtual environment and python requirements
 
 ```
 virtualenv -p python3.6 venv
@@ -194,7 +194,9 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Running with PM2
+That's it, if configured correctly you can run the bot.
+
+## Running with PM2
 
 Bot:
 ```
@@ -216,7 +218,7 @@ or
 
 `tail -f ~/.pm2/logs/graham-backend-error-0.log` to follow the worker logs`
 
-### Running normally
+## Running normally
 
 ```
 ./graham_bot.sh
@@ -240,8 +242,17 @@ or in background:
 nohup ./graham_backend.sh &
 ```
 
-# Graham 2.5 -> 3.0 migration path
+## CLI tool
 
+There's a CLI utility for certain functions (looking up block hashes, replaying unprocessed transactions, etc)
+
+You can see features available by
+
+```
+cli.py -h
+```
+
+# Graham 2.5 -> 3.0+ upgrade instructions
 
 First stop the bot completely, git pull, and install pre-reqs:
 
@@ -312,22 +323,16 @@ sudo -u postgres ./sql/3.0/post_migrate.sh graham_user password graham
 If you have issues migrating contact me and i'll help if I'm available
 
 
-### Contribute
-"Lorem ipsum carrots, enhanced undergraduate developer, but they do occaecat time and vitality, such as labor and obesity. Over the years come, who nostrud exercise, the school district work unless they aliquip advantage from it. Homework if cupidatat consumer to find pleasure wants to be a football cillum he shuns pain, produces no resultant. Excepteur cupidatat blacks are not excepteur, is soothing to the soul, that is, they deserted the general duties of those who are to blame for your troubles. " 
+# Contribute
 
-### Reviews
-Graham v3.1.1 (BANANO Edition) - by bbedward
-Reviews:
-'10/10 True Masterpiece' - That one guy
+I created and operate Graham for free, and I am cool with that.
 
-'0/10 Didn't get rain' - Almost everybody else
+If you'd like to buy me a beer though it's always appreciated:
 
-'8/10' imroved readme - Computer_Genius
+`xrb_1hmefcfq35td5f6rkh15hbpr4bkkhyyhmfhm7511jaka811bfp17xhkboyxo`
 
-This bot is completely free to use and open source. Developed by bbedward (reddit: /u/bbedward, discord: bbedward#9246)
-Feel free to send tips, suggestions, and feedback.
+or banano
 
-Consider using this node as a representative to help decentralize the network!
-Representative Address: ban_354zikbhgyufnnc98kp4h5w1jmpd1ngiwjo63e7aoz837wmtx3pjxjczq68x
+`ban_1ykrq6ejzni5duexqtekhewfk8aeebrgsjtqacbu4okoddj33ee3yzffib1k`
 
-github: https://github.com/bbedward/Graham_Nano_Tip_Bot
+
