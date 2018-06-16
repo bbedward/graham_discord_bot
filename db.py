@@ -268,7 +268,7 @@ def create_transaction(src_usr, uuid, to_addr, amt, target_id=None, giveaway_id=
 	return tx
 
 def process_transaction(tx):
-	send_transaction.delay(tx_to_dict(tx))
+	send_transaction(tx_to_dict(tx))
 
 @db.connection_context()
 def update_last_withdraw(user_id):
