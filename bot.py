@@ -27,7 +27,7 @@ from tasks import app, pocket_task
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "3.1.1"
+BOT_VERSION = "3.1.2"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
