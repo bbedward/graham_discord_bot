@@ -8,8 +8,6 @@ import settings
 import pycurl
 import util
 
-from util import only_one
-
 # TODO (besides test obvi)
 # - receive logic
 
@@ -34,7 +32,6 @@ def communicate_wallet(wallet_command):
 	parsed_json = json.loads(body.decode('iso-8859-1'))
 	return parsed_json
 
-@only_one(key='SEND_TRANSACTION', timeout=300)
 @app.task(bind=True, max_retries=10)
 def send_transaction(self, tx):
     try:
