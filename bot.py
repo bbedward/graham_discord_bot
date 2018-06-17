@@ -1995,4 +1995,3 @@ async def react_to_message(message, amount):
 
 # Start the bot
 client.run(settings.discord_bot_token)
-
