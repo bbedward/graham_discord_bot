@@ -1,3 +1,3 @@
-v 1.1.1
-- xxx
-- xxx
+v 3.1.1:
+- Incremented version number
+- edited minor stuff
