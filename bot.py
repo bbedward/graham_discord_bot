@@ -27,7 +27,7 @@ from tasks import app, pocket_task
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "3.1.1"
+BOT_VERSION = "3.1.2"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -517,18 +517,11 @@ def create_spam_dicts():
 			last_blocks[c.id] = initial_ts
 ### Redis stuff
 
-last_task = None
 async def pocket_pending_tx():
-	global last_task
-	if last_task is None or last_task.ready():
-		# Trigger message for pocket job
-		accts = db.get_accounts()
-		last_task = pocket_task.delay(accts)
-	else:
-		logger.info("last pocket_task not complete")
-	logger.info("Re-running pocket_task in 120 seconds...")
+	accts = db.get_accounts()
+	logger.debug("Firing pocket_task")
+	pocket_task.delay(accts)
 	await asyncio.sleep(120)
-	logger.info("Pocket task trigger")
 	asyncio.get_event_loop().create_task(pocket_pending_tx())
 
 r = redis.StrictRedis()
