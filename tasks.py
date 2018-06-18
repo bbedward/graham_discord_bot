@@ -60,8 +60,8 @@ def send_transaction(self, tx):
 			if 'block' in wallet_output:
 				txid = wallet_output['block']
 				# Also pocket these timely
-				logger.info("Pocketing tip for %s, block %s", to_address, txid)
-				pocket_tx(to_address, txid)
+				receive_block_task.s.apply_async(to_address, txid)
+				logger.info("Queued receive for %s, block %s", to_address, txid)
 				ret = json.dumps({"success": {"source":source_address, "txid":txid, "uid":uid, "destination":to_address, "amount":amount}})
 				r.rpush('/tx_completed', ret)
 				return ret
@@ -75,6 +75,11 @@ def send_transaction(self, tx):
 			logger.exception(e)
 			self.retry(countdown=2**self.request.retries)
 			return {"status":"retrying"}
+
+@app.task
+def receive_block_task(account, block):
+	logger.info("Pocketing for %s, block %s", account, block)
+	return pocket_tx(account, block)
 
 def pocket_tx(account, block):
 	action = {
