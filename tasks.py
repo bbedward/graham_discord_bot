@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 from io import BytesIO
 from celery import Celery
 from celery.utils.log import get_task_logger
@@ -17,18 +16,6 @@ logger = get_task_logger(__name__)
 r = redis.StrictRedis()
 app = Celery('graham', broker='redis://localhost:6379/0', backend='redis://localhost:6379/0')
 app.conf.CELERY_MAX_CACHED_RESULTS = -1
-
-@contextmanager
-def non_blocking_lock(key, timeout=None):
-	"""Implements a context maanger for a non-blocking redis lock"""
-	have_lock = False
-	lock = redis.Redis().lock(key, timeout=timeout)
-	try:
-		have_lock = lock.acquire(blocking=False)
-		return have_lock
-	finally:
-		if have_lock:
-			lock.release()
 
 def communicate_wallet(wallet_command):
 	buffer = BytesIO()
@@ -58,7 +45,6 @@ def send_transaction(self, tx):
 			to_address = tx['to_address']
 			amount = tx['amount']
 			uid = tx['uid']
-			attempts = tx['attempts']
 			raw_withdraw_amt = int(amount) * util.RAW_PER_BAN if settings.banano else int(amount) * util.RAW_PER_RAI
 			wallet_command = {
 				'action': 'send',
@@ -105,33 +91,38 @@ def pocket_task(accounts):
 	processed_count = 0
 	# The lock ensures we don't enter this function twice
 	# It wouldn't hurt anything, but there's really no point to do so
-	with non_blocking_lock("POCKET_TASK", timeout=300) as locked:
-		if not locked:
+	have_lock = False
+	lock = redis.Redis().lock("POCKET_TASK", timeout=300)
+	try:
+		have_lock = lock.acquire(blocking=False)
+		if not have_lock:
 			logger.info("Could not acquire lock for POCKET_TASK")
 			return None
-		try:
-			accts_pending_action = {
-				"action":"accounts_pending",
-				"accounts":accounts,
-				"threshold":util.RAW_PER_BAN if settings.banano else util.RAW_PER_RAI,
-				"count":5
-			}
-			resp = communicate_wallet(accts_pending_action)
-			if resp is None or 'blocks' not in resp:
-				return None
-			for account, blocks in resp['blocks'].items():
-				for b in blocks:
-					logger.info("Receiving block %s for account %s", b, account)
-					rcv_resp = pocket_tx(account, b)
-					if rcv_resp is None or 'block' not in rcv_resp:
-						logger.info("Couldn't receive %s - response: %s", b, str(rcv_resp))
-					else:
-						processed_count += 1
-						logger.info("pocketed block %s", b)
-		except Exception as e:
-			logger.exception(e)
+		accts_pending_action = {
+			"action":"accounts_pending",
+			"accounts":accounts,
+			"threshold":util.RAW_PER_BAN if settings.banano else util.RAW_PER_RAI,
+			"count":5
+		}
+		resp = communicate_wallet(accts_pending_action)
+		if resp is None or 'blocks' not in resp:
 			return None
+		for account, blocks in resp['blocks'].items():
+			for b in blocks:
+				logger.info("Receiving block %s for account %s", b, account)
+				rcv_resp = pocket_tx(account, b)
+				if rcv_resp is None or 'block' not in rcv_resp:
+					logger.info("Couldn't receive %s - response: %s", b, str(rcv_resp))
+				else:
+					processed_count += 1
+					logger.info("pocketed block %s", b)
 		return processed_count
+	except Exception as e:
+		logger.exception(e)
+		return None
+	finally:
+		if have_lock:
+			lock.release()
 
 if __name__ == '__main__':
 	app.start()
