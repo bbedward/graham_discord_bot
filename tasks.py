@@ -60,7 +60,7 @@ def send_transaction(self, tx):
 			if 'block' in wallet_output:
 				txid = wallet_output['block']
 				# Also pocket these timely
-				receive_block_task.s.apply_async(to_address, txid)
+				receive_block_task.s(to_address, txid).apply_async()
 				logger.info("Queued receive for %s, block %s", to_address, txid)
 				ret = json.dumps({"success": {"source":source_address, "txid":txid, "uid":uid, "destination":to_address, "amount":amount}})
 				r.rpush('/tx_completed', ret)
