@@ -39,6 +39,7 @@ def send_transaction(self, tx):
 	There's not much point in running this function in parallel anyway,
 	since the node processes them synchronously. The lock is just
 	here to prevent a deadlock condition that has occured on the node"""
+	ret = None
 	with redis.Redis().lock("SEND_TRANSACTION", timeout=300):
 		try:
 			source_address = tx['source_address']
@@ -60,11 +61,8 @@ def send_transaction(self, tx):
 			if 'block' in wallet_output:
 				txid = wallet_output['block']
 				# Also pocket these timely
-				receive_block_task.s(to_address, txid).apply_async()
-				logger.info("Queued receive for %s, block %s", to_address, txid)
 				ret = json.dumps({"success": {"source":source_address, "txid":txid, "uid":uid, "destination":to_address, "amount":amount}})
 				r.rpush('/tx_completed', ret)
-				return ret
 			else:
 				self.retry(countdown=2**self.request.retries)
 				return {"status":"retrying"}
@@ -75,11 +73,9 @@ def send_transaction(self, tx):
 			logger.exception(e)
 			self.retry(countdown=2**self.request.retries)
 			return {"status":"retrying"}
-
-@app.task
-def receive_block_task(account, block):
-	logger.info("Pocketing for %s, block %s", account, block)
-	return pocket_tx(account, block)
+	pocket_tx(to_address, txid)
+	logger.info("Pocketed TX for %s, block %s", to_address, txid)
+	return ret
 
 def pocket_tx(account, block):
 	action = {
