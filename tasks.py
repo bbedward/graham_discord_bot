@@ -35,47 +35,43 @@ def communicate_wallet(wallet_command):
 @app.task(bind=True, max_retries=10)
 def send_transaction(self, tx):
 	"""creates a block and broadcasts it to the network, returns
-	a dict if successful. Synchronization is 'loosely' enforced.
-	There's not much point in running this function in parallel anyway,
-	since the node processes them synchronously. The lock is just
-	here to prevent a deadlock condition that has occured on the node"""
+	a dict if successful."""
 	ret = None
-	with redis.Redis().lock("SEND_TRANSACTION", timeout=300):
-		try:
-			source_address = tx['source_address']
-			to_address = tx['to_address']
-			amount = tx['amount']
-			uid = tx['uid']
-			raw_withdraw_amt = int(amount) * util.RAW_PER_BAN if settings.banano else int(amount) * util.RAW_PER_RAI
-			wallet_command = {
-				'action': 'send',
-				'wallet': settings.wallet,
-				'source': source_address,
-				'destination': to_address,
-				'amount': raw_withdraw_amt,
-				'id': uid
-			}
-			logger.debug("RPC Send")
-			wallet_output = communicate_wallet(wallet_command)
-			logger.debug("RPC Response")
-			if 'block' in wallet_output:
-				txid = wallet_output['block']
-				# Also pocket these timely
-				ret = json.dumps({"success": {"source":source_address, "txid":txid, "uid":uid, "destination":to_address, "amount":amount}})
-				r.rpush('/tx_completed', ret)
-			else:
-				self.retry(countdown=2**self.request.retries)
-				return {"status":"retrying"}
-		except pycurl.error:
+	try:
+		source_address = tx['source_address']
+		to_address = tx['to_address']
+		amount = tx['amount']
+		uid = tx['uid']
+		raw_withdraw_amt = int(amount) * util.RAW_PER_BAN if settings.banano else int(amount) * util.RAW_PER_RAI
+		wallet_command = {
+			'action': 'send',
+			'wallet': settings.wallet,
+			'source': source_address,
+			'destination': to_address,
+			'amount': raw_withdraw_amt,
+			'id': uid
+		}
+		logger.debug("RPC Send")
+		wallet_output = communicate_wallet(wallet_command)
+		logger.debug("RPC Response")
+		if 'block' in wallet_output:
+			txid = wallet_output['block']
+			# Also pocket these timely
+			ret = json.dumps({"success": {"source":source_address, "txid":txid, "uid":uid, "destination":to_address, "amount":amount}})
+			r.rpush('/tx_completed', ret)
+			pocket_tx(to_address, txid)
+			logger.info("Pocketed TX for %s, block %s", to_address, txid)
+			return ret
+		else:
 			self.retry(countdown=2**self.request.retries)
 			return {"status":"retrying"}
-		except Exception as e:
-			logger.exception(e)
-			self.retry(countdown=2**self.request.retries)
-			return {"status":"retrying"}
-	pocket_tx(to_address, txid)
-	logger.info("Pocketed TX for %s, block %s", to_address, txid)
-	return ret
+	except pycurl.error:
+		self.retry(countdown=2**self.request.retries)
+		return {"status":"retrying"}
+	except Exception as e:
+		logger.exception(e)
+		self.retry(countdown=2**self.request.retries)
+		return {"status":"retrying"}
 
 def pocket_tx(account, block):
 	action = {
