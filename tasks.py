@@ -6,13 +6,15 @@ import redis
 import json
 import settings
 import pycurl
-import util
 import db
 
 from playhouse.shortcuts import dict_to_model
 
 # TODO (besides test obvi)
 # - receive logic
+
+RAW_PER_BAN=100000000000000000000000000000
+RAW_PER_RAI=1000000000000000000000000
 
 logger = get_task_logger(__name__)
 
@@ -102,7 +104,7 @@ def send_transaction(self, tx):
 	amount = tx.amount
 	uid = tx.uid
 	block_hash = tx.tran_id
-	raw_withdraw_amt = int(amount) * util.RAW_PER_BAN if settings.banano else int(amount) * util.RAW_PER_RAI
+	raw_withdraw_amt = int(amount) * RAW_PER_BAN if settings.banano else int(amount) * RAW_PER_RAI
 	with redis.Redis().lock(source_address, timeout=300):
 		try:
 			if block_hash is not None and block_hash != '':
@@ -172,7 +174,7 @@ def pocket_task(accounts):
 		accts_pending_action = {
 			"action":"accounts_pending",
 			"accounts":accounts,
-			"threshold":util.RAW_PER_BAN if settings.banano else util.RAW_PER_RAI,
+			"threshold":RAW_PER_BAN if settings.banano else RAW_PER_RAI,
 			"count":5
 		}
 		resp = communicate_wallet(accts_pending_action)
