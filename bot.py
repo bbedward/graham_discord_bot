@@ -27,7 +27,7 @@ from tasks import app, pocket_task
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "3.2.0"
+BOT_VERSION = "3.2.1"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -47,6 +47,8 @@ RAIN_DELTA=30
 SPAM_THRESHOLD=60
 # Withdraw Cooldown (Seconds) - how long a user must wait between withdraws
 WITHDRAW_COOLDOWN=300
+# Rain Cooldown (Seconds) - how long a user must wait between rains
+RAIN_COOLDOWN=300
 # Change command prefix to whatever you want to begin commands with
 COMMAND_PREFIX=settings.command_prefix
 # Pool giveaway auto amount (1%)
@@ -500,6 +502,7 @@ last_top_tips = {}
 last_winners = {}
 last_gs = {}
 last_blocks = {}
+last_rains = {}
 def create_spam_dicts():
 	"""map every channel the client can see to datetime objects
 	   this way we can have channel-specific spam prevention"""
@@ -1070,6 +1073,14 @@ async def rain(ctx):
 			await add_x_reaction(message)
 			await post_dm(message.author, INSUFFICIENT_FUNDS_TEXT)
 			return
+		# At this point stash this as the last rain for this user
+		if message.author.id not in last_rains:
+			last_rains[message.author.id] = datetime.datetime.utcnow()
+		else:
+			rain_delta = (datetime.datetime.utcnow() - last_rains[message.author.id]).total_seconds()
+			if RAIN_COOLDOWN > rain_delta:
+				await post_dm(message.author, "You can rain again in {0:.2f} seconds", RAIN_COOLDOWN - rain_delta)
+				return
 		# Distribute Tips
 		tip_amount = int(amount / len(users_to_tip))
 		# Recalculate actual tip amount as it may be smaller now

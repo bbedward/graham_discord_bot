@@ -12,7 +12,7 @@ options = parser.parse_args()
 @db.db.connection_context()
 def display_unprocessed():
     unprocessed = (db.Transaction.select()
-                    .where((db.Transaction.processed == False) & (db.Transaction.giveawayid == 0)).count())
+                    .where((db.Transaction.processed == False) & (db.Transaction.giveawayid >= 0)).count())
     unprocessed_giveaway = (db.Transaction.select()
                     .where((db.Transaction.processed == False) & (db.Transaction.giveawayid != 0)).count())
     print("Unprocessed/Pending: {0} \n Pending Giveaway: {1}".format(unprocessed, unprocessed_giveaway))
@@ -20,7 +20,7 @@ def display_unprocessed():
 @db.db.connection_context()
 def replay_unprocessed():
     unprocessed = (db.Transaction.select()
-                    .where((db.Transaction.processed == False) & (db.Transaction.giveawayid == 0)))
+                    .where((db.Transaction.processed == False) & (db.Transaction.giveawayid >= 0)))
     for t in unprocessed:
         print("replaying transaction with UID {0}".format(t.uid))
         db.process_transaction(t)
