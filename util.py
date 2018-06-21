@@ -1,6 +1,10 @@
 import logging
 import logging.handlers
 
+from tasks import send_transaction
+
+from playhouse.shortcuts import model_to_dict
+
 RAW_PER_BAN=100000000000000000000000000000
 RAW_PER_RAI=1000000000000000000000000
 
@@ -27,3 +31,6 @@ def get_logger(name, log_file='debug.log'):
 	logger.addHandler(console_handler)
 	logger.propagate = False
 	return logger
+
+def process_transaction(tx):
+	send_transaction.delay(model_to_dict(tx))

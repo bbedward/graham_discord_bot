@@ -6,11 +6,8 @@ import settings
 import random
 import secrets
 
-from tasks import send_transaction
-
 from peewee import *
 from playhouse.pool  import PooledPostgresqlExtDatabase
-from playhouse.shortcuts import model_to_dict
 
 # TODO - Redesign the schema
 # - TipBot grew into more than a tip bot quickly as features piled on
@@ -264,11 +261,8 @@ def create_transaction(src_usr, uuid, to_addr, amt, target_id=None, giveaway_id=
 	if target_id is not None:
 		update_pending(target_id, receive=amt)
 	if tx.giveawayid == 0:
-		process_transaction(tx)
+		util.process_transaction(tx)
 	return tx
-
-def process_transaction(tx):
-	send_transaction.delay(model_to_dict(tx))
 
 @db.connection_context()
 def update_last_withdraw(user_id):
@@ -296,7 +290,7 @@ def process_giveaway_transactions(giveaway_id, winner_user_id):
 	for tx in txs:
 		tx.to_address = winner.wallet_address
 		pending_receive += int(tx.amount)
-		process_transaction(tx)
+		util.process_transaction(tx)
 	update_pending(winner_user_id, receive=pending_receive)
 	(Transaction.update(
 			to_address = winner.wallet_address,
