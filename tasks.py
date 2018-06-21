@@ -93,58 +93,57 @@ def send_transaction(self, tx):
 	"""creates a block and broadcasts it to the network, returns
 	a dict if successful."""
 	# Intentionally throttle the bot because the node can't handle it
-	with redis.Redis().lock('SEND_TX_LOCK', timeout=300):
-		ret = None
-		tx = dict_to_model(data=tx, model_class=db.Transaction)
-		source_address = tx.source_address
-		to_address = tx.to_address
-		amount = tx.amount
-		uid = tx.uid
-		block_hash = tx.tran_id
-		raw_withdraw_amt = int(amount) * util.RAW_PER_BAN if settings.banano else int(amount) * util.RAW_PER_RAI
-		with redis.Redis().lock(source_address, timeout=300):
-			try:
-				if block_hash is None or block_hash == '':
-					sblock = create_send_ublock(source_address, to_address, raw_withdraw_amt)
-					if sblock is None or 'hash' not in sblock or 'block' not in sblock:
-						self.retry(countdown=2**self.request.retries)
-						return None
-					saved = db.update_block_hash(uid, sblock['hash'])
-					if not saved:
-						logger.info("Couldn't save transaction %s", tx.uid)
-						self.retry(countdown=2**self.request.retries)
-					tx.block_hash = sblock['hash']
-					block_hash = sblock['hash']
-					processed = process_block(sblock['block'])
-					if processed is None or 'hash' not in processed:
-						logger.error("Couldn't process block %s, tran uid %d", sblock['hash'], tx.uid)
-						self.retry(countdown=2**self.request.retries)
-						return None
-				else:
-					block = retrieve_block(block_hash)
-					if block is None:
-						logger.error("Already had saved block hash for TX UID %s, failed to retrieve", tx.uid)
-						self.retry(countdown=2**self.request.retries)
-						return None
-					logger.info("Already have block hash, re-processing block")
-					processed = process_block(block)
-					if processed is None or 'hash' not in processed:
-						logger.error("Couldn't process block %s, tran uid %d", block_hash, tx.uid)
-						self.retry(countdown=2**self.request.retries)
-						return None
-			except pycurl.error:
-				self.retry(countdown=2**self.request.retries)
-				return None
-			except Exception as e:
-				logger.exception(e)
-				self.retry(countdown=2**self.request.retries)
-				return None
-		ret = json.dumps({"success": {"source":source_address, "txid":block_hash, "uid":uid, "destination":to_address, "amount":amount}})
-		r.rpush('/tx_completed', ret)
-		target_user = db.get_user_by_wallet_address(to_address)
-		if target_user is not None:
-			pocket_tx(to_address, block_hash)
-		return ret
+	ret = None
+	tx = dict_to_model(data=tx, model_class=db.Transaction)
+	source_address = tx.source_address
+	to_address = tx.to_address
+	amount = tx.amount
+	uid = tx.uid
+	block_hash = tx.tran_id
+	raw_withdraw_amt = int(amount) * util.RAW_PER_BAN if settings.banano else int(amount) * util.RAW_PER_RAI
+	with redis.Redis().lock(source_address, timeout=300):
+		try:
+			if block_hash is None or block_hash == '':
+				sblock = create_send_ublock(source_address, to_address, raw_withdraw_amt)
+				if sblock is None or 'hash' not in sblock or 'block' not in sblock:
+					self.retry(countdown=2**self.request.retries)
+					return None
+				saved = db.update_block_hash(uid, sblock['hash'])
+				if not saved:
+					logger.info("Couldn't save transaction %s", tx.uid)
+					self.retry(countdown=2**self.request.retries)
+				tx.block_hash = sblock['hash']
+				block_hash = sblock['hash']
+				processed = process_block(sblock['block'])
+				if processed is None or 'hash' not in processed:
+					logger.error("Couldn't process block %s, tran uid %d", sblock['hash'], tx.uid)
+					self.retry(countdown=2**self.request.retries)
+					return None
+			else:
+				block = retrieve_block(block_hash)
+				if block is None:
+					logger.error("Already had saved block hash for TX UID %s, failed to retrieve", tx.uid)
+					self.retry(countdown=2**self.request.retries)
+					return None
+				logger.info("Already have block hash, re-processing block")
+				processed = process_block(block)
+				if processed is None or 'hash' not in processed:
+					logger.error("Couldn't process block %s, tran uid %d", block_hash, tx.uid)
+					self.retry(countdown=2**self.request.retries)
+					return None
+		except pycurl.error:
+			self.retry(countdown=2**self.request.retries)
+			return None
+		except Exception as e:
+			logger.exception(e)
+			self.retry(countdown=2**self.request.retries)
+			return None
+	ret = json.dumps({"success": {"source":source_address, "txid":block_hash, "uid":uid, "destination":to_address, "amount":amount}})
+	r.rpush('/tx_completed', ret)
+	target_user = db.get_user_by_wallet_address(to_address)
+	if target_user is not None:
+		pocket_tx(to_address, block_hash)
+	return ret
 
 def pocket_tx(account, block):
 	with redis.Redis().lock(account, timeout=300):
