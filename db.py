@@ -268,7 +268,7 @@ def create_transaction(src_usr, uuid, to_addr, amt, target_id=None, giveaway_id=
 	return tx
 
 def process_transaction(tx):
-	send_transaction.delay(tx_to_dict(tx))
+	send_transaction.delay(model_to_dict(tx))
 
 @db.connection_context()
 def update_last_withdraw(user_id):
@@ -857,7 +857,7 @@ class Transaction(BaseModel):
 	amount = CharField()
 	processed = BooleanField(default=False)
 	created = DateTimeField(default=datetime.datetime.utcnow())
-	tran_id = CharField(default='', null=True)
+	tran_id = CharField(default=None, null=True)
 	attempts = IntegerField(default=0)
 	giveawayid = IntegerField(null = True)
 
