@@ -2,7 +2,6 @@
 import db
 import argparse
 import sys
-import util
 
 parser = argparse.ArgumentParser(description="Utilities for Graham TipBot")
 parser.add_argument('-u', '--get-unprocessed', action='store_true',  help='Display number of un-processed transactions')
@@ -24,7 +23,7 @@ def replay_unprocessed():
                     .where((db.Transaction.processed == False) & (db.Transaction.giveawayid == 0)))
     for t in unprocessed:
         print("replaying transaction with UID {0}".format(t.uid))
-        util.process_transaction(t)
+        db.process_transaction(t)
 
 @db.db.connection_context()
 def tran_info(hash):
