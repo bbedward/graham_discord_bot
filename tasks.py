@@ -102,7 +102,7 @@ def send_transaction(self, tx):
 	raw_withdraw_amt = int(amount) * util.RAW_PER_BAN if settings.banano else int(amount) * util.RAW_PER_RAI
 	with redis.Redis().lock(source_address, timeout=300):
 		try:
-			if block_hash is not None and block_hash != '':
+			if block_hash is None or block_hash == '':
 				sblock = create_send_ublock(source_address, to_address, raw_withdraw_amt)
 				if sblock is None or 'hash' not in sblock or 'block' not in sblock:
 					self.retry(countdown=2**self.request.retries)
