@@ -11,9 +11,6 @@ import db
 
 from playhouse.shortcuts import dict_to_model
 
-# TODO (besides test obvi)
-# - receive logic
-
 logger = get_task_logger(__name__)
 
 r = redis.StrictRedis()

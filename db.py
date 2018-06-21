@@ -6,8 +6,6 @@ import settings
 import random
 import secrets
 
-from tasks import send_transaction
-
 from peewee import *
 from playhouse.pool  import PooledPostgresqlExtDatabase
 from playhouse.shortcuts import model_to_dict
@@ -268,6 +266,7 @@ def create_transaction(src_usr, uuid, to_addr, amt, target_id=None, giveaway_id=
 	return tx
 
 def process_transaction(tx):
+	from tasks import send_transaction
 	send_transaction.delay(model_to_dict(tx))
 
 @db.connection_context()
