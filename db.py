@@ -637,7 +637,7 @@ def mark_transaction_processed(uuid, amt, source_id, tranid, target_id=None):
 
 @db.connection_context()
 def update_block_hash(id, hash):
-	return Transaction.update(tran_id=hash).where(Transaction.id == id).execute() > 0
+	return Transaction.update(tran_id=hash).where(Transaction.uid == id).execute() > 0
 
 # Return false if last message was < LAST_MSG_TIME
 # If > LAST_MSG_TIME, return True and update the user

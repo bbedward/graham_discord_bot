@@ -107,7 +107,7 @@ def send_transaction(self, tx):
 				if sblock is None or 'hash' not in sblock or 'block' not in sblock:
 					self.retry(countdown=2**self.request.retries)
 					return None
-				saved = db.update_block_hash(id, sblock['hash'])
+				saved = db.update_block_hash(uid, sblock['hash'])
 				if not saved:
 					logger.info("Couldn't save transaction %s", tx.uid)
 					self.retry(countdown=2**self.request.retries)
