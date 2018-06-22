@@ -1,0 +1,15 @@
+- pycurl
+
+- peewee
+
+- aiodns
+
+- git+https://github.com/Rapptz/discord.py@rewrite#egg-discord.py[voice]
+
+- celery[redis]
+
+- psycopg2-binary
+
+- yarl<1.2
+
+- MIT license
