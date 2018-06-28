@@ -1236,7 +1236,6 @@ async def tip_giveaway(message, ticket=False):
 			return
 		nano_amt = amount if settings.banano else amount / 1000000
 		if giveaway is not None:
-			db.add_tip_to_giveaway(nano_amt)
 			giveawayid = giveaway.id
 			fee = giveaway.entry_fee
 		else:
@@ -1255,6 +1254,7 @@ async def tip_giveaway(message, ticket=False):
 					, fee, contributions, owed, COMMAND_PREFIX, owed, TIP_UNIT)
 				return
 		uid = str(uuid.uuid4())
+		db.add_tip_to_giveaway(nano_amt)
 		await wallet.make_transaction_to_address(user, amount, None, uid, giveaway_id=giveawayid)
 		if not ticket:
 			await react_to_message(message, amount)

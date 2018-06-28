@@ -298,8 +298,7 @@ def process_giveaway_transactions(giveaway_id, winner_user_id):
 		process_transaction(tx)
 	update_pending(winner_user_id, receive=pending_receive)
 	(Transaction.update(
-			to_address = winner.wallet_address,
-			giveawayid = 0
+			to_address = winner.wallet_address
 		    ).where(
 			(Transaction.giveawayid == giveaway_id)
 	)).execute()
