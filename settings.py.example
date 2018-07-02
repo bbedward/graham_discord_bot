@@ -38,3 +38,5 @@ database_password='password'
 # No need to change these unless you know what you're doing
 node_ip='[::1]'
 node_port=7072 if banano else 7076
+# Restrict giveaways to certain roles
+giveaway_role=None

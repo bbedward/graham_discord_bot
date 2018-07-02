@@ -622,6 +622,17 @@ def is_admin(user):
 				return True
 	return False
 
+def has_giveaway_role(user):
+	"""Returns true if user has giveaway role"""
+	if settings.giveaway_role is None:
+		return True
+	for m in client.get_all_members():
+		if m.id == user.id:
+			for r in m.roles:
+				if r.name == settings.giveaway_role:
+					return True
+	return False
+
 ### Commands
 def build_page(group_name,commands_dictionary):
 	"""Return array of paginator.Entry objects based on passed in dictionary"""
@@ -1114,6 +1125,10 @@ async def ticket(ctx):
 		await post_dm(message.author, TIPGIVEAWAY_NO_ACTIVE)
 		await remove_message(message)
 		return
+	elif not has_giveaway_role(message.author):
+		await post_dm(message.author, "Only users with the \"{0}\" role can enter giveaways.", settings.giveaway_role)
+		await remove_message(message)
+		return
 	giveaway = db.get_giveaway()
 	if db.is_banned(message.author.id) or db.is_frozen(message.author.id):
 		await post_dm(message.author, "You may not enter giveaways at this time")
@@ -1221,6 +1236,10 @@ async def tip_giveaway(message, ticket=False):
 		await pause_msg(message)
 		return
 	elif db.is_frozen(message.author.id):
+		return
+	elif not has_giveaway_role(message.author):
+		await post_dm(message.author, "Only users with the \"{0}\" role can participate in giveaways.", settings.giveaway_role)
+		await remove_message(message)
 		return
 	try:
 		giveaway = db.get_giveaway()
