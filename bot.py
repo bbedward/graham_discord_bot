@@ -1323,27 +1323,42 @@ async def ticketstatus(ctx):
 async def giveawaystats(ctx):
 	message = ctx.message
 	global last_gs
+	do_dm = False
+	delete_message = False
 	if message.channel.id in settings.no_spam_channels:
 		return
 	if not is_private(message.channel):
+		delete_message = True
 		if message.channel.id not in last_gs:
 			last_gs[message.channel.id] = datetime.datetime.utcnow()
-		if 5 > (datetime.datetime.utcnow() - last_gs[message.channel.id]).total_seconds():
-			return
-		last_gs[message.channel.id] = datetime.datetime.utcnow()
+		if SPAM_THRESHOLD > (datetime.datetime.utcnow() - last_gs[message.channel.id]).total_seconds():
+			do_dm = True
+		else:
+			last_gs[message.channel.id] = datetime.datetime.utcnow()
 	stats = db.get_giveaway_stats()
 	if stats is None:
 		for_next = GIVEAWAY_MINIMUM - db.get_tipgiveaway_sum()
-		await post_response(message, GIVEAWAY_STATS_INACTIVE, for_next)
+		if do_dm:
+			await post_dm(message.author, GIVEAWAY_STATS_INACTIVE, for_next)
+		else:
+			await post_response(message, GIVEAWAY_STATS_INACTIVE, for_next)
 	else:
 		end = stats['end'] - datetime.datetime.utcnow()
 		end_s = int(end.total_seconds())
 		str_delta = time.strftime("%M Minutes and %S Seconds", time.gmtime(end_s))
 		fee = stats['fee']
 		if fee == 0:
-			await post_response(message, GIVEAWAY_STATS_NF, stats['entries'], stats['amount'], str_delta, stats['started_by'])
+			if do_dm:
+				await post_dm(message.author, GIVEAWAY_STATS_NF, stats['entries'], stats['amount'], str_delta, stats['started_by'])
+			else:
+				await post_response(message, GIVEAWAY_STATS_NF, stats['entries'], stats['amount'], str_delta, stats['started_by'])
 		else:
-			await post_response(message, GIVEAWAY_STATS_FEE, stats['entries'], stats['amount'], str_delta, stats['started_by'], fee)
+			if do_dm:
+				await post_dm(message.author, GIVEAWAY_STATS_FEE, stats['entries'], stats['amount'], str_delta, stats['started_by'], fee)
+			else:
+				await post_response(message, GIVEAWAY_STATS_FEE, stats['entries'], stats['amount'], str_delta, stats['started_by'], fee)
+	if delete_message:
+		await message.delete()
 
 async def start_giveaway_timer():
 	giveaway = db.get_giveaway()
