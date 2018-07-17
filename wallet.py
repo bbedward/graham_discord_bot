@@ -31,6 +31,8 @@ async def create_or_fetch_user(user_id, user_name):
 		wallet_command = {'action': 'account_create', 'wallet': wallet}
 		wallet_output = await communicate_wallet_async(wallet_command)
 		address = wallet_output['account']
+		wallet_command = {'action': 'account_representative_set', 'wallet': wallet, 'account':address, 'representative':settings.representative }
+		await communicate_wallet_async(wallet_command)
 		user = db.create_user(user_id=user_id, user_name=user_name,
 							  wallet_address=address)
 		logger.info('user %s created.', user_id)
