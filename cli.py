@@ -2,11 +2,14 @@
 import db
 import argparse
 import sys
+import settings
+from tasks import communicate_wallet
 
 parser = argparse.ArgumentParser(description="Utilities for Graham TipBot")
 parser.add_argument('-u', '--get-unprocessed', action='store_true',  help='Display number of un-processed transactions')
 parser.add_argument('-r', '--replay', action='store_true', help='Replay un-processed/failed transactions')
 parser.add_argument('-l', '--lookup', type=str, help='Lookup information about a specific block hash', default=None)
+parser.add_argument('--representative-set', action='store_true', help='Bulk set representative on all accounts - ues value in settings.py')
 options = parser.parse_args()
 
 @db.db.connection_context()
@@ -41,6 +44,14 @@ def tran_info(hash):
     except db.Transaction.DoesNotExist:
         print("I do not have any transactions with block hash {0}".format(hash))
 
+@db.db.connection_context()
+def set_reps():
+    print("Using rep {0}".format(settings.representative))
+    for u in db.User.select(User.wallet_address):
+        wallet_command = {'action': 'account_representative_set', 'wallet': settings.wallet, 'account':u.wallet_address, 'representative':settings.representative }
+        communicate_wallet(wallet_command)
+        print("Set rep for {0}".format(u.wallet_address))
+        
 if __name__ == '__main__':
     if options.get_unprocessed:
         display_unprocessed()
@@ -48,6 +59,8 @@ if __name__ == '__main__':
         replay_unprocessed()
     elif options.lookup is not None:
         tran_info(options.lookup)
+    elif options.representative_set:
+        set_reps()
     else:
         parser.print_help()
     sys.exit(0)
