@@ -48,9 +48,12 @@ def tran_info(hash):
 def set_reps():
     print("Using rep {0}".format(settings.representative))
     for u in db.User.select(User.wallet_address):
-        wallet_command = {'action': 'account_representative_set', 'wallet': settings.wallet, 'account':u.wallet_address, 'representative':settings.representative }
-        communicate_wallet(wallet_command)
-        print("Set rep for {0}".format(u.wallet_address))
+        check = {'action':'account_representative','account':u.wallet_address}
+		output = wallet.communicate_wallet(check)
+		if 'representative' not in output or output['representative'] != settings.representative:
+            wallet_command = {'action': 'account_representative_set', 'wallet': settings.wallet, 'account':u.wallet_address, 'representative':settings.representative }
+            communicate_wallet(wallet_command)
+            print("Set rep for {0}".format(u.wallet_address))
         
 if __name__ == '__main__':
     if options.get_unprocessed:
