@@ -36,6 +36,7 @@ def tran_info(hash):
         print('Tran UID: {0}'.format(tran.uid))
         print('Source user ID: {0}, name: {1}, address: {2}'.format(source_user.user_id, source_user.user_name, source_user.wallet_address))
         print('Amount: {0}'.format(tran.amount))
+        print("Date: {0}".format(tran.created))
         try:
             target = db.User.select().where(db.User.wallet_address == tran.to_address).get()
             print('Recipient user ID: {0}, name: {1}, address: {2}'.format(target.user_id, target.user_name, target.wallet_address))
@@ -47,13 +48,14 @@ def tran_info(hash):
 @db.db.connection_context()
 def set_reps():
     print("Using rep {0}".format(settings.representative))
-    for u in db.User.select(User.wallet_address):
-        check = {'action':'account_representative','account':u.wallet_address}
-		output = wallet.communicate_wallet(check)
-		if 'representative' not in output or output['representative'] != settings.representative:
-            wallet_command = {'action': 'account_representative_set', 'wallet': settings.wallet, 'account':u.wallet_address, 'representative':settings.representative }
-            communicate_wallet(wallet_command)
-            print("Set rep for {0}".format(u.wallet_address))
+    for u in db.User.select(db.User.wallet_address):
+            check = {'action':'account_representative','account':u.wallet_address}
+            output = communicate_wallet(check)
+            if 'representative' not in output or output['representative'] != settings.representative:
+                wallet_command = {'action': 'account_representative_set', 'wallet': settings.wallet, 'account':u.wallet_address, 'representative':settings.representative }
+                outp = communicate_wallet(wallet_command)
+                print(str(outp))
+                print("Set rep for {0}".format(u.wallet_address))
         
 if __name__ == '__main__':
     if options.get_unprocessed:

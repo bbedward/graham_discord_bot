@@ -39,7 +39,7 @@ def send_transaction(self, tx):
 	There's not much point in running this function in parallel anyway,
 	since the node processes them synchronously. The lock is just
 	here to prevent a deadlock condition that has occured on the node"""
-	with redis.Redis().lock("SEND_TRANSACTION", timeout=300):
+	with redis.Redis().lock(tx['source_address'], timeout=300):
 		try:
 			source_address = tx['source_address']
 			to_address = tx['to_address']
