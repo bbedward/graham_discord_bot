@@ -40,3 +40,5 @@ node_ip='[::1]'
 node_port=7072 if banano else 7076
 # Restrict giveaways to certain roles
 giveaway_role=None
+# Restrict giveaways to certain channels (optional)
+giveaway_channels=['1234']
