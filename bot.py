@@ -1092,6 +1092,7 @@ async def rain(ctx):
 			if RAIN_COOLDOWN > rain_delta:
 				await post_dm(message.author, "You can rain again in {0:.2f} seconds", RAIN_COOLDOWN - rain_delta)
 				return
+		last_rains[message.author.id] = datetime.datetime.utcnow()
 		# Distribute Tips
 		tip_amount = int(amount / len(users_to_tip))
 		# Recalculate actual tip amount as it may be smaller now

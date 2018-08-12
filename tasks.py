@@ -57,11 +57,15 @@ def send_transaction(self, tx):
 			logger.debug("RPC Send")
 			wallet_output = communicate_wallet(wallet_command)
 			logger.debug("RPC Response")
+			txid = None
 			if 'block' in wallet_output:
 				txid = wallet_output['block']
 				# Also pocket these timely
 				logger.info("Pocketing tip for %s, block %s", to_address, txid)
 				pocket_tx(to_address, txid)
+			elif 'error' in wallet_output:
+				txid = 'invalid'
+			if txid is not None:
 				ret = json.dumps({"success": {"source":source_address, "txid":txid, "uid":uid, "destination":to_address, "amount":amount}})
 				r.rpush('/tx_completed', ret)
 				return ret
