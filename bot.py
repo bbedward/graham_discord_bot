@@ -1950,6 +1950,10 @@ def find_address(input_text):
 	return address[1]
 
 def find_amount(input_text):
+	str_split = input_text.split('<@')
+	if (len(str_split) == 0):
+		raise util.TipBotException("amount_not_found")
+	input_text = str_split[0]
 	regex = r'(?:^|\s)(\d*\.?\d+)(?=$|\s)'
 	matches = re.findall(regex, input_text, re.IGNORECASE)
 	if len(matches) >= 1:
