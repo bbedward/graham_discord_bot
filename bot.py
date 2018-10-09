@@ -423,7 +423,6 @@ TIP_RECEIVED_TEXT="You were tipped {0} " + TIP_UNIT + " by {1}. You can mute tip
 TIP_SELF="No valid recipients found in your tip.\n(You cannot tip yourself and certain other users are exempt from receiving tips)"
 
 # send
-SEND_INSUFFICIENT_BALANCE="Your balance isn't high enough to withdraw that much"
 SEND_AMBIGUOUS_AMOUNT="More than one amount found. You probably use a wrong number format."
 SEND_AMOUNT_NOT_FOUND="Specify an amount to send."
 
