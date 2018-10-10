@@ -46,7 +46,7 @@ RAIN_DELTA=30
 # Spam Threshold (Seconds) - how long to output certain commands (e.g. bigtippers)
 SPAM_THRESHOLD=60
 # Withdraw Cooldown (Seconds) - how long a user must wait between withdraws
-WITHDRAW_COOLDOWN=300
+WITHDRAW_COOLDOWN=200
 # Rain Cooldown (Seconds) - how long a user must wait between rains
 RAIN_COOLDOWN=300
 # Change command prefix to whatever you want to begin commands with
@@ -106,13 +106,20 @@ DEPOSIT ={
 				"\n- If you do not have a tip bot account yet, this command will create one for you (receiving a tip automatically creates an account too)")
 }
 
-WITHDRAW = {
-		"TRIGGER"  : ["withdraw"],
-		"CMD"      : "{0}withdraw, takes: address (optional amount)".format(COMMAND_PREFIX),
-		"OVERVIEW" : "Allows you to withdraw from your tip account",
-		"INFO"     : ("Withdraws specified amount to specified address, " +
-				"if amount isn't specified your entire tip account balance will be withdrawn" +
-				"\nExample: `{0}withdraw xrb_111111111111111111111111111111111111111111111111111hifc8npp 1000` - Withdraws 1000 {1}").format(COMMAND_PREFIX, TIP_UNIT)
+SEND = {
+		"TRIGGER"  : ["send"],
+		"CMD"      : "{0}send, takes: amount, address".format(COMMAND_PREFIX),
+		"OVERVIEW" : "Allows you to send coins from your tip account to any address",
+		"INFO"     : ("Send specified amount to specified address. Fractional digits be truncated." +
+				"\nExample: `{0}send 1000 xrb_3o7uzba8b9e1wqu5ziwpruteyrs3scyqr761x7ke6w1xctohxfh5du75qgaj` - Sends 1000 {1}").format(COMMAND_PREFIX, TIP_UNIT)
+}
+
+SENDMAX = {
+		"TRIGGER"  : ["sendmax"],
+		"CMD"      : "{0}sendmax, takes: address".format(COMMAND_PREFIX),
+		"OVERVIEW" : "Allows you to withdraw everything from your tip account",
+		"INFO"     : ("Withdraws complete balance to specified address" +
+				"\nExample: `{0}sendmax xrb_3o7uzba8b9e1wqu5ziwpruteyrs3scyqr761x7ke6w1xctohxfh5du75qgaj` - Withdraws everything")
 }
 
 TIP = {
@@ -415,13 +422,21 @@ INSUFFICIENT_FUNDS_TEXT="You don't have enough {0} in your available balance!".f
 TIP_RECEIVED_TEXT="You were tipped {0} " + TIP_UNIT + " by {1}. You can mute tip notifications from this person using `" + COMMAND_PREFIX + "mute {2}`"
 TIP_SELF="No valid recipients found in your tip.\n(You cannot tip yourself and certain other users are exempt from receiving tips)"
 
-# withdraw
-WITHDRAW_SUCCESS_TEXT="Withdraw has been queued for processing, I'll send you a link to the transaction after I've broadcasted it to the network!"
-WITHDRAW_PROCESSED_TEXT="Withdraw processed:\nTransaction: {0}block/{1}\nIf you have an issue with a withdraw please wait **24 hours** before contacting my master."
-WITHDRAW_NO_BALANCE_TEXT="You have no {0} to withdraw".format(TIP_UNIT)
-WITHDRAW_INVALID_ADDRESS_TEXT="Withdraw address is not valid"
-WITHDRAW_COOLDOWN_TEXT="You need to wait {0:.2f} seconds before making another withdraw"
-WITHDRAW_INSUFFICIENT_BALANCE="Your balance isn't high enough to withdraw that much"
+# send
+SEND_AMBIGUOUS_AMOUNT="More than one amount found. You probably use a wrong number format."
+SEND_AMOUNT_NOT_FOUND="Specify an amount to send."
+
+# sendmax and send
+SEND_INVALID_ADDRESS_TEXT="Address rejected by the node. You probably made a typo or copied an address from a different network."
+SEND_PROCESSED_TEXT="Withdraw processed:\nTransaction: {0}block/{1}\nIf you have an issue with a withdraw please wait **24 hours** before contacting my master."
+SEND_COOLDOWN_TEXT="You need to wait {0:.2f} seconds before making another withdraw"
+SEND_TOO_MANY_ADDRESSES_TEXT="More than one address found. You can only make one transaction at a time."
+SEND_NO_BALANCE_TEXT="You have no {0} remaining on this account".format(TIP_UNIT)
+SEND_SUCCESS_TEXT="Transaction has been queued for processing, I'll send you a link to the block explorer when I've broadcasted it to the network!"
+SEND_ADDRESS_NOT_FOUND_TEXT="No valid address recognized. If you entered an address, make sure you didn't miss any characters."
+
+# legacy/deprecated 
+WITHDRAW_COMMAND_CHANGED="The ~~{0}withdraw~~ command is now divided into `{0}send` and `{0}sendmax`. Use those instead.".format(COMMAND_PREFIX)
 
 # leaderboard
 TOP_HEADER_TEXT="Here are the top {0} tippers :clap:"
@@ -588,7 +603,7 @@ async def notify_of_withdraw(user_id, txid):
 	"""Notify user of withdraw with a block explorer link"""
 	if user_id is not None:
 		user = await client.get_user_info(int(user_id))
-		await post_dm(user, WITHDRAW_PROCESSED_TEXT, settings.block_explorer, txid)
+		await post_dm(user, SEND_PROCESSED_TEXT, settings.block_explorer, txid)
 
 def is_private(channel):
 	"""Check if a discord channel is private"""
@@ -783,7 +798,7 @@ async def deposit(ctx):
 		await post_response(message, DEPOSIT_TEXT_3, get_qr_url(user_deposit_address))
 
 @client.command()
-async def withdraw(ctx):
+async def send(ctx):
 	message = ctx.message
 	if paused:
 		await pause_msg(message)
@@ -792,11 +807,16 @@ async def withdraw(ctx):
 		await post_dm(message.author, FROZEN_MSG)
 	elif is_private(message.channel):
 		try:
-			withdraw_amount = find_amount(message.content)
+			withdraw_amount = find_send_amounts(remove_address(message.content))
 		except util.TipBotException as e:
-			withdraw_amount = 0
+			if e.error_type == "amount_not_found":
+				await post_response(message, SEND_AMOUNT_NOT_FOUND)
+				return
+			elif e.error_type == "amount_ambiguous":
+				await post_response(message, SEND_AMBIGUOUS_AMOUNT)
+				return
 		try:
-			withdraw_address = find_address(message.content)
+			withdraw_address = return_address_match(message.content)
 			user = db.get_user_by_id(message.author.id, user_name=message.author.name)
 			if user is None:
 				return
@@ -806,32 +826,85 @@ async def withdraw(ctx):
 			source_id = user.user_id
 			source_address = user.wallet_address
 			balance = await wallet.get_balance(user)
-			amount = balance['available']
-			if withdraw_amount == 0:
-				withdraw_amount = amount
-			elif 1 > withdraw_amount:
+			available_balance = balance['available']
+			if 1 > withdraw_amount:
 				await post_response(message, "Minimum withdraw is 1 {0}", TIP_UNIT)
 				return
 			else:
 				withdraw_amount = abs(withdraw_amount)
-			if amount == 0:
-				await post_response(message, WITHDRAW_NO_BALANCE_TEXT)
-			elif withdraw_amount > amount:
-				await post_response(message, WITHDRAW_INSUFFICIENT_BALANCE)
+			if available_balance == 0:
+				await post_response(message, SEND_NO_BALANCE_TEXT)
+			elif withdraw_amount > available_balance:
+				await post_response(message, INSUFFICIENT_FUNDS_TEXT)
 			else:
 				uid = str(uuid.uuid4())
 				await wallet.make_transaction_to_address(user, withdraw_amount, withdraw_address, uid,verify_address = True)
-				await post_response(message, WITHDRAW_SUCCESS_TEXT)
+				await post_response(message, SEND_SUCCESS_TEXT)
 				db.update_last_withdraw(user.user_id)
 		except util.TipBotException as e:
 			if e.error_type == "address_not_found":
-				await post_usage(message, WITHDRAW)
+				await post_usage(message, SEND_ADDRESS_NOT_FOUND_TEXT)
+				await post_usage(message, SEND)
+			elif e.error_type == "too_many_addresses":
+				await post_response(message, SEND_TOO_MANY_ADDRESSES_TEXT)
 			elif e.error_type == "invalid_address":
-				await post_response(message, WITHDRAW_INVALID_ADDRESS_TEXT)
+				await post_response(message, SEND_INVALID_ADDRESS_TEXT)
 			elif e.error_type == "balance_error":
 				await post_response(message, INSUFFICIENT_FUNDS_TEXT)
 			elif e.error_type == "cooldown_error":
-				await post_response(message, WITHDRAW_COOLDOWN_TEXT, (WITHDRAW_COOLDOWN - last_withdraw_delta))
+				await post_response(message, SEND_COOLDOWN_TEXT, (WITHDRAW_COOLDOWN - last_withdraw_delta))
+
+@client.command()
+async def sendmax(ctx):
+	message = ctx.message
+	if paused:
+		await pause_msg(message)
+		return
+	elif db.is_frozen(message.author.id):
+		await post_dm(message.author, FROZEN_MSG)
+	elif is_private(message.channel):
+		try:
+			withdraw_address = return_address_match(message.content)
+			user = db.get_user_by_id(message.author.id, user_name=message.author.name)
+			if user is None:
+				return
+			last_withdraw_delta = db.get_last_withdraw_delta(user.user_id)
+			if WITHDRAW_COOLDOWN > last_withdraw_delta:
+				raise util.TipBotException("cooldown_error")
+			source_id = user.user_id
+			source_address = user.wallet_address
+			balance = await wallet.get_balance(user)
+			withdraw_amount = balance['available']
+			if withdraw_amount == 0:
+				await post_response(message, SEND_NO_BALANCE_TEXT)
+			elif 1 > withdraw_amount:
+				await post_response(message, "Minimum withdraw is 1 {0}", TIP_UNIT)
+				return
+			else:
+				withdraw_amount = int(withdraw_amount)
+				uid = str(uuid.uuid4())
+				await wallet.make_transaction_to_address(user, withdraw_amount, withdraw_address, uid,verify_address = True)
+				await post_response(message, SEND_SUCCESS_TEXT)
+				db.update_last_withdraw(user.user_id)
+		except util.TipBotException as e:
+			if e.error_type == "address_not_found":
+				await post_usage(message, SEND_ADDRESS_NOT_FOUND_TEXT)
+				await post_usage(message, SENDMAX)
+			elif e.error_type == "too_many_addresses":
+				await post_response(message, SEND_TOO_MANY_ADDRESSES_TEXT)
+			elif e.error_type == "invalid_address":
+				await post_response(message, SEND_INVALID_ADDRESS_TEXT)
+			elif e.error_type == "balance_error":
+				await post_response(message, INSUFFICIENT_FUNDS_TEXT)
+			elif e.error_type == "cooldown_error":
+				await post_response(message, SEND_COOLDOWN_TEXT, (WITHDRAW_COOLDOWN - last_withdraw_delta))
+
+@client.command()
+async def withdraw(ctx):
+	message = ctx.message
+	await post_response(message, WITHDRAW_COMMAND_CHANGED)
+	await post_response(message, SEND)
+	await post_response(message, SENDMAX)
 
 @client.command(aliases=get_aliases(TIP,exclude='tip'))
 async def tip(ctx):
@@ -1941,14 +2014,32 @@ async def settoptip(ctx):
 def get_qr_url(text):
 	return 'https://chart.googleapis.com/chart?cht=qr&chl={0}&chs=180x180&choe=UTF-8&chld=L|2'.format(text)
 
-def find_address(input_text):
-	address = input_text.split(' ')
-	if len(address) == 1:
+def return_address_match(input_text):
+	address_regex = '(?:xrb|nano|ban)(?:_)(?:1|3)(?:[13456789abcdefghijkmnopqrstuwxyz]{59})'
+	matches = re.findall(address_regex, input_text)
+	if len(matches) == 1:
+		return matches[0]
+	elif len(matches) > 1:
+		raise util.TipBotException("too_many_addresses")
+	else:
 		raise util.TipBotException("address_not_found")
-	elif address[1] is None:
-		raise util.TipBotException("address_not_found")
-	return address[1]
 
+def remove_address(input_text):
+	address_regex = '(?:xrb|nano|ban)(?:_)(?:1|3)(?:[13456789abcdefghijkmnopqrstuwxyz]{59})'
+	result = re.sub(address_regex, '', input_text)
+
+# find amount in outbound sends
+def find_send_amounts(input_text):
+	regex = r'(?:^|\s)(\d*\.?\d+)(?=$|\s)'
+	matches = re.findall(regex, input_text, re.IGNORECASE)
+	if len(matches) > 1:
+		raise util.TipBotException("amount_ambiguous")
+	elif len(matches) == 1:
+		return float(matches[0].strip())
+	else:
+		raise util.TipBotException("amount_not_found")
+
+# find amount in regular tips
 def find_amount(input_text):
 	str_split = input_text.split('<@')
 	if (len(str_split) == 0):
