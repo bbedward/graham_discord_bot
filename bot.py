@@ -388,7 +388,7 @@ DECREASETIPCOUNT = {
 }
 
 COMMANDS = {
-		"ACCOUNT_COMMANDS"      : [BALANCE, DEPOSIT, WITHDRAW],
+		"ACCOUNT_COMMANDS"      : [BALANCE, DEPOSIT, SEND, SENDMAX],
 		"TIPPING_COMMANDS"      : [TIP, TIPSPLIT, TIPRANDOM, RAIN],
 		"GIVEAWAY_COMMANDS"     : [START_GIVEAWAY, ENTER, TIPGIVEAWAY, TICKETSTATUS],
 		"STATISTICS_COMMANDS"   : [GIVEAWAY_STATS, WINNERS, LEADERBOARD, TOPTIPS,STATS],
@@ -2026,7 +2026,7 @@ def return_address_match(input_text):
 
 def remove_address(input_text):
 	address_regex = '(?:xrb|nano|ban)(?:_)(?:1|3)(?:[13456789abcdefghijkmnopqrstuwxyz]{59})'
-	result = re.sub(address_regex, '', input_text)
+	return re.sub(address_regex, '', input_text)
 
 # find amount in outbound sends
 def find_send_amounts(input_text):
