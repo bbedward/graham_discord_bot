@@ -182,7 +182,7 @@ ENTER = {
 }
 
 TIPGIVEAWAY = {
-		"TRIGGER"  : ["donate", "d"] if settings.banano else ["tipgiveaway", "tg"],
+		"TRIGGER"  : ["donate", "do"] if settings.banano else ["tipgiveaway", "tg"],
 		"CMD"      : "{0}tipgiveaway, takes: amount".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Add to present or future giveaway prize pool",
 		"INFO"     : ("Add <amount> to the current giveaway pool\n"+
