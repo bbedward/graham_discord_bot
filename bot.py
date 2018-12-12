@@ -1866,21 +1866,19 @@ async def statsunban(ctx):
 				await post_dm(message.author, STATSUNBAN_DUP, member.name)
 
 @client.command(aliases=['wfu'])
-async def walletfor(ctx, user: discord.Member = None, user_id: str = None):
-	if user is None and user_id is None:
+async def walletfor(ctx, user = None):
+	if user is None:
 		await post_usage(ctx.message, WALLET_FOR)
 		return
-	wa = None
-	if user is not None:
-		wa = db.get_address(user.id)
-	else:
-		user = db.get_user_by_id(user_id)
-		wa = user.wallet_address
+	wa = db.get_address(user.id)
+	user_id = user.id if isinstance(user, discord.Member) else user
+	user = db.get_user_by_id(user_id)
+	user_name = user.name if isinstance(user, discord.Member) else user.user_name
 	if wa is not None:
 		await post_dm(ctx.message.author,
 					  "Address for user: '{0}' with Discord ID {1}: {2} {3}account/{2}",
-					  user.name if isinstance(user, discord.Member) else user.user_name, 
-					  user.id if isinstance(user, discord.Member) else user.user_id,
+					  user_name, 
+					  user_id,
 					  wa, settings.block_explorer)
 	else:
 		await post_dm(ctx.message.author, "Could not find address for user")
