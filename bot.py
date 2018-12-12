@@ -1870,8 +1870,8 @@ async def walletfor(ctx, user = None):
 	if user is None:
 		await post_usage(ctx.message, WALLET_FOR)
 		return
-	wa = db.get_address(user.id)
 	user_id = user.id if isinstance(user, discord.Member) else user
+	wa = db.get_address(user_id)
 	user = db.get_user_by_id(user_id)
 	user_name = user.name if isinstance(user, discord.Member) else user.user_name
 	if wa is not None:
