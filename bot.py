@@ -843,8 +843,8 @@ async def send(ctx):
 				db.update_last_withdraw(user.user_id)
 		except util.TipBotException as e:
 			if e.error_type == "address_not_found":
-				await post_usage(message, SEND_ADDRESS_NOT_FOUND_TEXT)
-				await post_usage(message, SEND)
+				await post_response(message, SEND_ADDRESS_NOT_FOUND_TEXT)
+				await post_response(message, SEND)
 			elif e.error_type == "too_many_addresses":
 				await post_response(message, SEND_TOO_MANY_ADDRESSES_TEXT)
 			elif e.error_type == "invalid_address":
