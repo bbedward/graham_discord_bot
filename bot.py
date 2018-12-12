@@ -843,8 +843,8 @@ async def send(ctx):
 				db.update_last_withdraw(user.user_id)
 		except util.TipBotException as e:
 			if e.error_type == "address_not_found":
-				await post_usage(message, SEND_ADDRESS_NOT_FOUND_TEXT)
-				await post_usage(message, SEND)
+				await post_response(message, SEND_ADDRESS_NOT_FOUND_TEXT)
+				await post_response(message, SEND)
 			elif e.error_type == "too_many_addresses":
 				await post_response(message, SEND_TOO_MANY_ADDRESSES_TEXT)
 			elif e.error_type == "invalid_address":
@@ -1866,19 +1866,21 @@ async def statsunban(ctx):
 				await post_dm(message.author, STATSUNBAN_DUP, member.name)
 
 @client.command(aliases=['wfu'])
-async def walletfor(ctx, user = None):
-	if user is None:
+async def walletfor(ctx, user: discord.Member = None, user_id: str = None):
+	if user is None and user_id is None:
 		await post_usage(ctx.message, WALLET_FOR)
 		return
-	wa = db.get_address(user.id)
-	user_id = user.id if isinstance(user, discord.Member) else user
-	user = db.get_user_by_id(user_id)
-	user_name = user.name if isinstance(user, discord.Member) else user.user_name
+	wa = None
+	if user is not None:
+		wa = db.get_address(user.id)
+	else:
+		user = db.get_user_by_id(user_id)
+		wa = user.wallet_address
 	if wa is not None:
 		await post_dm(ctx.message.author,
 					  "Address for user: '{0}' with Discord ID {1}: {2} {3}account/{2}",
-					  user_name, 
-					  user_id,
+					  user.name if isinstance(user, discord.Member) else user.user_name, 
+					  user.id if isinstance(user, discord.Member) else user.user_id,
 					  wa, settings.block_explorer)
 	else:
 		await post_dm(ctx.message.author, "Could not find address for user")
