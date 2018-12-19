@@ -62,8 +62,8 @@ async def get_balance(user):
 			return None
 		actual_balance = int(wallet_output['balance'])
 		pending_balance = int(wallet_output['pending'])
-		actual_balance = (actual_balance / util.RAW_PER_BAN) if settings.banano else (actual_balance / util.RAW_PER_RAI)
-		pending_balance = (pending_balance / util.RAW_PER_BAN) if settings.banano else (pending_balance / util.RAW_PER_RAI)
+		actual_balance = util.BananoConversions.raw_to_banano(actual_balance) if settings.banano else util.NanoConversions.raw_to_rai(actual_balance)
+		pending_balance = util.BananoConversions.raw_to_banano(pending_balance) if settings.banano else util.NanoConversions.raw_to_rai(pending_balance)
 		return {'actual':int(actual_balance),
 			'available': int(actual_balance) - user.pending_send,
 			'pending_send': user.pending_send,

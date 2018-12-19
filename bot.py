@@ -791,11 +791,23 @@ async def balance(ctx):
 async def deposit(ctx):
 	message = ctx.message
 	if is_private(message.channel):
+		try:
+			amount = find_amount(message)
+		except util.TipBotException:
+			amount = 0
 		user = await wallet.create_or_fetch_user(message.author.id, message.author.name)
 		user_deposit_address = user.wallet_address
-		await post_response(message, DEPOSIT_TEXT)
-		await post_response(message, DEPOSIT_TEXT_2, user_deposit_address)
-		await post_response(message, DEPOSIT_TEXT_3, get_qr_url(user_deposit_address))
+		if amount == 0:
+			await post_response(message, DEPOSIT_TEXT)
+			await post_response(message, DEPOSIT_TEXT_2, user_deposit_address)
+			await post_response(message, DEPOSIT_TEXT_3, get_qr_url(user_deposit_address))
+			return
+		uri_scheme = "ban:" if settings.banano else "nano:"
+		uri = "{0}{1}?amount={2}".format(uri_scheme, user_deposit_address, util.BananoConversions.banano_to_raw(int(amount)) if settings.banano else util.NanoConversions.rai_to_raw(int(amount)))
+		embed = discord.Embed(colour=0xFBDD11 if settings.banano else discord.Colour.dark_blue())
+		embed.title="Tip Wallet"
+		embed.add_field(name="Deposit Address", value="[{0}]({1})".format(user_deposit_address, uri), inline=False)
+		embed.set_image(get_qr_url(uri))
 
 @client.command()
 async def send(ctx):

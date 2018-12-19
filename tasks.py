@@ -45,7 +45,7 @@ def send_transaction(self, tx):
 			to_address = tx['to_address']
 			amount = tx['amount']
 			uid = tx['uid']
-			raw_withdraw_amt = int(amount) * util.RAW_PER_BAN if settings.banano else int(amount) * util.RAW_PER_RAI
+			raw_withdraw_amt = util.BananoConversions.banano_to_raw(int(amount)) if settings.banano else util.NanoConversions.rai_to_raw(int(amount))
 			wallet_command = {
 				'action': 'send',
 				'wallet': settings.wallet,
@@ -105,7 +105,7 @@ def pocket_task(accounts):
 		accts_pending_action = {
 			"action":"accounts_pending",
 			"accounts":accounts,
-			"threshold":util.RAW_PER_BAN if settings.banano else util.RAW_PER_RAI,
+			"threshold":util.BananoConversions.RAW_PER_BAN if settings.banano else util.NanoConversions.RAW_PER_RAI,
 			"count":5
 		}
 		resp = communicate_wallet(accts_pending_action)
