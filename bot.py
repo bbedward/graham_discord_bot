@@ -792,7 +792,7 @@ async def deposit(ctx):
 	message = ctx.message
 	if is_private(message.channel):
 		try:
-			amount = find_amount(message)
+			amount = find_amount(message.content)
 		except util.TipBotException:
 			amount = 0
 		user = await wallet.create_or_fetch_user(message.author.id, message.author.name)
@@ -805,7 +805,7 @@ async def deposit(ctx):
 		uri_scheme = "ban:" if settings.banano else "nano:"
 		uri = "{0}{1}?amount={2}".format(uri_scheme, user_deposit_address, util.BananoConversions.banano_to_raw(int(amount)) if settings.banano else util.NanoConversions.rai_to_raw(int(amount)))
 		embed = discord.Embed(colour=0xFBDD11 if settings.banano else discord.Colour.dark_blue())
-		embed.set_author(user_deposit_address, icon_url="https://banano.cc/assets/press-assets/banano-mark.png" if settings.banano else "https://upload.wikimedia.org/wikipedia/commons/1/18/Nano_logo.png")
+		embed.set_author(name=user_deposit_address, icon_url="https://banano.cc/assets/press-assets/banano-mark.png" if settings.banano else "https://upload.wikimedia.org/wikipedia/commons/1/18/Nano_logo.png")
 		embed.set_image(url=get_qr_url(uri))
 		await message.author.send(embed=embed)
 		await post_response(message, user_deposit_address)
