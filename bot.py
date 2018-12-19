@@ -807,7 +807,7 @@ async def deposit(ctx):
 		embed = discord.Embed(colour=0xFBDD11 if settings.banano else discord.Colour.dark_blue())
 		embed.title="Tip Wallet"
 		embed.add_field(name="Deposit Address", value="[{0}]({1})".format(user_deposit_address, uri), inline=False)
-		embed.set_image(get_qr_url(uri))
+		embed.set_image(url=get_qr_url(uri))
 
 @client.command()
 async def send(ctx):
