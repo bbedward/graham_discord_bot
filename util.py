@@ -23,9 +23,9 @@ class NanoConversions():
     def raw_to_rai(self, raw_amt):
         return raw_amt / self.RAW_PER_RAI
 
-    @staticmethod
-    def rai_to_raw(rai_amt):
-        return int(rai_amt) * RAW_PER_RAI
+    @classmethod
+    def rai_to_raw(self, rai_amt):
+        return int(rai_amt) * self.RAW_PER_RAI
 
 class TipBotException(Exception):
 	def __init__(self, error_type):
