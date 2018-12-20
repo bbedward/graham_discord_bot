@@ -99,9 +99,9 @@ BALANCE = {
 
 DEPOSIT ={
 		"TRIGGER"  : ["deposit", "register", "wallet", "address"],
-		"CMD"      : "{0}deposit or {0}register or {0}wallet or {0}address".format(COMMAND_PREFIX),
+		"CMD"      : "{0}deposit or {0}register or {0}wallet or {0}address, takes: optional amount".format(COMMAND_PREFIX),
 		"OVERVIEW" : "Shows your account address",
-		"INFO"     : ("Displays your tip bot account address along with a QR code" +
+		"INFO"     : ("Displays your tip bot account address along with a QR code. QR code is encoded with an amount if provided" +
 				"\n- Send NANO to this address to increase your tip bot balance" +
 				"\n- If you do not have a tip bot account yet, this command will create one for you (receiving a tip automatically creates an account too)")
 }
@@ -411,11 +411,6 @@ else:
 					"Available Balance: {2} naneroo ({3:.6f} NANO)\n" +
 					"Pending Send     : {4} naneroo ({5:.6f} NANO)\n" +
 					"Pending Receipt  : {6} naneroo ({7:.6f} NANO)```")
-
-# deposit (split into 3 for easy copypasting address on mobile)
-DEPOSIT_TEXT="Your wallet address is:"
-DEPOSIT_TEXT_2="{0}"
-DEPOSIT_TEXT_3="QR: {0}"
 
 # generic tip replies (apply to numerous tip commands)
 INSUFFICIENT_FUNDS_TEXT="You don't have enough {0} in your available balance!".format(TIP_UNIT)
@@ -797,15 +792,13 @@ async def deposit(ctx):
 			amount = 0
 		user = await wallet.create_or_fetch_user(message.author.id, message.author.name)
 		user_deposit_address = user.wallet_address
-		if amount == 0:
-			await post_response(message, DEPOSIT_TEXT)
-			await post_response(message, DEPOSIT_TEXT_2, user_deposit_address)
-			await post_response(message, DEPOSIT_TEXT_3, get_qr_url(user_deposit_address))
-			return
 		uri_scheme = "ban:" if settings.banano else "nano:"
-		uri = "{0}{1}?amount={2}".format(uri_scheme, user_deposit_address, util.BananoConversions.banano_to_raw(int(amount)) if settings.banano else util.NanoConversions.rai_to_raw(int(amount)))
+		if amount == 0:
+			uri = user_deposit_address
+		else:
+			uri = "{0}{1}?amount={2}".format(uri_scheme, user_deposit_address, util.BananoConversions.banano_to_raw(int(amount)) if settings.banano else util.NanoConversions.rai_to_raw(int(amount)))
 		embed = discord.Embed(colour=0xFBDD11 if settings.banano else discord.Colour.dark_blue())
-		embed.set_author(name=user_deposit_address, icon_url="https://banano.cc/favicon/android-icon-192x192.png" if settings.banano else "https://nano.org/assets/icons/32x32.png")
+		embed.set_author(name=user_deposit_address, icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if settings.banano else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
 		embed.set_image(url=get_qr_url(uri))
 		await message.author.send(embed=embed)
 		await post_response(message, user_deposit_address)
