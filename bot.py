@@ -27,7 +27,7 @@ from tasks import app, pocket_task
 
 logger = util.get_logger("main")
 
-BOT_VERSION = "3.2.1"
+BOT_VERSION = "3.3"
 
 # How many users to display in the top users count
 TOP_TIPPERS_COUNT=15
@@ -38,7 +38,7 @@ RAIN_MINIMUM = settings.rain_minimum
 # Minimum amount for !startgiveaway
 GIVEAWAY_MINIMUM = settings.giveaway_minimum
 # Giveaway duration
-GIVEAWAY_MIN_DURATION = 5
+GIVEAWAY_MIN_DURATION = settings.giveaway_min_duration
 GIVEAWAY_MAX_DURATION = settings.giveaway_max_duration
 GIVEAWAY_AUTO_DURATION = settings.giveaway_auto_duration
 # Rain Delta (Minutes) - How long to look back for active users for !rain
@@ -56,6 +56,11 @@ TIPGIVEAWAY_AUTO_ENTRY=int(.01 * GIVEAWAY_MINIMUM)
 GIVEAWAY_CHANNELS=None
 try:
 	GIVEAWAY_CHANNELS=settings.giveaway_channels
+except:
+	pass
+GIVEAWAY_ANNOUNCE_CHANNELS=None
+try:
+	GIVEAWAY_ANNOUNCE_CHANNELS=settings.giveaway_announce_channels
 except:
 	pass
 
@@ -1246,8 +1251,6 @@ async def givearai(ctx):
 	message = ctx.message
 	if is_private(message.channel):
 		return
-	elif GIVEAWAY_CHANNELS and message.channel.id not in GIVEAWAY_CHANNELS:
-		return
 	elif paused:
 		await pause_msg(message)
 		return
@@ -1309,9 +1312,35 @@ async def givearai(ctx):
 		uid = str(uuid.uuid4())
 		await wallet.make_transaction_to_address(user, amount, None, uid, giveaway_id=giveaway.id)
 		if fee > 0:
-			await post_response(message, GIVEAWAY_STARTED_FEE, message.author.name, nano_amt, nano_amt + tipped_amount, fee)
+			# Announce to all specified channels if configured that way
+			if GIVEAWAY_CHANNELS is not None or GIVEAWAY_ANNOUNCE_CHANNELS is not None:
+				announce_channels = []
+				if GIVEAWAY_CHANNELS is not None:
+					announce_channels.append(GIVEAWAY_CHANNELS)
+				elif GIVEAWAY_ANNOUNCE_CHANNELS is not None:
+					announce_channels.append(GIVEAWAY_ANNOUNCE_CHANNELS)
+				announce_channels = list(set(announce_channels))
+				for c in announce_channels:
+					channel = message.guild.get_channel(c)
+					if channel is not None:
+							await channel.send(GIVEAWAY_STARTED_FEE.format(message.author.name, nano_amt, nano_amt + tipped_amount, fee))
+			else:
+				await post_response(message, GIVEAWAY_STARTED_FEE, message.author.name, nano_amt, nano_amt + tipped_amount, fee)
 		else:
-			await post_response(message, GIVEAWAY_STARTED, message.author.name, nano_amt, nano_amt + tipped_amount)
+			# Announce to all specified channels if configured that way
+			if GIVEAWAY_CHANNELS is not None or GIVEAWAY_ANNOUNCE_CHANNELS is not None:
+				announce_channels = []
+				if GIVEAWAY_CHANNELS is not None:
+					announce_channels.append(GIVEAWAY_CHANNELS)
+				elif GIVEAWAY_ANNOUNCE_CHANNELS is not None:
+					announce_channels.append(GIVEAWAY_ANNOUNCE_CHANNELS)
+				announce_channels = list(set(announce_channels))
+				for c in announce_channels:
+					channel = message.guild.get_channel(c)
+					if channel is not None:
+							await channel.send(GIVEAWAY_STARTED.format(message.author.name, nano_amt, nano_amt + tipped_amount))
+			else:
+				await post_response(message, GIVEAWAY_STARTED, message.author.name, nano_amt, nano_amt + tipped_amount)
 		asyncio.get_event_loop().create_task(start_giveaway_timer())
 		db.update_tip_stats(user, amount, giveaway=True)
 		db.add_contestant(message.author.id)
@@ -1329,8 +1358,6 @@ async def tipgiveaway(ctx):
 async def tip_giveaway(message, ticket=False):
 	if is_private(message.channel) and not ticket:
 		return
-	elif GIVEAWAY_CHANNELS and message.channel.id not in GIVEAWAY_CHANNELS:
-		return
 	elif paused:
 		await pause_msg(message)
 		return
@@ -1341,6 +1368,9 @@ async def tip_giveaway(message, ticket=False):
 		await remove_message(message)
 		return
 	try:
+		private_mode = False
+		if GIVEAWAY_CHANNELS is not None and not is_private(message.channel) and message.channel.id not in GIVEAWAY_CHANNELS:
+			private_mode = True
 		giveaway = db.get_giveaway()
 		amount = find_amount(message.content)
 		user = db.get_user_by_id(message.author.id, user_name=message.author.name)
@@ -1349,7 +1379,10 @@ async def tip_giveaway(message, ticket=False):
 		balance = await wallet.get_balance(user)
 		user_balance = balance['available']
 		if user_balance < amount:
-			await add_x_reaction(message)
+			if (private_mode):
+				await remove_message(message)
+			else:
+				await add_x_reaction(message)
 			await post_dm(message.author, INSUFFICIENT_FUNDS_TEXT)
 			return
 		nano_amt = amount if settings.banano else amount / 1000000
@@ -1374,7 +1407,7 @@ async def tip_giveaway(message, ticket=False):
 		uid = str(uuid.uuid4())
 		db.add_tip_to_giveaway(nano_amt)
 		await wallet.make_transaction_to_address(user, amount, None, uid, giveaway_id=giveawayid)
-		if not ticket:
+		if not ticket and not private_mode:
 			await react_to_message(message, amount)
 		# If eligible, add them to giveaway
 		if (amount + contributions) >= fee and not db.is_banned(message.author.id):
@@ -1383,7 +1416,7 @@ async def tip_giveaway(message, ticket=False):
 			entered = db.add_contestant(message.author.id)
 			if entered:
 				if giveaway is None:
-					if message.channel.id not in settings.no_spam_channels:
+					if message.channel.id not in settings.no_spam_channels and not private_mode:
 						await post_response(message, TIPGIVEAWAY_ENTERED_FUTURE)
 					else:
 						await post_dm(message.author, TIPGIVEAWAY_ENTERED_FUTURE)
@@ -1398,11 +1431,26 @@ async def tip_giveaway(message, ticket=False):
 			if tipgiveaway_sum >= GIVEAWAY_MINIMUM:
 				end_time = datetime.datetime.utcnow() + datetime.timedelta(minutes=GIVEAWAY_AUTO_DURATION)
 				db.start_giveaway(client.user.id, client.user.name, 0, end_time, message.channel.id,entry_fee=fee)
-				await post_response(message, GIVEAWAY_STARTED_FEE, client.user.name, nano_amt, nano_amt, fee)
+				# Announce to all specified channels if configured that way
+				if GIVEAWAY_CHANNELS is not None or GIVEAWAY_ANNOUNCE_CHANNELS is not None:
+					announce_channels = []
+					if GIVEAWAY_CHANNELS is not None:
+						announce_channels.append(GIVEAWAY_CHANNELS)
+					elif GIVEAWAY_ANNOUNCE_CHANNELS is not None:
+						announce_channels.append(GIVEAWAY_ANNOUNCE_CHANNELS)
+					announce_channels = list(set(announce_channels))
+					for c in announce_channels:
+						channel = message.guild.get_channel(c)
+						if channel is not None:
+								await channel.send(GIVEAWAY_STARTED_FEE.format(client.user.name, nano_amt, nano_amt, fee))
+				else:
+					await post_response(message, GIVEAWAY_STARTED_FEE, client.user.name, nano_amt, nano_amt, fee)
 				asyncio.get_event_loop().create_task(start_giveaway_timer())
 		# Update top tipY
 		if not user.stats_ban:
 			db.update_tip_stats(user, amount, giveaway=True)
+		if private_mode:
+			await remove_message(message)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
 			if ticket:
@@ -1413,8 +1461,6 @@ async def tip_giveaway(message, ticket=False):
 @client.command(aliases=get_aliases(TICKETSTATUS,exclude='ticketstatus'))
 async def ticketstatus(ctx):
 	message = ctx.message
-	if GIVEAWAY_CHANNELS and message.channel.id not in GIVEAWAY_CHANNELS:
-		return
 	user = db.get_user_by_id(message.author.id)
 	if user is not None:
 		await post_dm(message.author, db.get_ticket_status(message.author.id))
@@ -1428,16 +1474,18 @@ async def giveawaystats(ctx):
 	delete_message = False
 	if message.channel.id in settings.no_spam_channels:
 		return
-	elif GIVEAWAY_CHANNELS and message.channel.id not in GIVEAWAY_CHANNELS:
-		return
 	if not is_private(message.channel):
-		delete_message = True
-		if message.channel.id not in last_gs:
-			last_gs[message.channel.id] = datetime.datetime.utcnow()
-		if SPAM_THRESHOLD > (datetime.datetime.utcnow() - last_gs[message.channel.id]).total_seconds():
-			do_dm = True
+		if GIVEAWAY_CHANNELS is not None and message.channel.id in GIVEAWAY_CHANNELS:
+			delete_message = True
+			if message.channel.id not in last_gs:
+				last_gs[message.channel.id] = datetime.datetime.utcnow()
+			if SPAM_THRESHOLD > (datetime.datetime.utcnow() - last_gs[message.channel.id]).total_seconds():
+				do_dm = True
+			else:
+				last_gs[message.channel.id] = datetime.datetime.utcnow()
 		else:
-			last_gs[message.channel.id] = datetime.datetime.utcnow()
+			delete_message = True
+			do_dm = True
 	stats = db.get_giveaway_stats()
 	if stats is None:
 		for_next = GIVEAWAY_MINIMUM - db.get_tipgiveaway_sum()
@@ -1488,7 +1536,7 @@ async def winners(ctx):
 	message = ctx.message
 	if message.channel.id in settings.no_spam_channels:
 		return
-	elif GIVEAWAY_CHANNELS and message.channel.id not in GIVEAWAY_CHANNELS:
+	elif GIVEAWAY_CHANNELS and message.channel.id not in GIVEAWAY_CHANNELS and not is_private(message.channel):
 		return
 	# Check spam
 	global last_winners
@@ -2072,7 +2120,6 @@ async def post_response(message, template, *args):
 	if not is_private(message.channel):
 		response = "<@" + str(message.author.id) + "> \n" + response
 	logger.info("sending response: '%s' for message: '%s' to userid: '%s' name: '%s'", response, message.content, message.author.id, message.author.name)
-	asyncio.sleep(0.05) # Slight delay to avoid discord bot responding above commands
 	return await message.channel.send(response)
 
 async def post_usage(message, command):
@@ -2085,7 +2132,6 @@ async def post_dm(member, template, *args, skip_dnd=False):
 	response = template.format(*args)
 	logger.info("sending dm: '%s' to user: %s", response, member.id)
 	try:
-		asyncio.sleep(0.05)
 		if skip_dnd and member.status == discord.Status.dnd:
 			return None
 		return await member.send(response)

@@ -17,6 +17,8 @@ rain_minimum = 10000
 tiprandom_minimum = 1000
 # Minimum amount required to start a giveaway
 giveaway_minimum = 1000000
+# Min giveaway duration in minutes
+giveaway_min_duration=10
 # Max giveaway duration in minutes
 giveaway_max_duration=60
 # Default giveaway duration for giveaways started by bot
@@ -42,3 +44,5 @@ node_port=7072 if banano else 7076
 giveaway_role=None
 # Restrict giveaways to certain channels (optional)
 giveaway_channels=[1234]
+# Always announce giveaways in these channels (also optional, otherwise will anounce in the channel where it was started)
+giveaway_announce_channels=[416344480820494356,431938659852353536,433102807239884800,436075697765875712,436840337252810753,436840559970091008]
