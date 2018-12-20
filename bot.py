@@ -765,7 +765,11 @@ async def balance(ctx):
 		send = balances['pending_send']
 		receive = balances['pending']
 		if settings.banano:
-			await post_response(message, BALANCE_TEXT, actual, available, send, receive)
+			balance_desc = BALANCE_TEXT.format(actual, available, send, receive)
+			embed = discord.Embed(colour=0xFBDD11 if settings.banano else discord.Colour.dark_blue())
+			embed.set_author(name="Balance", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if settings.banano else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
+			embed.description = balance_desc
+			await message.author.send(embed=embed)
 		else:
 			# NANO-version uses micro units so we show the NANO-equivalent for convenience
 			receivenano = receive / 1000000
@@ -773,7 +777,7 @@ async def balance(ctx):
 			availablenano = available / 1000000
 			sendnano = send / 1000000
 			receivenano = receive / 1000000
-			await post_response(message, BALANCE_TEXT,	"{:,}".format(actual),
+			balance_desc = BALANCE_TEXT.format("{:,}".format(actual),
 									actualnano,
 									"{:,}".format(available),
 									availablenano,
@@ -781,6 +785,10 @@ async def balance(ctx):
 									sendnano,
 									"{:,}".format(receive),
 									receivenano)
+			embed = discord.Embed(colour=0xFBDD11 if settings.banano else discord.Colour.dark_blue())
+			embed.set_author(name="Balance", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if settings.banano else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
+			embed.description = balance_desc
+			await message.author.send(embed=embed)
 
 @client.command(aliases=get_aliases(DEPOSIT, exclude='deposit'))
 async def deposit(ctx):
