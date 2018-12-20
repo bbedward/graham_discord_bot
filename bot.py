@@ -1320,7 +1320,7 @@ async def givearai(ctx):
 				elif GIVEAWAY_ANNOUNCE_CHANNELS is not None:
 					announce_channels.append(GIVEAWAY_ANNOUNCE_CHANNELS)
 				for c in [el for i, el in enumerate(announce_channels) if el not in announce_channels[:i]]:
-					channel = message.guild.get_channel(c)
+					channel = client.get_channel(c)
 					if channel is not None:
 							await channel.send(GIVEAWAY_STARTED_FEE.format(message.author.name, nano_amt, nano_amt + tipped_amount, fee))
 			else:
@@ -1335,7 +1335,7 @@ async def givearai(ctx):
 					announce_channels.append(GIVEAWAY_ANNOUNCE_CHANNELS)
 				# List comprehension is to remove the duplicates
 				for c in [el for i, el in enumerate(announce_channels) if el not in announce_channels[:i]]:
-					channel = message.guild.get_channel(c)
+					channel = client.get_channel(c)
 					if channel is not None:
 							await channel.send(GIVEAWAY_STARTED.format(message.author.name, nano_amt, nano_amt + tipped_amount))
 			else:
@@ -1435,7 +1435,7 @@ async def tip_giveaway(message, ticket=False):
 					elif GIVEAWAY_ANNOUNCE_CHANNELS is not None:
 						announce_channels.append(GIVEAWAY_ANNOUNCE_CHANNELS)
 					for c in [el for i, el in enumerate(announce_channels) if el not in announce_channels[:i]]:
-						channel = message.guild.get_channel(c)
+						channel = client.get_channel(c)
 						if channel is not None:
 								await channel.send(GIVEAWAY_STARTED_FEE.format(client.user.name, nano_amt, nano_amt, fee))
 				else:
