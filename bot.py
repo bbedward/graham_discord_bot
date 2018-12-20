@@ -402,15 +402,15 @@ COMMANDS = {
 
 # balance
 if settings.banano:
-	BALANCE_TEXT=(	"```Actual Balance   : {0:,.2f} BANANO\n" +
-					"Available Balance: {1:,.2f} BANANO\n" +
-					"Pending Send     : {2:,.2f} BANANO\n" +
-					"Pending Receipt  : {3:,.2f} BANANO```")
+	BALANCE_TEXT=(	"```Actual Balance : {0:,.2f} BANANO\n" +
+					"Available      : {1:,.2f} BANANO\n" +
+					"Pending Send   : {2:,.2f} BANANO\n" +
+					"Pending Receipt: {3:,.2f} BANANO```")
 else:
-	BALANCE_TEXT=(	"```Actual Balance   : {0} naneroo ({1:.6f} NANO)\n" +
-					"Available Balance: {2} naneroo ({3:.6f} NANO)\n" +
-					"Pending Send     : {4} naneroo ({5:.6f} NANO)\n" +
-					"Pending Receipt  : {6} naneroo ({7:.6f} NANO)```")
+	BALANCE_TEXT=(	"```Actual Balance : {0} naneroo ({1:.6f} NANO)\n" +
+					"Available      : {2} naneroo ({3:.6f} NANO)\n" +
+					"Pending Send   : {4} naneroo ({5:.6f} NANO)\n" +
+					"Pending Receipt: {6} naneroo ({7:.6f} NANO)```")
 
 # generic tip replies (apply to numerous tip commands)
 INSUFFICIENT_FUNDS_TEXT="You don't have enough {0} in your available balance!".format(TIP_UNIT)
