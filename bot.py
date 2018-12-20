@@ -769,6 +769,7 @@ async def balance(ctx):
 			embed = discord.Embed(colour=0xFBDD11 if settings.banano else discord.Colour.dark_blue())
 			embed.set_author(name="Balance", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if settings.banano else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
 			embed.description = balance_desc
+			embed.footer = "1 BAN = 1 ^ 29 RAW | Pending balances are in queue and will become available after processing."
 			await message.author.send(embed=embed)
 		else:
 			# NANO-version uses micro units so we show the NANO-equivalent for convenience
@@ -788,6 +789,7 @@ async def balance(ctx):
 			embed = discord.Embed(colour=0xFBDD11 if settings.banano else discord.Colour.dark_blue())
 			embed.set_author(name="Balance", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if settings.banano else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
 			embed.description = balance_desc
+			embed.footer = "1 naneroo = 0.000001 NANO = 10 ^ 24 RAW | Pending balances are in queue and will become available after processing."
 			await message.author.send(embed=embed)
 
 @client.command(aliases=get_aliases(DEPOSIT, exclude='deposit'))
