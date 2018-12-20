@@ -1436,7 +1436,7 @@ async def tip_giveaway(message, ticket=False):
 					announce_channels = []
 					if GIVEAWAY_CHANNELS is not None:
 						announce_channels.extend(GIVEAWAY_CHANNELS)
-					elif GIVEAWAY_ANNOUNCE_CHANNELS is not None:
+					if GIVEAWAY_ANNOUNCE_CHANNELS is not None:
 						announce_channels.extend(GIVEAWAY_ANNOUNCE_CHANNELS)
 					announce_channels = list(set(announce_channels))
 					for c in announce_channels:
