@@ -1317,7 +1317,7 @@ async def givearai(ctx):
 				announce_channels = []
 				if GIVEAWAY_CHANNELS is not None:
 					announce_channels.extend(GIVEAWAY_CHANNELS)
-				elif GIVEAWAY_ANNOUNCE_CHANNELS is not None:
+				if GIVEAWAY_ANNOUNCE_CHANNELS is not None:
 					announce_channels.extend(GIVEAWAY_ANNOUNCE_CHANNELS)
 				announce_channels = list(set(announce_channels))
 				for c in announce_channels:
@@ -1332,7 +1332,7 @@ async def givearai(ctx):
 				announce_channels = []
 				if GIVEAWAY_CHANNELS is not None:
 					announce_channels.extend(GIVEAWAY_CHANNELS)
-				elif GIVEAWAY_ANNOUNCE_CHANNELS is not None:
+				if GIVEAWAY_ANNOUNCE_CHANNELS is not None:
 					announce_channels.extend(GIVEAWAY_ANNOUNCE_CHANNELS)
 				announce_channels = list(set(announce_channels))
 				for c in announce_channels:
@@ -1526,9 +1526,13 @@ async def finish_giveaway(delay):
 	await asyncio.sleep(delay)
 	giveaway = db.finish_giveaway()
 	if giveaway is not None:
-		channel = client.get_channel(int(giveaway.channel_id))
+		announce_channels = [int(giveaway.channel_id)]
+		if GIVEAWAY_CHANNELS is not None:
+			announce_channels.extend(GIVEAWAY_CHANNELS)
 		response = GIVEAWAY_ENDED.format(giveaway.winner_id, giveaway.amount + giveaway.tip_amount)
-		await channel.send(response)
+		for c in list(set(announce_channels)):
+			channel = client.get_channel(c)
+			await channel.send(response)
 		await post_dm(await client.get_user_info(int(giveaway.winner_id)), response)
 
 @client.command()
