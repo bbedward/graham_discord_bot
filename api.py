@@ -73,6 +73,7 @@ def get_users():
             'discord_id':user.user_id,
             'user_name':user.user_name,
             'created_ts': format_js_iso(user.created),
+            'address':user.wallet_address
         })
     rd.set(cache_key, json.dumps(ret), ex=600)
     return jsonify(ret)
