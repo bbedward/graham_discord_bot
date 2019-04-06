@@ -831,22 +831,22 @@ class User(BaseModel):
 	pending_receive = IntegerField(default=0)
 	pending_send = IntegerField(default=0)
 	tip_count = IntegerField(default=0)
-	created = DateTimeField(default=datetime.datetime.utcnow())
-	last_msg = DateTimeField(default=datetime.datetime.utcnow())
-	last_msg_rain = DateTimeField(default=datetime.datetime.utcnow())
+	created = DateTimeField(default=datetime.datetime.utcnow)
+	last_msg = DateTimeField(default=datetime.datetime.utcnow)
+	last_msg_rain = DateTimeField(default=datetime.datetime.utcnow)
 	last_msg_count = IntegerField(default=0)
 	top_tip = IntegerField(default=0)
-	top_tip_ts = DateTimeField(default=datetime.datetime.utcnow())
+	top_tip_ts = DateTimeField(default=datetime.datetime.utcnow)
 	top_tip_month = IntegerField(default=0)
-	top_tip_month_ts = DateTimeField(default=datetime.datetime.utcnow())
+	top_tip_month_ts = DateTimeField(default=datetime.datetime.utcnow)
 	top_tip_day = IntegerField(default=0)
-	top_tip_day_ts = DateTimeField(default=datetime.datetime.utcnow())
-	last_withdraw = DateTimeField(default=datetime.datetime.utcnow())
+	top_tip_day_ts = DateTimeField(default=datetime.datetime.utcnow)
+	last_withdraw = DateTimeField(default=datetime.datetime.utcnow)
 	stats_ban = BooleanField(default=False)
 	rain_amount = FloatField(default=0.0,)
 	giveaway_amount = FloatField(default=0.0)
-	last_random = DateTimeField(default=datetime.datetime.utcnow())
-	last_favorites = DateTimeField(default=datetime.datetime.utcnow())
+	last_random = DateTimeField(default=datetime.datetime.utcnow)
+	last_favorites = DateTimeField(default=datetime.datetime.utcnow)
 
 	class Meta:
 		db_table='users'
@@ -858,7 +858,7 @@ class Transaction(BaseModel):
 	to_address = CharField(null = True)
 	amount = CharField()
 	processed = BooleanField(default=False)
-	created = DateTimeField(default=datetime.datetime.utcnow())
+	created = DateTimeField(default=datetime.datetime.utcnow)
 	tran_id = CharField(default=None, null=True)
 	attempts = IntegerField(default=0)
 	giveawayid = IntegerField(null = True)
@@ -891,7 +891,7 @@ class BannedUser(BaseModel):
 class UserFavorite(BaseModel):
 	user_id = CharField()
 	favorite_id = CharField()
-	created = DateTimeField(default=datetime.datetime.utcnow())
+	created = DateTimeField(default=datetime.datetime.utcnow)
 	identifier = IntegerField() # Identifier makes it easy for user to remove this favorite
 
 # Muted management
@@ -899,13 +899,13 @@ class MutedList(BaseModel):
 	user_id = CharField()
 	muted_id = CharField()
 	muted_name = CharField()
-	created = DateTimeField(default=datetime.datetime.utcnow())
+	created = DateTimeField(default=datetime.datetime.utcnow)
 
 # Separate table for frozen so we can freeze even users not registered with bot
 class FrozenUser(BaseModel):
 	user_id = IntegerField(unique=True)
 	user_name = CharField()
-	created = DateTimeField(default=datetime.datetime.utcnow())
+	created = DateTimeField(default=datetime.datetime.utcnow)
 
 
 def create_db():
