@@ -74,7 +74,7 @@ def get_users():
             'user_name':user.user_name,
             'created_ts': format_js_iso(user.created),
         })
-    rd.set(cache_key, json.dumps(ret))
+    rd.set(cache_key, json.dumps(ret), ex=600)
     return jsonify(ret)
 
 def format_js_iso(date):
