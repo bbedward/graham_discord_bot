@@ -1,6 +1,8 @@
 
 from gevent import monkey
 monkey.patch_all()
+import psycogreen.gevent
+psycogreen.gevent.patch_psycopg()
 
 import datetime
 
@@ -27,7 +29,7 @@ def after_request(response):
     return response
 
 @app.route('/ufw/<address>', methods=['GET'])
-def ufw(address : str):
+def ufwp(address : str):
     try:
         user = User.select().where(User.wallet_address == address).get()
         return jsonify({

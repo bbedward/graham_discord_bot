@@ -7,3 +7,4 @@ psycopg2-binary
 yarl<1.2
 flask
 gevent
+psycogreen
