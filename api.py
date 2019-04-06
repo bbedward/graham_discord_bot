@@ -27,7 +27,7 @@ def after_request(response):
     return response
 
 @app.route('/ufw/<address>', methods=['GET'])
-def signup(address : str):
+def ufw(address : str):
     try:
         user = User.select().where(User.wallet_address == address).get()
         return jsonify({
