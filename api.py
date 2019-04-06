@@ -44,7 +44,7 @@ def ufw(address : str):
     except User.DoesNotExist:
         return jsonify({'error':'user does not exist'})
 
-@app.route('ufwlist', methods=['POST'])
+@app.route('/ufwlist/', methods=['POST'])
 def ufwlist():
     json_list = request.get_json(silent=True)
     if json_list is None:
@@ -60,7 +60,7 @@ def ufwlist():
         })
     return jsonify(ret)
 
-@app.route('users', methods=['GET'])
+@app.route('/users', methods=['GET'])
 def get_users():
     """Get users, but cache result for 10 minutes"""
     cache_key = 'GRAHAM_API_CACHED_USERS'
