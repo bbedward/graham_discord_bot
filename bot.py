@@ -1323,7 +1323,10 @@ async def givearai(ctx):
 				for c in announce_channels:
 					channel = message.guild.get_channel(c)
 					if channel is not None:
+						try:
 							await channel.send(GIVEAWAY_STARTED_FEE.format(message.author.name, nano_amt, nano_amt + tipped_amount, fee))
+						except Exception:
+							pass
 			else:
 				await post_response(message, GIVEAWAY_STARTED_FEE, message.author.name, nano_amt, nano_amt + tipped_amount, fee)
 		else:
@@ -1338,7 +1341,10 @@ async def givearai(ctx):
 				for c in announce_channels:
 					channel = message.guild.get_channel(c)
 					if channel is not None:
+						try:
 							await channel.send(GIVEAWAY_STARTED.format(message.author.name, nano_amt, nano_amt + tipped_amount))
+						except Exception:
+							pass
 			else:
 				await post_response(message, GIVEAWAY_STARTED, message.author.name, nano_amt, nano_amt + tipped_amount)
 		asyncio.get_event_loop().create_task(start_giveaway_timer())
@@ -1442,7 +1448,10 @@ async def tip_giveaway(message, ticket=False):
 					for c in announce_channels:
 						channel = message.guild.get_channel(c)
 						if channel is not None:
+							try:
 								await channel.send(GIVEAWAY_STARTED_FEE.format(client.user.name, nano_amt, nano_amt, fee))
+							except Exception:
+								pass
 				else:
 					await post_response(message, GIVEAWAY_STARTED_FEE, client.user.name, nano_amt, nano_amt, fee)
 				asyncio.get_event_loop().create_task(start_giveaway_timer())
