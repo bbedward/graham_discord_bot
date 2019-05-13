@@ -545,7 +545,7 @@ async def pocket_pending_tx():
 	logger.debug("Firing pocket_task")
 	pocket_task.delay(accts)
 	await asyncio.sleep(120)
-	asyncio.ensure_future(pocket_pending_tx())
+	asyncio.get_event_loop().create_task(pocket_pending_tx())
 
 r = redis.StrictRedis()
 MAX_TX_RETRIES=3
@@ -567,7 +567,7 @@ async def process_finished_tx():
 		logger.exception(e)
 		r.rpush('/tx_completed', result)
 	# Wait for next one
-	asyncio.ensure_future(process_finished_tx())
+	asyncio.get_event_loop().create_task(process_finished_tx())
 
 async def mark_tx_processed(source_address, block, uid, to_address, amount):
 	src_usr = db.get_user_by_wallet_address(source_address)
@@ -593,11 +593,11 @@ async def on_ready():
 	create_spam_dicts()
 	await client.change_presence(activity=discord.Game(settings.playing_status))
 	logger.info("Continuing outstanding giveaway")
-	asyncio.ensure_future(start_giveaway_timer())
+	asyncio.get_event_loop().create_task(start_giveaway_timer())
 	logger.info("Starting TX processor")
-	asyncio.ensure_future(process_finished_tx())
+	asyncio.get_event_loop().create_task(process_finished_tx())
 	logger.info("Starting receive trigger job")
-	asyncio.ensure_future(pocket_pending_tx())
+	asyncio.get_event_loop().create_task(pocket_pending_tx())
 
 async def notify_of_withdraw(user_id, txid):
 	"""Notify user of withdraw with a block explorer link"""
@@ -1341,7 +1341,7 @@ async def givearai(ctx):
 							await channel.send(GIVEAWAY_STARTED.format(message.author.name, nano_amt, nano_amt + tipped_amount))
 			else:
 				await post_response(message, GIVEAWAY_STARTED, message.author.name, nano_amt, nano_amt + tipped_amount)
-		asyncio.ensure_future(start_giveaway_timer())
+		asyncio.get_event_loop().create_task(start_giveaway_timer())
 		db.update_tip_stats(user, amount, giveaway=True)
 		db.add_contestant(message.author.id)
 		for d in deleted:
@@ -1445,7 +1445,7 @@ async def tip_giveaway(message, ticket=False):
 								await channel.send(GIVEAWAY_STARTED_FEE.format(client.user.name, nano_amt, nano_amt, fee))
 				else:
 					await post_response(message, GIVEAWAY_STARTED_FEE, client.user.name, nano_amt, nano_amt, fee)
-				asyncio.ensure_future(start_giveaway_timer())
+				asyncio.get_event_loop().create_task(start_giveaway_timer())
 		# Update top tipY
 		if not user.stats_ban:
 			db.update_tip_stats(user, amount, giveaway=True)
