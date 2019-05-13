@@ -1532,8 +1532,14 @@ async def finish_giveaway(delay):
 		response = GIVEAWAY_ENDED.format(giveaway.winner_id, giveaway.amount + giveaway.tip_amount)
 		for c in list(set(announce_channels)):
 			channel = client.get_channel(c)
-			await channel.send(response)
-		await post_dm(await client.get_user_info(int(giveaway.winner_id)), response)
+			try:
+				await channel.send(response)
+			except Exception:
+				pass
+		try:
+			await post_dm(await client.get_user_info(int(giveaway.winner_id)), response)
+		except Exception:
+			pass
 
 @client.command()
 async def winners(ctx):
