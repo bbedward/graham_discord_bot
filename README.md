@@ -77,7 +77,7 @@ The bot will run on any linux distribution with python 3.6 or greater, mac, or w
 ## Requirements
 
 ```
-sudo apt install python3.6 python3.6-dev libcurl4-openssl-dev git redis-server postgresql
+sudo apt install python3.6 python3.6-dev libcurl4-openssl-dev git redis-server postgresql libssl-dev
 ```
 
 (Optional - to run with pm2)
@@ -133,8 +133,14 @@ database_password='mypassword'
 
 Note: substitute rai_node with bananode for banano
 
+Nano:
 ```
-docker <container_id> exec rai_node --wallet_create
+docker exec <container_id> rai_node --wallet_create
+
+```
+Banano:
+```
+docker exec <container_id> bananode --wallet_create
 ```
 
 non-docker nodes:
@@ -193,6 +199,7 @@ virtualenv -p python3.6 venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
+If errors, try installing the requirements one by one to find the offending one, and look for a solution.
 
 That's it, if configured correctly you can run the bot.
 
