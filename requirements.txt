@@ -1,7 +1,7 @@
 pycurl
 peewee
 aiodns
-git+https://github.com/Rapptz/discord.py@rewrite#egg-discord.py[voice]
+discord.py>=1.2.5
 celery[redis]
 psycopg2-binary
 yarl<1.2
