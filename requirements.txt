@@ -3,3 +3,4 @@ tortoise-orm
 nanopy
 aiosqlite
 asyncpg
+pycryptodome
