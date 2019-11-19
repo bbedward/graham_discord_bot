@@ -1,10 +1,5 @@
-pycurl
-peewee
-aiodns
-discord.py>=1.2.5
-celery[redis]
-psycopg2-binary
-yarl<1.2
-flask
-gevent
-psycogreen
+discord.py
+tortoise-orm
+nanopy
+aiosqlite
+asyncpg

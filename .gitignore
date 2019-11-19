@@ -112,6 +112,7 @@ settings.py
 nohup.out
 *.log*
 backups/
+*.db
 *.db-wal
 *.db-shm
 
