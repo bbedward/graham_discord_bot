@@ -5,10 +5,6 @@ from models.constants import Constants
 from util.env import Env
 
 class Tips(commands.Cog):
-    COMMAND_DETAILS = [
-        Tips.TIP_INFO
-    ]
-
     def __init__(self, bot : Bot):
         self.bot = bot
 

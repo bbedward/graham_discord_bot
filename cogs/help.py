@@ -7,9 +7,15 @@ from util.discord.dm import DM
 from util.discord.paginator import Paginator, Page, CannotPaginate
 from . import __version__
 
-COMMANDS = [
-    tips.Tips.TIP_INFO
-]
+COMMANDS = {
+    'TIP': {
+        'header': 'Tipping Commands',
+        'info': 'The different ways you are able to tip with this bot',
+        'cmd_list': [
+            tips.Tips.TIP_INFO
+        ]
+    }
+}
 
 class Help(commands.Cog):
     def __init__(self, bot : Bot, command_prefix : str, logger : Logger):
@@ -31,14 +37,16 @@ class Help(commands.Cog):
         description=("Use `{0}help command` for more information about a specific command " +
                 " or go to the next page").format(self.command_prefix)
         entries = []
-        for cmd in COMMANDS:
-            entries.append(f"{self.command_prefix}{cmd.triggers[0]}", cmd.overview)
+        for k, cmd_list in COMMANDS:
+            for cmd in COMMANDS[k]['cmd_list']:
+                entries.append(f"{self.command_prefix}{cmd.triggers[0]}", cmd.overview)
         pages.append(Page(entries=entries, title=title,author=author, description=description))
-        # Tipping
-        author="Tipping Commands"
-        description="The different ways you are able to tip with this bot"
-        entries = self.get_entries(tips.Tips.COMMAND_DETAILS)
-        pages.append(Page(entries=entries, author=author,description=description))
+        # Build detail pages
+        for group, details in COMMANDS:
+            author=COMMANDS[group]['header']
+            description=COMMANDS[group]['info']
+            entries = self.get_entries(COMMANDS[group]['cmd_list'])
+            pages.append(Page(entries=entries, author=author,description=description))
         # Info
         """
         entries = [paginator.Entry(TIP_AUTHOR['CMD'], TIP_AUTHOR['OVERVIEW'])]
