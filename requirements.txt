@@ -1,6 +1,5 @@
 discord.py
 tortoise-orm
-nanopy
 aiosqlite
 asyncpg
-pycryptodome
+aiohttp
