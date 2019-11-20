@@ -5,6 +5,10 @@ from models.constants import Constants
 from util.env import Env
 
 class Tips(commands.Cog):
+    COMMAND_DETAILS = [
+        Tips.TIP_INFO
+    ]
+
     def __init__(self, bot : Bot):
         self.bot = bot
 
@@ -16,6 +20,6 @@ class Tips(commands.Cog):
             "\nSuccessful tips will be deducted from your available balance immediately.",
         example = f"{'ban' if Env.banano() else 'ntip'} 2 @user1 @user2` would send 2 to user1 and 2 to user2"
     )
-    @commands.command()
+    @commands.command(aliases=Tips.TIP_INFO.triggers)
     async def tip_cmd(self, ctx : Context):
         message = ctx.message
