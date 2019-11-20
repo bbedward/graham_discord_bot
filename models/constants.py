@@ -1,4 +1,4 @@
-from util.Env import Env
+from util.env import Env
 
 class Constants():
     TIP_MINIMUM = 1.0 if Env.banano() else 0.0001

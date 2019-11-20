@@ -1,7 +1,7 @@
 from discord.ext import commands, Bot
 from discord.ext.commands import Bot, Context
 from models.command import CommandInfo
-from models.constants import Constans
+from models.constants import Constants
 from util.env import Env
 
 class Tips(commands.Cog):
@@ -9,7 +9,7 @@ class Tips(commands.Cog):
         self.bot = bot
 
     TIP_INFO = CommandInfo(
-        triggers = ["ban", "b"] if settings.banano else ["ntip", "n"],
+        triggers = ["ban", "b"] if Env.banano() else ["ntip", "n"],
         overview = "Send a tip to mentioned users",
         details = f"Tip specified amount to mentioned user(s) (minimum tip is {Constants.TIP_MINIMUM} {Constants.TIP_UNIT})" +
             "\nThe recipient(s) will be notified of your tip via private message" +

@@ -1,3 +1,4 @@
+from cogs import tips
 from discord.ext.commands import Bot
 from db.tortoise_config import init_db
 from util.env import Env
@@ -53,6 +54,8 @@ async def on_message(message):
     # Process commands
 	await client.process_commands(message)
 
-# Run the bot
 if __name__ == "__main__":
-    client.run(BOT_TOKEN)
+	# Add cogs
+	client.add_cog(tips.Tips(client))
+	# Start bot
+	client.run(BOT_TOKEN)
