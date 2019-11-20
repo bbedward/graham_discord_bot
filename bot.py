@@ -602,7 +602,7 @@ async def on_ready():
 async def notify_of_withdraw(user_id, txid):
 	"""Notify user of withdraw with a block explorer link"""
 	if user_id is not None:
-		user = await client.get_user_info(int(user_id))
+		user = await client.get_user(int(user_id))
 		await post_dm(user, SEND_PROCESSED_TEXT, settings.block_explorer, txid)
 
 def is_private(channel):
