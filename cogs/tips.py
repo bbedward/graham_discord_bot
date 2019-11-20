@@ -1,21 +1,23 @@
-from discord.ext import commands, Bot
+from discord.ext import commands
 from discord.ext.commands import Bot, Context
 from models.command import CommandInfo
 from models.constants import Constants
 from util.env import Env
 
+## Command documentation
+TIP_INFO = CommandInfo(
+    triggers = ["ban", "b"] if Env.banano() else ["ntip", "n"],
+    overview = "Send a tip to mentioned users",
+    details = f"Tip specified amount to mentioned user(s) (minimum tip is {Constants.TIP_MINIMUM} {Constants.TIP_UNIT})" +
+        "\nThe recipient(s) will be notified of your tip via private message" +
+        "\nSuccessful tips will be deducted from your available balance immediately.",
+    example = f"{'ban' if Env.banano() else 'ntip'} 2 @user1 @user2` would send 2 to user1 and 2 to user2"
+)
+
 class Tips(commands.Cog):
     def __init__(self, bot : Bot):
         self.bot = bot
 
-    TIP_INFO = CommandInfo(
-        triggers = ["ban", "b"] if Env.banano() else ["ntip", "n"],
-        overview = "Send a tip to mentioned users",
-        details = f"Tip specified amount to mentioned user(s) (minimum tip is {Constants.TIP_MINIMUM} {Constants.TIP_UNIT})" +
-            "\nThe recipient(s) will be notified of your tip via private message" +
-            "\nSuccessful tips will be deducted from your available balance immediately.",
-        example = f"{'ban' if Env.banano() else 'ntip'} 2 @user1 @user2` would send 2 to user1 and 2 to user2"
-    )
-    @commands.command(aliases=Tips.TIP_INFO.triggers)
+    @commands.command(aliases=TIP_INFO.triggers)
     async def tip_cmd(self, ctx : Context):
         message = ctx.message

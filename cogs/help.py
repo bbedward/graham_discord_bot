@@ -1,18 +1,18 @@
 from cogs import tips
-from discord.ext import commands, Bot
+from discord.ext import commands
 from discord.ext.commands import Bot, Context
 from logging import Logger
 from util.env import Env
 from util.discord.dm import DM
 from util.discord.paginator import Paginator, Page, CannotPaginate
-from . import __version__
+from version import __version__
 
 COMMANDS = {
     'TIP': {
         'header': 'Tipping Commands',
         'info': 'The different ways you are able to tip with this bot',
         'cmd_list': [
-            tips.Tips.TIP_INFO
+            tips.TIP_INFO
         ]
     }
 }
