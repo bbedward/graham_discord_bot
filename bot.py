@@ -7,7 +7,6 @@ from util.logger import setup_logger
 from version import __version__
 
 import discord
-import ipaddress
 import logging
 import sys
 

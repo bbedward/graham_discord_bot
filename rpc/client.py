@@ -1,5 +1,4 @@
 import aiohttp
-import ipaddress
 import socket
 
 class RPCClient(object):
@@ -7,7 +6,7 @@ class RPCClient(object):
         self.node_url = node_url
         self.node_port = node_port
         self.wallet_id = wallet_id
-        self.ipv6 = ipaddress.ip_address(node_url).version == 6
+        self.ipv6 = '::' in node_url
         self.conn = aiohttp.TCPConnector(family=socket.AF_INET6 if self.ipv6 else socket.AF_INET,resolver=aiohttp.AsyncResolver())
 
     async def make_request(self, req_json : dict):

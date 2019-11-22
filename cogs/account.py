@@ -36,9 +36,10 @@ class Account(commands.Cog):
         # Get/create user
         try:
             user = await User.create_or_fetch_user(msg.author)
-            await Messages.post_error_dm(msg.author, "I failed at retrieving your address, try again later and contact my master if the issue persists.")
         except Exception:
             self.logger.exception('Exception creating user')
+            await Messages.post_error_dm(msg.author, "I failed at retrieving your address, try again later and contact my master if the issue persists.")
+            return
         # Build URI
         uri_scheme = "ban:" if Env.banano() else "nano:"
         user_address = await user.account.address.first()

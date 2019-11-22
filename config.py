@@ -20,7 +20,7 @@ class Config(object):
             parser.add_argument('-l', '--log-file', type=str, help='Log file location', default='/tmp/graham_tipbot.log')
             parser.add_argument('-s', '--status', type=str, help="The bot's 'playing status'", default=None, required=False)
             parser.add_argument('-t', '--token', type=str, help='Discord bot token', required=True)
-            parser.add_argument('-u', '--node-url', type=str, help='URL of the node', default='::1')
+            parser.add_argument('-u', '--node-url', type=str, help='URL of the node', default='[::1]')
             parser.add_argument('-np', '--node-port', type=int, help='Port of the node', default=7072 if Env.banano() else 7076)
             parser.add_argument('-w', '--wallet', type=str, help='ID of the wallet to use on the node/wallet server', required=True)
             parser.add_argument('--debug', action='store_true', help='Runs in debug mode if specified', default=False)
@@ -37,11 +37,7 @@ class Config(object):
             cls.bot_token = options.token
             cls.wallet = options.wallet
 
-            try:
-                cls.node_url = str(ipaddress.ip_address(options.node_url))
-            except ValueError:
-                print("Node URL is invalid")
-                sys.exit(1)
+            cls.node_url = options.node_url
             cls.node_port = options.node_port
 
             cls.rpc = RPCClient(
