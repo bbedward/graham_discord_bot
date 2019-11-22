@@ -1,4 +1,4 @@
-from cogs import tips, help
+from cogs import account, help, tips
 from config import Config
 from discord.ext.commands import Bot
 from db.tortoise_config import init_db
@@ -43,6 +43,7 @@ async def on_message(message):
 
 if __name__ == "__main__":
 	# Add cogs
+	client.add_cog(account.Account(client))
 	client.add_cog(tips.Tips(client))
 	client.add_cog(help.Help(client, config.command_prefix))
 	# Start bot
