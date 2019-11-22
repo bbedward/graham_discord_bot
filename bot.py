@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from cogs import tips, help
 from config import Config
 from discord.ext.commands import Bot

@@ -16,7 +16,7 @@ class User(Model):
         table = "users"
 
     @classmethod
-    async def create_or_fetch_user(cls, user : discord.User) -> User:
+    async def create_or_fetch_user(cls, user : discord.User) -> 'User':
         """Create a user if they don't exist, raises OperationalError if database error occurs"""
         user: Account = await cls.filter(id=user.id).first()
         if user is None:
