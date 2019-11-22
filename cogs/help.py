@@ -1,11 +1,12 @@
 from cogs import tips
 from discord.ext import commands
 from discord.ext.commands import Bot, Context
-from logging import Logger
 from util.env import Env
-from util.discord.dm import DM
+from util.discord.messages import Messages
 from util.discord.paginator import Paginator, Page, CannotPaginate
 from version import __version__
+
+import logging
 
 COMMANDS = {
     'TIP': {
@@ -18,9 +19,10 @@ COMMANDS = {
 }
 
 class Help(commands.Cog):
-    def __init__(self, bot : Bot, command_prefix : str, logger : Logger):
+    def __init__(self, bot : Bot, command_prefix : str):
         self.bot = bot
         self.command_prefix = command_prefix
+        self.logger = logging.getLogger()
 
     def get_entries(self, commands : list) -> list:
         entries = []
@@ -74,7 +76,7 @@ class Help(commands.Cog):
             for c in COMMANDS:
                 if arg in c.triggers:
                     found = True
-                    await DM.post_usage(msg, c, self.command_prefix)
+                    await Messages.post_usage_dm(msg, c, self.command_prefix)
             if not found:
                 await msg.author.send(f"No such command {arg}")
         try:

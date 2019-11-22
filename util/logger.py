@@ -1,8 +1,8 @@
 import logging
 from logging.handlers import TimedRotatingFileHandler, WatchedFileHandler
 
-def get_logger(log_file : str, log_level : int = logging.INFO) -> logging.Logger:
-    root = logging.getLogger('graham')
+def setup_logger(cls, log_file : str, log_level : int = logging.INFO) -> logging.Logger:
+    root = logging.getLogger()
     logging.basicConfig(level=log_level)
     handler = WatchedFileHandler(log_file)
     formatter = logging.Formatter("%(asctime)s;%(levelname)s;%(message)s", "%Y-%m-%d %H:%M:%S %z")

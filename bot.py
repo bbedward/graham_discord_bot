@@ -3,7 +3,7 @@ from config import Config
 from discord.ext.commands import Bot
 from db.tortoise_config import init_db
 from util.env import Env
-from util.logger import get_logger
+from util.logger import setup_logger
 from version import __version__
 
 import discord
@@ -15,7 +15,8 @@ import sys
 config = Config()
 
 # Setup logger
-logger = get_logger(config.log_file, log_level=logging.DEBUG if config.debug else logging.INFO)
+setup_logger(config.log_file, log_level=logging.DEBUG if config.debug else logging.INFO)
+logger = logging.getLogger()
 
 client = Bot(command_prefix=config.command_prefix)
 client.remove_command('help')

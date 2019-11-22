@@ -2,4 +2,4 @@ discord.py
 tortoise-orm
 aiosqlite
 asyncpg
-aiohttp
+bitstring

@@ -1,6 +1,7 @@
 import argparse
 import ipaddress
 import sys
+from rpc.client import RPCClient
 from util.env import Env
 from version import __version__
 
@@ -13,6 +14,7 @@ class Config():
         parser.add_argument('-t', '--token', type=str, help='Discord bot token', required=True)
         parser.add_argument('-u', '--node-url', type=str, help='URL of the node', required=True, default='[::1]')
         parser.add_argument('-np', '--node-port', type=int, help='Port of the node', required=True, default=7072 if Env.banano() else 7076)
+        parser.add_argument('-w', '--wallet', type=str, help='ID of the wallet to use on the node/wallet server', required=True)
         parser.add_argument('--debug', action='store_true', help='Runs in debug mode if specified', default=False)
         options = parser.parse_args()
 
@@ -25,10 +27,17 @@ class Config():
         self.debug = options.debug
         self.playing_status = f"{self.command_prefix}help for help" if options.status is None else options.status
         self.bot_token = options.token
+        self.wallet = options.wallet
 
         try:
             self.node_url = str(ipaddress.ip_address(options.node_url))
         except ValueError:
             print("Node URL is invalid")
             sys.exit(1)
-        self.node_ip = options.node_port
+        self.node_port = options.node_port
+
+        self.rpc = RPCClient(
+            self.node_url,
+            self.node_port,
+            self.wallet
+        )
