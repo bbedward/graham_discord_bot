@@ -39,12 +39,12 @@ class Help(commands.Cog):
         description=("Use `{0}help command` for more information about a specific command " +
                 " or go to the next page").format(self.command_prefix)
         entries = []
-        for k, cmd_list in COMMANDS:
+        for k, cmd_list in COMMANDS.items():
             for cmd in COMMANDS[k]['cmd_list']:
                 entries.append(f"{self.command_prefix}{cmd.triggers[0]}", cmd.overview)
         pages.append(Page(entries=entries, title=title,author=author, description=description))
         # Build detail pages
-        for group, details in COMMANDS:
+        for group, details in COMMANDS.items():
             author=COMMANDS[group]['header']
             description=COMMANDS[group]['info']
             entries = self.get_entries(COMMANDS[group]['cmd_list'])
@@ -73,10 +73,11 @@ class Help(commands.Cog):
         if len(content) > 1:
             arg = content[1].strip().lower()
             found = False
-            for c in COMMANDS:
-                if arg in c.triggers:
-                    found = True
-                    await Messages.post_usage_dm(msg, c, self.command_prefix)
+            for key, cmd in COMMANDS:
+                for c in cmd['cmd_list']:
+                    if arg in c.triggers:
+                        found = True
+                        await Messages.post_usage_dm(msg, c, self.command_prefix)
             if not found:
                 await msg.author.send(f"No such command {arg}")
         try:
