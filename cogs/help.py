@@ -41,7 +41,7 @@ class Help(commands.Cog):
         """Builds paginated help menu"""
         pages = []
         # Overview
-        author=f"Graham v{__version__} ({'BANANO' if Env.banano() else 'Nano'}) edition) - by bbedward"
+        author=f"Graham v{__version__} ({'BANANO' if Env.banano() else 'Nano'}) edition - by bbedward"
         title="Command Overview"
         description=("Use `{0}help command` for more information about a specific command " +
                 " or go to the next page").format(self.command_prefix)
@@ -86,7 +86,7 @@ class Help(commands.Cog):
                         found = True
                         await Messages.post_usage_dm(msg, c, self.command_prefix)
             if not found:
-                await Messages.post_error_dm(f'No such command: "{arg}"')
+                await Messages.post_error_dm(msg.author, f'No such command: "{arg}"')
         else:
             try:
                 pages = Paginator(self.bot, message=msg, page_list=self.get_help_pages(),as_dm=True)

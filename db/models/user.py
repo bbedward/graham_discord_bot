@@ -7,7 +7,7 @@ from db.models.account import Account
 import discord
 
 class User(Model):
-    id = fields.BigIntField(pk=True)
+    id = fields.BigIntField(pk=True, generated=False)
     name = fields.CharField(max_length=50)
     created_at = fields.DatetimeField(auto_now_add=True)
     modified_at = fields.DatetimeField(auto_now=True)
@@ -26,7 +26,6 @@ class User(Model):
                     id = user.id,
                     name = user.name
                 )
-                # TODO this isn't saving :coolstorybro:
                 await dbuser.save(using_db=connection)
                 # Create an account
                 address = await Config.instance().rpc.account_create()

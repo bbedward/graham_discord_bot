@@ -118,3 +118,6 @@ backups/
 
 # Virtualenv
 venv/
+
+# Test
+run_bot.sh
