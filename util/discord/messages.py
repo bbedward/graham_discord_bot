@@ -14,4 +14,4 @@ class Messages():
         embed = discord.Embed(colour=discord.Colour.red())
         embed.title = "Error:"
         embed.description = message
-        await member.send(message)
+        await member.send(embed=embed)
