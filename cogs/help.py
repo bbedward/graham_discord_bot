@@ -9,12 +9,18 @@ from version import __version__
 import logging
 
 COMMANDS = {
+    'ACCOUNT': {
+        'header': 'Account Commands',
+        'info': 'Accounts that help you manage your Graham account',
+        'cmd_list': [
+            account.REGISTER_INFO
+        ]
+    },
     'TIP': {
         'header': 'Tipping Commands',
         'info': 'The different ways you are able to tip with this bot',
         'cmd_list': [
-            tips.TIP_INFO,
-            account.REGISTER_INFO
+            tips.TIP_INFO
         ]
     }
 }
@@ -81,11 +87,12 @@ class Help(commands.Cog):
                         await Messages.post_usage_dm(msg, c, self.command_prefix)
             if not found:
                 await Messages.post_error_dm(f'No such command: "{arg}"')
-        try:
-            pages = Paginator(self.bot, message=msg, page_list=self.get_help_pages(),as_dm=True)
-            await pages.paginate(start_page=1)
-        except CannotPaginate as e:
-            self.logger.exception(str(e))
+        else:
+            try:
+                pages = Paginator(self.bot, message=msg, page_list=self.get_help_pages(),as_dm=True)
+                await pages.paginate(start_page=1)
+            except CannotPaginate as e:
+                self.logger.exception(str(e))
 
     @commands.command()
     async def adminhelp(self, ctx: Context):
