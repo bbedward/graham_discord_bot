@@ -44,6 +44,6 @@ async def on_message(message):
 if __name__ == "__main__":
 	# Add cogs
 	client.add_cog(tips.Tips(client))
-	client.add_cog(help.Help(client))
+	client.add_cog(help.Help(client, config.command_prefix))
 	# Start bot
 	client.run(config.bot_token)
