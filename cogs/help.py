@@ -3,7 +3,7 @@ from discord.ext import commands
 from discord.ext.commands import Bot, Context
 from util.env import Env
 from util.discord.messages import Messages
-from util.discord.paginator import Paginator, Page, CannotPaginate
+from util.discord.paginator import Paginator, Page, CannotPaginate, Entry
 from version import __version__
 
 import logging
@@ -27,7 +27,7 @@ class Help(commands.Cog):
     def get_entries(self, commands : list) -> list:
         entries = []
         for cmd in commands:
-            entries.append(f"{self.command_prefix}{cmd.triggers[0]}", cmd.info)
+            entries.append(Entry(f"{self.command_prefix}{cmd.triggers[0]}", cmd.info))
         return entries
 
     def get_help_pages(self) -> list:
@@ -41,7 +41,7 @@ class Help(commands.Cog):
         entries = []
         for k, cmd_list in COMMANDS.items():
             for cmd in COMMANDS[k]['cmd_list']:
-                entries.append(f"{self.command_prefix}{cmd.triggers[0]}", cmd.overview)
+                entries.append(Entry(f"{self.command_prefix}{cmd.triggers[0]}", cmd.overview))
         pages.append(Page(entries=entries, title=title,author=author, description=description))
         # Build detail pages
         for group, details in COMMANDS.items():
@@ -73,7 +73,7 @@ class Help(commands.Cog):
         if len(content) > 1:
             arg = content[1].strip().lower()
             found = False
-            for key, cmd in COMMANDS:
+            for key, cmd in COMMANDS.items():
                 for c in cmd['cmd_list']:
                     if arg in c.triggers:
                         found = True
