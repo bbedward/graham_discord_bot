@@ -26,6 +26,7 @@ class User(Model):
                     id = user.id,
                     name = user.name
                 )
+                # TODO this isn't saving :coolstorybro:
                 await dbuser.save(using_db=connection)
                 # Create an account
                 address = await Config.instance().rpc.account_create()
