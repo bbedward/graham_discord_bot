@@ -92,7 +92,7 @@ class Help(commands.Cog):
                 pages = Paginator(self.bot, message=msg, page_list=self.get_help_pages(),as_dm=True)
                 await pages.paginate(start_page=1)
             except CannotPaginate as e:
-                self.logger.exception(str(e))
+                self.logger.exception('Exception in paginator')
 
     @commands.command()
     async def adminhelp(self, ctx: Context):

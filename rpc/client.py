@@ -2,7 +2,7 @@ import aiohttp
 import ipaddress
 import socket
 
-class RPCClient():
+class RPCClient(object):
     def __init__(self, node_url : str, node_port : int, wallet_id : str):
         self.node_url = node_url
         self.node_port = node_port

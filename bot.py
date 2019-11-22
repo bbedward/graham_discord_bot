@@ -12,7 +12,7 @@ import logging
 import sys
 
 # Configuration
-config = Config()
+config = Config.instance()
 
 # Setup logger
 setup_logger(config.log_file, log_level=logging.DEBUG if config.debug else logging.INFO)
