@@ -86,7 +86,7 @@ class Help(commands.Cog):
                         found = True
                         await Messages.post_usage_dm(msg, c, self.command_prefix)
             if not found:
-                await Messages.post_error_dm(msg.author, f'No such command: "{arg}"')
+                await Messages.post_error_dm(msg.author, f'No such command: "**{arg}**"')
         else:
             try:
                 pages = Paginator(self.bot, message=msg, page_list=self.get_help_pages(),as_dm=True)
