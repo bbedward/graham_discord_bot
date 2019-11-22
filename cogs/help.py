@@ -1,4 +1,4 @@
-from cogs import tips
+from cogs import tips, account
 from discord.ext import commands
 from discord.ext.commands import Bot, Context
 from util.env import Env
@@ -13,7 +13,8 @@ COMMANDS = {
         'header': 'Tipping Commands',
         'info': 'The different ways you are able to tip with this bot',
         'cmd_list': [
-            tips.TIP_INFO
+            tips.TIP_INFO,
+            account.REGISTER_INFO
         ]
     }
 }
@@ -27,7 +28,7 @@ class Help(commands.Cog):
     def get_entries(self, commands : list) -> list:
         entries = []
         for cmd in commands:
-            entries.append(Entry(f"{self.command_prefix}{cmd.triggers[0]}", cmd.info))
+            entries.append(Entry(f"{self.command_prefix}{cmd.triggers[0]}", cmd.details))
         return entries
 
     def get_help_pages(self) -> list:
@@ -79,7 +80,7 @@ class Help(commands.Cog):
                         found = True
                         await Messages.post_usage_dm(msg, c, self.command_prefix)
             if not found:
-                await msg.author.send(f"No such command {arg}")
+                await Messages.post_error_dm(f'No such command: "{arg}"')
         try:
             pages = Paginator(self.bot, message=msg, page_list=self.get_help_pages(),as_dm=True)
             await pages.paginate(start_page=1)
