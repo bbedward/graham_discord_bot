@@ -602,7 +602,7 @@ async def on_ready():
 async def notify_of_withdraw(user_id, txid):
 	"""Notify user of withdraw with a block explorer link"""
 	if user_id is not None:
-		user = await client.get_user(int(user_id))
+		user = client.get_user(int(user_id))
 		await post_dm(user, SEND_PROCESSED_TEXT, settings.block_explorer, txid)
 
 def is_private(channel):
@@ -1351,7 +1351,7 @@ async def givearai(ctx):
 		db.update_tip_stats(user, amount, giveaway=True)
 		db.add_contestant(message.author.id)
 		for d in deleted:
-			await post_dm(await client.get_user(int(d)), GIVEAWAY_FEE_TOO_HIGH)
+			await post_dm(client.get_user(int(d)), GIVEAWAY_FEE_TOO_HIGH)
 		db.mark_user_active(user)
 	except util.TipBotException as e:
 		if e.error_type == "amount_not_found" or e.error_type == "usage_error":
@@ -1546,7 +1546,7 @@ async def finish_giveaway(delay):
 			except Exception:
 				pass
 		try:
-			await post_dm(await client.get_user(int(giveaway.winner_id)), response)
+			await post_dm(client.get_user(int(giveaway.winner_id)), response)
 		except Exception:
 			pass
 
