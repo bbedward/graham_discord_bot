@@ -3,3 +3,4 @@ tortoise-orm
 aiosqlite
 asyncpg
 bitstring
+aiodns
