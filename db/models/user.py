@@ -28,12 +28,12 @@ class User(Model):
                 )
                 await dbuser.save(using_db=connection)
                 # Create an account
-                account = await Config.instance().rpc.account_create()
-                if account is None:
+                address = await Config.instance().rpc.account_create()
+                if address is None:
                     raise Exception("RPC account create failed")
                 account = Account(
                     user = dbuser,
-                    account = account
+                    address = address
                 )
                 await account.save(using_db=connection)
             return dbuser
