@@ -7,11 +7,11 @@ class RPCClient(object):
         self.node_port = node_port
         self.wallet_id = wallet_id
         self.ipv6 = '::' in node_url
-        self.conn = aiohttp.TCPConnector(family=socket.AF_INET6 if self.ipv6 else socket.AF_INET,resolver=aiohttp.AsyncResolver())
 
     async def make_request(self, req_json : dict):
         # TODO - re-use thiss session
-        async with aiohttp.ClientSession(connector=self.conn) as session:
+        connector = aiohttp.TCPConnector(family=socket.AF_INET6 if self.ipv6 else socket.AF_INET,resolver=aiohttp.AsyncResolver())
+        async with aiohttp.ClientSession(connector=connector) as session:
             async with session.post("http://{0}:{1}".format(self.node_url, self.node_port),json=req_json, timeout=300) as resp:
                 return await resp.json()
 
