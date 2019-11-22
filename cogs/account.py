@@ -42,7 +42,7 @@ class Account(commands.Cog):
             return
         # Build URI
         uri_scheme = "ban:" if Env.banano() else "nano:"
-        user_address = await user.account.address.first()
+        user_address = (await user.account.first()).address
         if amount == 0:
             uri = user_address
         else:
