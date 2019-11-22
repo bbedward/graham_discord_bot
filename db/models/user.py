@@ -18,23 +18,23 @@ class User(Model):
     @classmethod
     async def create_or_fetch_user(cls, user : discord.User) -> 'User':
         """Create a user if they don't exist, raises OperationalError if database error occurs"""
-        user: Account = await cls.filter(id=user.id).first()
-        if user is None:
+        dbuser: Account = await cls.filter(id=user.id).first()
+        if dbuser is None:
             async with in_transaction() as connection:
                 # Create user and return them
-                user = User(
+                dbuser = User(
                     id = user.id,
                     name = user.name
                 )
-                await user.save(using_db=connection)
+                await dbuser.save(using_db=connection)
                 # Create an account
                 account = await Config.rpc.account_create()
                 if account is None:
                     raise Exception("RPC account create failed")
                 account = Account(
-                    user = user,
+                    user = dbuser,
                     account = account
                 )
                 await account.save(using_db=connection)
-            return user
+            return dbuser
         return await cls.filter(id=user.id).first()
