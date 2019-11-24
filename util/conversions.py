@@ -19,4 +19,4 @@ class NanoConversions():
     @staticmethod
     def nano_to_raw(mnano_amt : float) -> int:
         expanded = mnano_amt * 1000000
-        return int(mnano_amt) * (10 ** 24)
+        return int(expanded) * (10 ** 24)
