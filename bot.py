@@ -7,7 +7,6 @@ from util.logger import setup_logger
 from version import __version__
 
 import asyncio
-import atexit
 import discord
 import logging
 import sys
@@ -52,9 +51,10 @@ if __name__ == "__main__":
 	loop = asyncio.get_event_loop()
 	try:
 		loop.run_until_complete(client.start(config.bot_token))
-	except KeyboardInterrupt:
-		loop.run_until_complete(client.logout())
+	except:
+		logger.info("Graham is exiting")
 	finally:
+		loop.run_until_complete(client.logout())
 		loop.run_until_complete(RPCClient.instance().close())
 		loop.close()
 
