@@ -9,7 +9,6 @@ from version import __version__
 import asyncio
 import discord
 import logging
-import sys
 from rpc.client import RPCClient
 
 # Configuration
@@ -57,7 +56,3 @@ if __name__ == "__main__":
 		loop.run_until_complete(client.logout())
 		loop.run_until_complete(RPCClient.instance().close())
 		loop.close()
-
-@atexit.register
-def close():
-	RPCClient.instance().close()

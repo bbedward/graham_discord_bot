@@ -1,5 +1,4 @@
 import argparse
-import sys
 from util.env import Env
 from version import __version__
 
@@ -28,7 +27,7 @@ class Config(object):
             cls.command_prefix = options.prefix
             if len(cls.command_prefix) != 1:
                 print("Command prefix can only be 1 character")
-                sys.exit(1)
+                exit(1)
             cls.log_file = options.log_file
             cls.debug = options.debug
             cls.playing_status = f"{cls.command_prefix}help for help" if options.status is None else options.status

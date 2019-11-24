@@ -1,6 +1,5 @@
 #!./venv/bin/python
 import argparse
-import sys
 
 parser = argparse.ArgumentParser(description="Utilities for Graham TipBot")
 parser.add_argument('-i', '--init', action='store_true',  help='Initialize the bot')
@@ -14,4 +13,4 @@ if __name__ == '__main__':
             print("\nExiting...")
     else:
         parser.print_help()
-    sys.exit(0)
+    exit(0)
