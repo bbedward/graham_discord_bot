@@ -1,7 +1,5 @@
 import argparse
-import ipaddress
 import sys
-from rpc.client import RPCClient
 from util.env import Env
 from version import __version__
 
@@ -39,10 +37,4 @@ class Config(object):
 
             cls.node_url = options.node_url
             cls.node_port = options.node_port
-
-            cls.rpc = RPCClient(
-                cls.node_url,
-                cls.node_port,
-                cls.wallet
-            )
         return cls._instance

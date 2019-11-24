@@ -6,9 +6,12 @@ from util.env import Env
 from util.logger import setup_logger
 from version import __version__
 
+import asyncio
+import atexit
 import discord
 import logging
 import sys
+from rpc.client import RPCClient
 
 # Configuration
 config = Config.instance()
@@ -46,4 +49,15 @@ if __name__ == "__main__":
 	client.add_cog(tips.Tips(client))
 	client.add_cog(help.Help(client, config.command_prefix))
 	# Start bot
-	client.run(config.bot_token)
+	loop = asyncio.get_event_loop()
+	try:
+		loop.run_until_complete(client.start(config.bot_token))
+	except KeyboardInterrupt:
+		loop.run_until_complete(client.logout())
+	finally:
+		loop.run_until_complete(RPCClient.instance().close())
+		loop.close()
+
+@atexit.register
+def close():
+	RPCClient.instance().close()

@@ -1,10 +1,10 @@
 from tortoise.models import Model
 from tortoise.transactions import in_transaction
 from tortoise import fields
-from config import Config
-from db.models.account import Account
+from rpc.client import RPCClient
 
 import discord
+import db.models.account as acct
 
 class User(Model):
     id = fields.BigIntField(pk=True, generated=False)
@@ -28,13 +28,29 @@ class User(Model):
                 )
                 await dbuser.save(using_db=connection)
                 # Create an account
-                address = await Config.instance().rpc.account_create()
+                address = await RPCClient.instance().account_create()
                 if address is None:
                     raise Exception("RPC account create failed")
-                account = Account(
+                account = acct.Account(
                     user = dbuser,
                     address = address
                 )
                 await account.save(using_db=connection)
             return dbuser
         return await cls.filter(id=user.id).first()
+
+    async def get_address(self) -> acct.Account:
+        account = await self.account.all()
+        if len(account) > 0:
+            return account[0].address
+        # Create an account
+        address = await RPCClient.instance().account_create()
+        if address is None:
+            raise Exception("RPC account create failed")
+        account = acct.Account(
+            user = self,
+            address = address
+        )
+        async with in_transaction() as connection:
+            await account.save(using_db=connection)
+        return address

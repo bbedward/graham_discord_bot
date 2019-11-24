@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord.ext.commands import Bot, Context
 from models.command import CommandInfo
 from models.constants import Constants
+from db.models.account import Account
 from db.models.user import User
 from util.conversions import BananoConversions, NanoConversions
 from util.env import Env
@@ -36,13 +37,13 @@ class Account(commands.Cog):
         # Get/create user
         try:
             user = await User.create_or_fetch_user(msg.author)
+            user_address = await user.get_address()
         except Exception:
             self.logger.exception('Exception creating user')
             await Messages.post_error_dm(msg.author, "I failed at retrieving your address, try again later and contact my master if the issue persists.")
             return
         # Build URI
         uri_scheme = "ban:" if Env.banano() else "nano:"
-        user_address = (await user.account.all())[0].address
         if amount == 0:
             uri = user_address
         else:
