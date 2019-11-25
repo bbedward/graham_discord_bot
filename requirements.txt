@@ -1,5 +1,6 @@
 discord.py
-tortoise-orm
+#tortoise-orm
+git+https://github.com/nextfit/tortoise-orm.git@one2onefield
 aiosqlite
 asyncpg
 bitstring

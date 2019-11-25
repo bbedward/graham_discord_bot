@@ -19,7 +19,7 @@ class User(Model):
     @classmethod
     async def create_or_fetch_user(cls, user: discord.User) -> 'User':
         """Create a user if they don't exist, raises OperationalError if database error occurs"""
-        dbuser: 'User' = await cls.filter(id=user.id).first()
+        dbuser: 'User' = await cls.filter(id=user.id).first().prefetch_related('account').first()
         if dbuser is None:
             async with in_transaction() as conn:
                 # Create user and return them
@@ -37,18 +37,20 @@ class User(Model):
                     address = address
                 )
                 await account.save(using_db=conn)
-            return dbuser
-        return await cls.filter(id=user.id).first()
+                dbuser.account = account
+        return dbuser
 
     @classmethod
     async def get_user(cls, user: discord.User) -> 'User':
         """Get discord user from database, return None if they haven't registered"""
-        return await cls.filter(id=user.id).first()
-
+        return await cls.filter(id=user.id).prefetch_related('account').first()
 
     async def get_address(self) -> str:
         """Get account address of user"""
-        account = await self.account.all()
+        if isinstance(self.account, acct.Account):
+            return self.account.address
+        account = await self.account.first()
+        return account.address
         if len(account) > 0:
             return account[0].address
         # Create an account
