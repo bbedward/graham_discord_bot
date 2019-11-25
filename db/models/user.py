@@ -77,13 +77,13 @@ class User(Model):
     async def get_pending(self) -> int:
         """Get pending amounts in internal database as a sum (in RAW)
             returns a tuple (pending_send, pending_receive)"""
-        sent_transactions = self.sent_transactions.filter(block_hash=None)
-        received_transactions = self.received_transactions.filter(block_hash=None)
+        sent_transactions = await self.sent_transactions.filter(block_hash=None).all()
+        received_transactions = await self.received_transactions.filter(block_hash=None).all()
         pending_send = 0
         pending_receive = 0
-        for stx in sent_transactions.all():
+        async for stx in sent_transactions:
             pending_send += int(stx.amount)
-        for ptx in received_transactions.all():
+        async for ptx in received_transactions:
             pending_receive += int(ptx.amount) * -1
         return (pending_send, pending_receive)
 

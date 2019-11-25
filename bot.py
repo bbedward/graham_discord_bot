@@ -36,7 +36,7 @@ async def on_ready():
 	await client.change_presence(activity=discord.Game(config.playing_status))
 	logger.info(f"Re-queueing any unprocessed transactions")
 	unprocessed_txs = await Transaction.filter(block_hash=None).all()
-	for tx in unprocessed_txs:
+	async for tx in unprocessed_txs:
 		await TransactionQueue.instance().put(tx)
 	logger.info(f"Re-queued {len(unprocessed_txs)} transactions")
 
