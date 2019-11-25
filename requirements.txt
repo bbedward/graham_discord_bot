@@ -4,4 +4,4 @@ aiosqlite
 asyncpg
 bitstring
 aiodns
-aioprocessing
+uvloop

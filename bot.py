@@ -23,6 +23,13 @@ logger = logging.getLogger()
 client = Bot(command_prefix=config.command_prefix)
 client.remove_command('help')
 
+# Install uvloop
+try:
+	import uvloop
+	uvloop.install()
+except ImportError:
+	logger.warn("Couldn't install uvloop, falling back to the slower asyncio event loop")
+
 ### Bot events
 
 @client.event
@@ -58,7 +65,9 @@ if __name__ == "__main__":
 	try:
 		tasks = [
 			client.start(config.bot_token),
-			TransactionQueue.instance().process_queue()
+			# Create two queue consumers for transactions
+			TransactionQueue.instance().queue_consumer(),
+			TransactionQueue.instance().queue_consumer()
 		]
 		loop.run_until_complete(asyncio.wait(tasks))
 	except:
