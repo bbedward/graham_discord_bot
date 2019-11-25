@@ -28,7 +28,7 @@ class RPCClient(object):
         if cls._instance is not None:
             cls._instance = None
 
-    async def make_request(self, req_json : dict):
+    async def make_request(self, req_json: dict):
         async with self.session.post("http://{0}:{1}".format(self.node_url, self.node_port),json=req_json, timeout=300) as resp:
             return await resp.json()
 
@@ -42,7 +42,7 @@ class RPCClient(object):
             return respjson['account']
         return None
 
-    async def account_balance(self, account : str) -> dict:
+    async def account_balance(self, account: str) -> dict:
         account_balance = {
             'action': 'account_balance',
             'account': account
@@ -52,7 +52,7 @@ class RPCClient(object):
             return respjson
         return None
 
-    async def send(self, id : str, source : str, destination : str, amount : str) -> str:
+    async def send(self, id: str, source: str, destination: str, amount: str) -> str:
         """Make transaction, return hash if successful"""
         send_action = {
             'action': 'send',

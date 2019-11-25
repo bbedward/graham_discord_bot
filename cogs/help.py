@@ -27,12 +27,12 @@ COMMANDS = {
 }
 
 class Help(commands.Cog):
-    def __init__(self, bot : Bot, command_prefix : str):
+    def __init__(self, bot: Bot, command_prefix: str):
         self.bot = bot
         self.command_prefix = command_prefix
         self.logger = logging.getLogger()
 
-    def get_entries(self, commands : list) -> list:
+    def get_entries(self, commands: list) -> list:
         entries = []
         for cmd in commands:
             entries.append(Entry(f"{self.command_prefix}{cmd.triggers[0]}", cmd.details))
@@ -73,7 +73,7 @@ class Help(commands.Cog):
         return pages
 
     @commands.command()
-    async def help(self, ctx : Context):
+    async def help(self, ctx: Context):
         """Show help menu or show info about a specific command"""
         msg = ctx.message
         # If they spplied an argument post usage for a specific command if applicable

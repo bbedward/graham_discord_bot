@@ -4,21 +4,21 @@ from util.env import Env
 
 class Messages():
     @staticmethod
-    async def post_usage_dm(member: discord.Member, command : CommandInfo, prefix: str):
+    async def post_usage_dm(member: discord.Member, command: CommandInfo, prefix: str):
         embed = discord.Embed(colour=discord.Colour.purple())
         embed.title = "Usage"
         embed.add_field(name=f"{prefix}{command.triggers[0]}", value=command.details, inline=False)
         await member.send(embed=embed)
  
     @staticmethod
-    async def post_error_dm(member : discord.Member, message : str, skip_dnd=False):
+    async def post_error_dm(member: discord.Member, message: str, skip_dnd=False):
         embed = discord.Embed(colour=discord.Colour.red())
         embed.title = "Error"
         embed.description = message
         await member.send(embed=embed)
 
     @staticmethod
-    async def add_tip_reaction(msg: discord.Message, amount : float):
+    async def add_tip_reaction(msg: discord.Message, amount: float):
         if Env.banano():
             if amount > 0:
                 await msg.add_reaction('\:tip:425878628119871488') # TIP mark

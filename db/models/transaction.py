@@ -5,8 +5,9 @@ from tortoise import fields
 from tortoise.models import Model
 from tortoise.transactions import in_transaction
 
+import db.models.user as usr
+
 from rpc.client import RPCClient
-from db.models.user import User
 from util.env import Env
 
 
@@ -19,21 +20,22 @@ class Transaction(Model):
     amount = fields.CharField(max_length=50)
     created_at = fields.DatetimeField(auto_now_add=True)
     modified_at = fields.DatetimeField(auto_now=True)
+    retries = 0
 
     class Meta:
         table = 'transactions'
 
     @staticmethod
     async def create_transaction_internal(
-                                sending_user : User,
-                                amount : float,
-                                receiving_user : discord.Member) -> 'Transaction':
+                                sending_user: usr.User,
+                                amount: float,
+                                receiving_user: discord.Member) -> 'Transaction':
         """Create a transaction in the database, among discord users"""
         # See if receiving user exists in our database
-        receiving_user_db : User = await User.create_or_fetch_user(receiving_user)
+        receiving_user_db : usr.User = await usr.User.create_or_fetch_user(receiving_user)
         # Create transaction
         tx = None
-        async with in_transaction() as connection:
+        async with in_transaction() as conn:
             tx = Transaction(
                 id = uuid.uuid4(),
                 sending_user = await receiving_user_db.get_address(),
@@ -41,7 +43,7 @@ class Transaction(Model):
                 destination = destination,
                 receiving_user = receiving_user_db
             )
-            await tx.save(using_db=connection)
+            await tx.save(using_db=conn)
         return tx
 
     async def send(self) -> str:
@@ -55,7 +57,7 @@ class Transaction(Model):
             amount=self.amount
         )
         if resp is not None:
-            async with in_transaction() as connection:
+            async with in_transaction() as conn:
                 self.block_hash = resp
-                await self.save(using_db=connection)
+                await self.save(using_db=conn)
         return resp

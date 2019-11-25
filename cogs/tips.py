@@ -6,8 +6,10 @@ from util.discord.channel import ChannelUtil
 from util.discord.messages import Messages
 from util.env import Env
 from util.regex import RegexUtil
+from db.models.stats import Stats
 from db.models.transaction import Transaction
 from db.models.user import User
+from process.transaction_queue import TransactionQueue
 
 import asyncio
 import config
@@ -23,24 +25,22 @@ TIP_INFO = CommandInfo(
 )
 
 class Tips(commands.Cog):
-    def __init__(self, bot : Bot):
+    def __init__(self, bot: Bot):
         self.bot = bot
 
-    @commands.command(aliases=TIP_INFO.triggers)
-    async def tip_cmd(self, ctx : Context):
-        # TODO - incorporate frozen, paused, and stats
+    async def cog_before_invoke(self, ctx: Context):
+        # TODO - incorporate frozen, paused,
+        # Only allow tip commands in public channels
         msg = ctx.message
-        # Skip DMs
         if ChannelUtil.is_private(msg.channel):
             return
-
-        # See if user exists in database
+        # See if user exists in DB
         user = await User.get_user(msg.author)
         if user is None:
             await Messages.post_error_dm(msg.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
             return
-
-        # Get amount from message
+        ctx.user = user
+        # See if amount meets tip_minimum requirement
         try:
             send_amount = RegexUtil.find_float(msg.content)
             if send_amount < Constants.TIP_MINIMUM:
@@ -48,6 +48,13 @@ class Tips(commands.Cog):
         except Exception:
             await Messages.post_usage_dm(msg.author, TIP_INFO)
             return
+        ctx.send_amount = send_amount
+
+    @commands.command(aliases=TIP_INFO.triggers)
+    async def tip_cmd(self, ctx: Context):
+        msg = ctx.message
+        user = ctx.user
+        send_amount = ctx.send_amount
 
         # Get all eligible users to tip in their message
         users_to_tip = []
@@ -77,9 +84,10 @@ class Tips(commands.Cog):
             tx_list.append(tx)
         # Add reactions
         await Messages.add_tip_reaction(msg, send_amount * len(tx_list))
-        # Make transactions asynchronously
+        # Queue the actual sends
         for tx in tx_list:
-            asyncio.ensure_future(tx.send())
-
-        return
+            await TransactionQueue.instance().put(tx)
+        # Update stats
+        stats: Stats = await user.get_stats()
+        await stats.update_tip_stats(send_amount * len(tx_list))
         

@@ -1,6 +1,7 @@
 from cogs import account, help, tips
 from config import Config
 from discord.ext.commands import Bot
+from db.models.transaction import Transaction
 from db.tortoise_config import init_db
 from util.env import Env
 from util.logger import setup_logger
@@ -10,6 +11,7 @@ import asyncio
 import discord
 import logging
 from rpc.client import RPCClient
+from process.transaction_queue import TransactionQueue
 
 # Configuration
 config = Config.instance()
@@ -32,6 +34,11 @@ async def on_ready():
 	logger.info(f"Bot name: {client.user.name}")
 	logger.info(f"Bot Discord ID: {client.user.id}")
 	await client.change_presence(activity=discord.Game(config.playing_status))
+	logger.info(f"Re-queueing any unprocessed transactions")
+	unprocessed_txs = await Transaction.filter(block_hash=None).all()
+	for tx in unprocessed_txs:
+		await TransactionQueue.instance().put(tx)
+	logger.info(f"Re-queued {len(unprocessed_txs)} transactions")
 
 @client.event
 async def on_message(message):
@@ -49,7 +56,11 @@ if __name__ == "__main__":
 	# Start bot
 	loop = asyncio.get_event_loop()
 	try:
-		loop.run_until_complete(client.start(config.bot_token))
+		tasks = [
+			client.start(config.bot_token),
+			TransactionQueue.instance().process_queue()
+		]
+		loop.run_until_complete(asyncio.wait(tasks))
 	except:
 		logger.info("Graham is exiting")
 	finally:

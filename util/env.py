@@ -8,11 +8,11 @@ class Env():
         return True if os.getenv('BANANO', None) is not None else False
 
     @staticmethod
-    def raw_to_amount(raw_amt : int) -> float:
+    def raw_to_amount(raw_amt: int) -> float:
         return BananoConversions.raw_to_banano(raw_amt) if Env.banano() else NanoConversions.raw_to_nano(raw_amt)
 
     @staticmethod
-    def amount_to_raw(amount : float) -> int:
+    def amount_to_raw(amount: float) -> int:
         return BananoConversions.banano_to_raw(amount) if Env.banano() else NanoConversions.nano_to_raw(amount)
 
     @staticmethod

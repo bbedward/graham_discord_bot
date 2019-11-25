@@ -5,7 +5,7 @@ from rpc.client import RPCClient
 
 import discord
 import db.models.account as acct
-import db.models.transaction as tx
+import db.models.stats as stats
 
 class User(Model):
     id = fields.BigIntField(pk=True, generated=False)
@@ -17,17 +17,17 @@ class User(Model):
         table = "users"
 
     @classmethod
-    async def create_or_fetch_user(cls, user : discord.User) -> 'User':
+    async def create_or_fetch_user(cls, user: discord.User) -> 'User':
         """Create a user if they don't exist, raises OperationalError if database error occurs"""
         dbuser: 'User' = await cls.filter(id=user.id).first()
         if dbuser is None:
-            async with in_transaction() as connection:
+            async with in_transaction() as conn:
                 # Create user and return them
                 dbuser = User(
                     id = user.id,
                     name = user.name
                 )
-                await dbuser.save(using_db=connection)
+                await dbuser.save(using_db=conn)
                 # Create an account
                 address = await RPCClient.instance().account_create()
                 if address is None:
@@ -36,12 +36,12 @@ class User(Model):
                     user = dbuser,
                     address = address
                 )
-                await account.save(using_db=connection)
+                await account.save(using_db=conn)
             return dbuser
         return await cls.filter(id=user.id).first()
 
     @classmethod
-    async def get_user(cls, user : discord.User) -> 'User':
+    async def get_user(cls, user: discord.User) -> 'User':
         """Get discord user from database, return None if they haven't registered"""
         return await cls.filter(id=user.id).first()
 
@@ -59,9 +59,20 @@ class User(Model):
             user = self,
             address = address
         )
-        async with in_transaction() as connection:
-            await account.save(using_db=connection)
+        async with in_transaction() as conn:
+            await account.save(using_db=conn)
         return address
+
+    async def get_stats(self, server_id: int) -> stats.Stats:
+        """Return Stats object for this user for the given server"""
+        user_stats = await self.stats.filter(server_id=server_id).first()
+        if user_stats is None:
+            user_stats = stats.Stats(
+                server_id=server_id
+            )
+            async with in_transaction() as conn:
+                await user_stats.save(using_db=conn)
+        return user_stats
 
     async def get_pending(self) -> int:
         """Get pending amounts in internal database as a sum (in RAW)
