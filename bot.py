@@ -1,3 +1,10 @@
+# Install uvloop
+try:
+	import uvloop
+	uvloop.install()
+except ImportError:
+	print("Couldn't install uvloop, falling back to the slower asyncio event loop")
+
 from cogs import account, help, tips
 from config import Config
 from discord.ext.commands import Bot
@@ -22,13 +29,6 @@ logger = logging.getLogger()
 
 client = Bot(command_prefix=config.command_prefix)
 client.remove_command('help')
-
-# Install uvloop
-try:
-	import uvloop
-	uvloop.install()
-except ImportError:
-	logger.warn("Couldn't install uvloop, falling back to the slower asyncio event loop")
 
 ### Bot events
 
