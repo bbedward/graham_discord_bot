@@ -1,5 +1,3 @@
-import uuid
-
 import discord
 from tortoise import fields
 from tortoise.models import Model
@@ -12,7 +10,7 @@ from util.env import Env
 
 
 class Transaction(Model):
-    id = fields.UUIDField(pk=True, generated=False)
+    id = fields.UUIDField(pk=True)
     sending_user = fields.ForeignKeyField('db.User', related_name='sent_transactions', index=True)
     receiving_user = fields.ForeignKeyField('db.User', related_name='received_transactions', null=True, index=True)
     destination = fields.CharField(max_length=65)
@@ -37,7 +35,6 @@ class Transaction(Model):
         tx = None
         async with in_transaction() as conn:
             tx = Transaction(
-                id = uuid.uuid4(),
                 sending_user = sending_user,
                 amount = str(Env.amount_to_raw(amount)),
                 destination = await receiving_user_db.get_address(),
