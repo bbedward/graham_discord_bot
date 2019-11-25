@@ -19,7 +19,7 @@ class User(Model):
     @classmethod
     async def create_or_fetch_user(cls, user: discord.User) -> 'User':
         """Create a user if they don't exist, raises OperationalError if database error occurs"""
-        dbuser: 'User' = await cls.filter(id=user.id).first().prefetch_related('account').first()
+        dbuser: 'User' = await cls.filter(id=user.id).prefetch_related('account').first()
         if dbuser is None:
             async with in_transaction() as conn:
                 # Create user and return them
@@ -50,9 +50,8 @@ class User(Model):
         if isinstance(self.account, acct.Account):
             return self.account.address
         account = await self.account.first()
-        return account.address
-        if len(account) > 0:
-            return account[0].address
+        if account is not None:
+            return account.address
         # Create an account
         address = await RPCClient.instance().account_create()
         if address is None:
