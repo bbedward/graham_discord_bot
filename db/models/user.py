@@ -81,9 +81,9 @@ class User(Model):
         received_transactions = await self.received_transactions.filter(block_hash=None).all()
         pending_send = 0
         pending_receive = 0
-        async for stx in sent_transactions:
+        for stx in sent_transactions:
             pending_send += int(stx.amount)
-        async for ptx in received_transactions:
+        for ptx in received_transactions:
             pending_receive += int(ptx.amount) * -1
         return (pending_send, pending_receive)
 
