@@ -86,7 +86,7 @@ class User(Model):
         for stx in sent_transactions:
             pending_send += int(stx.amount)
         for ptx in received_transactions:
-            pending_receive += int(ptx.amount) * -1
+            pending_receive += int(ptx.amount)
         return (pending_send, pending_receive)
 
     async def get_available_balance(self) -> int:
