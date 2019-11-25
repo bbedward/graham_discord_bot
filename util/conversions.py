@@ -1,7 +1,7 @@
 class BananoConversions():
     # 1 BANANO = 10e29 RAW
-    @classmethod
-    def raw_to_banano(cls, raw_amt : int) -> float:
+    @staticmethod
+    def raw_to_banano(raw_amt : int) -> float:
         return raw_amt / (10 ** 29)
 
     @staticmethod
@@ -12,8 +12,8 @@ class BananoConversions():
 
 class NanoConversions():
     # 1 NANO = 10e30 RAW
-    @classmethod
-    def raw_to_nano(cls, raw_amt : int) -> float:
+    @staticmethod
+    def raw_to_nano(raw_amt : int) -> float:
         return raw_amt / (10 ** 30)
 
     @staticmethod

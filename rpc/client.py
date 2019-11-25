@@ -51,3 +51,18 @@ class RPCClient(object):
         if 'balance' in respjson:
             return respjson
         return None
+
+    async def send(self, id : str, source : str, destination : str, amount : str) -> str:
+        """Make transaction, return hash if successful"""
+        send_action = {
+            'action': 'send',
+            'wallet': Config.instance().wallet,
+            'source': source,
+            'destination': destination,
+            'amount': amount,
+            'id': id
+        }
+        respjson = await self.make_request(send_action)
+        if 'block' in respjson:
+            return respjson['block']
+        return None

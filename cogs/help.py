@@ -85,7 +85,7 @@ class Help(commands.Cog):
                 for c in cmd['cmd_list']:
                     if arg in c.triggers:
                         found = True
-                        await Messages.post_usage_dm(msg, c, self.command_prefix)
+                        await Messages.post_usage_dm(msg.author, c, self.command_prefix)
             if not found:
                 await Messages.post_error_dm(msg.author, f'No such command: "**{arg}**"')
         else:
