@@ -68,6 +68,7 @@ class User(Model):
         user_stats = await self.stats.filter(server_id=server_id).first()
         if user_stats is None:
             user_stats = stats.Stats(
+                user=self,
                 server_id=server_id
             )
             async with in_transaction() as conn:

@@ -75,6 +75,7 @@ class Tips(commands.Cog):
 
         # Make the transactions in the database
         tx_list = []
+        # - TODO error handling
         for u in users_to_tip:
             tx = Transaction.create_transaction_internal(
                 sending_user=user,
