@@ -41,3 +41,13 @@ class RPCClient(object):
         if 'account' in respjson:
             return respjson['account']
         return None
+
+    async def account_balance(self, account : str) -> str:
+        account_balance = {
+            'action': 'account_balance',
+            'account': account
+        }
+        respjson = await self.make_request(account_balance)
+        if 'balance' in respjson:
+            return respjson
+        return None

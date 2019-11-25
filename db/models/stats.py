@@ -8,3 +8,4 @@ class Stats(Model):
     banned = fields.BooleanField(default=False)
     total_tips = fields.IntField()
     total_tipped_amount = fields.CharField(max_length=40)
+    modified_at = fields.DatetimeField(auto_now=True)

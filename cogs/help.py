@@ -13,7 +13,8 @@ COMMANDS = {
         'header': 'Account Commands',
         'info': 'Accounts that help you manage your Graham account',
         'cmd_list': [
-            account.REGISTER_INFO
+            account.REGISTER_INFO,
+            account.BALANCE_INFO
         ]
     },
     'TIP': {

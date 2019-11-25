@@ -39,7 +39,14 @@ class User(Model):
             return dbuser
         return await cls.filter(id=user.id).first()
 
+    @classmethod
+    async def get_user(cls, user : discord.User) -> 'User':
+        """Get discord user from database, return None if they haven't registered"""
+        return await cls.filter(id=user.id).first()
+
+
     async def get_address(self) -> acct.Account:
+        """Get account address of user"""
         account = await self.account.all()
         if len(account) > 0:
             return account[0].address
