@@ -88,6 +88,6 @@ class Tips(commands.Cog):
         for tx in tx_list:
             await TransactionQueue.instance().put(tx)
         # Update stats
-        stats: Stats = await user.get_stats()
+        stats: Stats = await user.get_stats(server_id=msg.guild.id)
         await stats.update_tip_stats(send_amount * len(tx_list))
         

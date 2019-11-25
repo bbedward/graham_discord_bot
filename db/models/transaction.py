@@ -38,9 +38,9 @@ class Transaction(Model):
         async with in_transaction() as conn:
             tx = Transaction(
                 id = uuid.uuid4(),
-                sending_user = await receiving_user_db.get_address(),
+                sending_user = sending_user,
                 amount = str(Env.amount_to_raw(amount)),
-                destination = destination,
+                destination = await receiving_user_db.get_address(),
                 receiving_user = receiving_user_db
             )
             await tx.save(using_db=conn)
