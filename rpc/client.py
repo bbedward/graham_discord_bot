@@ -42,7 +42,7 @@ class RPCClient(object):
             return respjson['account']
         return None
 
-    async def account_balance(self, account : str) -> str:
+    async def account_balance(self, account : str) -> dict:
         account_balance = {
             'action': 'account_balance',
             'account': account
