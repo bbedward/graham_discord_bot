@@ -4,6 +4,7 @@ from tortoise.models import Model
 from tortoise.transactions import in_transaction
 
 import db.models.user as usr
+import logging
 
 from rpc.client import RPCClient
 from util.env import Env
@@ -40,7 +41,9 @@ class Transaction(Model):
                 destination = await receiving_user_db.get_address(),
                 receiving_user = receiving_user_db
             )
+            logging.getLogger().info("Saving transaction")
             await tx.save(using_db=conn)
+        logging.getLogger().info(f"Saved TX with UUID {str(tx.id)}")
         return tx
 
     async def send(self) -> str:
