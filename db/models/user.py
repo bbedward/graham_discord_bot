@@ -81,9 +81,9 @@ class User(Model):
         received_transactions = self.received_transactions.filter(block_hash=None)
         pending_send = 0
         pending_receive = 0
-        for stx in sent_transactions:
+        for stx in sent_transactions.all():
             pending_send += int(stx.amount)
-        for ptx in received_transactions:
+        for ptx in received_transactions.all():
             pending_receive += int(ptx.amount) * -1
         return (pending_send, pending_receive)
 
