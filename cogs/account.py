@@ -86,7 +86,7 @@ class Account(commands.Cog):
             embed.description = "**Available:**\n"
             embed.description += f"{str(Env.raw_to_amount(balance_raw))} {Env.currency_symbol()}\n"
             embed.description += "**Pending Send:**\n"
-            embed.description += f"{str(Env.raw_to_amount(pending_raw + pending_send_db))} {Env.currency_symbol()}"
+            embed.description += f"{str(Env.raw_to_amount(pending_raw + pending_send_db))} {Env.currency_symbol()}\n"
             embed.description += "**Pending Receive:**\n"
             embed.description += f"{str(Env.raw_to_amount(pending_raw + pending_receive_db))} {Env.currency_symbol()}"
             embed.set_footer(text="Pending balances are in queue and will become available after processing.")
