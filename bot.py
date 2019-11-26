@@ -31,6 +31,7 @@ logger = logging.getLogger()
 client = Bot(command_prefix=config.command_prefix)
 client.remove_command('help')
 
+
 ### Bot events
 
 @client.event
