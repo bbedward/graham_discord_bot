@@ -16,7 +16,8 @@ class User(Model):
     name = fields.CharField(max_length=50)
     created_at = fields.DatetimeField(auto_now_add=True)
     modified_at = fields.DatetimeField(auto_now=True)
-    sent_transactions = fields.ReverseRelation('Transaction')
+    sent_transactions = fields.ReverseRelation['Transaction']
+    received_transactions = fields.ReverseRelation['Transaction']
 
     class Meta:
         table = "users"
