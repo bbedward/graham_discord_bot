@@ -150,7 +150,8 @@ class Account(commands.Cog):
         # See if they are spammin'
         withdraw_delay = await user.get_next_withdraw_s()
         if withdraw_delay > 0:
-            await Messages.send_error_dm(msg.author, f"You need to wait {int(withdraw_delay)}s before you can withdraw again")
+            await Messages.send_error_dm(msg.author, f"You need to wait {withdraw_delay}s before you can withdraw again")
+            return
 
         # Create transaction
         tx = await Transaction.create_transaction_external(
@@ -173,7 +174,8 @@ class Account(commands.Cog):
         # See if they are spammin'
         withdraw_delay = await user.get_next_withdraw_s()
         if withdraw_delay > 0:
-            await Messages.send_error_dm(msg.author, f"You need to wait {int(withdraw_delay)}s before you can withdraw again")
+            await Messages.send_error_dm(msg.author, f"You need to wait {withdraw_delay}s before you can withdraw again")
+            return
 
         # Create transaction
         tx = await Transaction.create_transaction_external(
