@@ -71,9 +71,12 @@ if __name__ == "__main__":
 			TransactionQueue.instance().queue_consumer()
 		]
 		loop.run_until_complete(asyncio.wait(tasks))
-	except:
-		logger.info("Graham is exiting")
+	except Exception:
+		logger.exception("Graham exited with exception")
+	except BaseException:
+		pass
 	finally:
+		logger.info("Graham is exiting")
 		tasks = [
 			client.logout(),
 			RPCClient.instance().close(),
