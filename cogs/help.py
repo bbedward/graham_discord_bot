@@ -6,6 +6,7 @@ from util.discord.messages import Messages
 from util.discord.paginator import Paginator, Page, CannotPaginate, Entry
 from version import __version__
 
+import config
 import logging
 
 COMMANDS = {
@@ -31,13 +32,12 @@ COMMANDS = {
 class Help(commands.Cog):
     def __init__(self, bot: Bot, command_prefix: str):
         self.bot = bot
-        self.command_prefix = command_prefix
         self.logger = logging.getLogger()
 
     def get_entries(self, commands: list) -> list:
         entries = []
         for cmd in commands:
-            entries.append(Entry(f"{self.command_prefix}{cmd.triggers[0]}", cmd.details))
+            entries.append(Entry(f"{config.Config.instance().command_prefix}{cmd.triggers[0]}", cmd.details))
         return entries
 
     def get_help_pages(self) -> list:
@@ -47,11 +47,11 @@ class Help(commands.Cog):
         author=f"Graham v{__version__} ({'BANANO' if Env.banano() else 'Nano'}) edition - by bbedward"
         title="Command Overview"
         description=("Use `{0}help command` for more information about a specific command " +
-                " or go to the next page").format(self.command_prefix)
+                " or go to the next page").format(config.Config.instance().command_prefix)
         entries = []
         for k, cmd_list in COMMANDS.items():
             for cmd in COMMANDS[k]['cmd_list']:
-                entries.append(Entry(f"{self.command_prefix}{cmd.triggers[0]}", cmd.overview))
+                entries.append(Entry(f"{config.Config.instance().command_prefix}{cmd.triggers[0]}", cmd.overview))
         pages.append(Page(entries=entries, title=title,author=author, description=description))
         # Build detail pages
         for group, details in COMMANDS.items():
@@ -87,7 +87,7 @@ class Help(commands.Cog):
                 for c in cmd['cmd_list']:
                     if arg in c.triggers:
                         found = True
-                        await Messages.send_usage_dm(msg.author, c, self.command_prefix)
+                        await Messages.send_usage_dm(msg.author, c)
             if not found:
                 await Messages.send_error_dm(msg.author, f'No such command: "**{arg}**"')
         else:

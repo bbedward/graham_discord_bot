@@ -1,13 +1,14 @@
+import config
 import discord
 from models.command import CommandInfo
 from util.env import Env
 
 class Messages():
     @staticmethod
-    async def send_usage_dm(member: discord.Member, command: CommandInfo, prefix: str) -> discord.Message:
+    async def send_usage_dm(member: discord.Member, command: CommandInfo) -> discord.Message:
         embed = discord.Embed(colour=discord.Colour.purple())
         embed.title = "Usage"
-        embed.add_field(name=f"{prefix}{command.triggers[0]}", value=command.details, inline=False)
+        embed.add_field(name=f"{config.Config.instance().command_prefix}{command.triggers[0]}", value=command.details, inline=False)
         return await member.send(embed=embed)
  
     @staticmethod
