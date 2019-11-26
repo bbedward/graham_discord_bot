@@ -69,6 +69,11 @@ class Account(commands.Cog):
                 await Messages.send_error_dm(ctx.message.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
                 raise Exception(f"invoked command {ctx.command.name} without creating account")
             ctx.user = user
+            # See if they are spammin'
+            withdraw_delay = await user.get_next_withdraw_s()
+            if withdraw_delay > 0:
+                await Messages.send_error_dm(ctx.message.author, f"You need to wait {withdraw_delay}s before you can withdraw again")
+                raise Exception(f"withdrawing too quickly {ctx.command.name} user id: {user.id}")
             try:
                 ctx.destination = RegexUtil.find_address_match(ctx.message.content)
             except AddressMissingException:
@@ -147,12 +152,6 @@ class Account(commands.Cog):
         send_amount: float = ctx.send_amount
         destination: str = ctx.destination
 
-        # See if they are spammin'
-        withdraw_delay = await user.get_next_withdraw_s()
-        if withdraw_delay > 0:
-            await Messages.send_error_dm(msg.author, f"You need to wait {withdraw_delay}s before you can withdraw again")
-            return
-
         # Create transaction
         tx = await Transaction.create_transaction_external(
             sending_user=user,
@@ -170,12 +169,6 @@ class Account(commands.Cog):
 
         user: User = ctx.user
         destination: str = ctx.destination
-
-        # See if they are spammin'
-        withdraw_delay = await user.get_next_withdraw_s()
-        if withdraw_delay > 0:
-            await Messages.send_error_dm(msg.author, f"You need to wait {withdraw_delay}s before you can withdraw again")
-            return
 
         # Create transaction
         tx = await Transaction.create_transaction_external(
