@@ -111,7 +111,7 @@ class User(Model):
     async def get_next_withdraw_s(self) -> int:
         """Get how long ago in seconds the user must wait until they can withdraw again"""
         # select * from transactions where user_id = ? and created_at > current_timestamp - WITHDRAW_COOLDOWN order by created_at desc limit 1
-        last_withdraw = await self.sent_transactions.filter(created_at__gt=datetime.datetime.utcnow() - datetime.timedelta(seconds=Constants.WITHDRAW_COOLDOWN)).order_by('-transactions__created_at').first()
+        last_withdraw = await self.sent_transactions.filter(created_at__gt=datetime.datetime.utcnow() - datetime.timedelta(seconds=Constants.WITHDRAW_COOLDOWN)).order_by('-created_at').first()
         if last_withdraw is None:
             return -1
         # Get how many seconds until they can withdraw again
