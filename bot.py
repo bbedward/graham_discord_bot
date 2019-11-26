@@ -10,6 +10,7 @@ from config import Config
 from discord.ext.commands import Bot
 from db.models.transaction import Transaction
 from db.tortoise_config import init_db
+from db.redis import RedisDB
 from util.env import Env
 from util.logger import setup_logger
 from version import __version__
@@ -44,7 +45,7 @@ async def on_ready():
 	logger.info(f"Re-queueing any unprocessed transactions")
 	unprocessed_txs = await Transaction.filter(block_hash=None).all()
 	for tx in unprocessed_txs:
-		await TransactionQueue.instance().put(tx)
+		await TransactionQueue.instance(bot=client).put(tx)
 	logger.info(f"Re-queued {len(unprocessed_txs)} transactions")
 
 @client.event
@@ -73,6 +74,10 @@ if __name__ == "__main__":
 	except:
 		logger.info("Graham is exiting")
 	finally:
-		loop.run_until_complete(client.logout())
-		loop.run_until_complete(RPCClient.instance().close())
+		tasks = [
+			client.logout(),
+			RPCClient.instance().close(),
+			RedisDB.instance().close()
+		]
+		loop.run_until_complete(asyncio.wait(tasks))
 		loop.close()

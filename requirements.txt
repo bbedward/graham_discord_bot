@@ -6,3 +6,4 @@ asyncpg
 bitstring
 aiodns
 uvloop
+aioredis

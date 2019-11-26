@@ -14,7 +14,9 @@ COMMANDS = {
         'info': 'Accounts that help you manage your Graham account',
         'cmd_list': [
             account.REGISTER_INFO,
-            account.BALANCE_INFO
+            account.BALANCE_INFO,
+            account.SEND_INFO,
+            account.SENDMAX_INFO
         ]
     },
     'TIP': {
@@ -85,9 +87,9 @@ class Help(commands.Cog):
                 for c in cmd['cmd_list']:
                     if arg in c.triggers:
                         found = True
-                        await Messages.post_usage_dm(msg.author, c, self.command_prefix)
+                        await Messages.send_usage_dm(msg.author, c, self.command_prefix)
             if not found:
-                await Messages.post_error_dm(msg.author, f'No such command: "**{arg}**"')
+                await Messages.send_error_dm(msg.author, f'No such command: "**{arg}**"')
         else:
             try:
                 pages = Paginator(self.bot, message=msg, page_list=self.get_help_pages(),as_dm=True)

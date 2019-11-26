@@ -4,18 +4,26 @@ from util.env import Env
 
 class Messages():
     @staticmethod
-    async def post_usage_dm(member: discord.Member, command: CommandInfo, prefix: str):
+    async def send_usage_dm(member: discord.Member, command: CommandInfo, prefix: str) -> discord.Message:
         embed = discord.Embed(colour=discord.Colour.purple())
         embed.title = "Usage"
         embed.add_field(name=f"{prefix}{command.triggers[0]}", value=command.details, inline=False)
-        await member.send(embed=embed)
+        return await member.send(embed=embed)
  
     @staticmethod
-    async def post_error_dm(member: discord.Member, message: str, skip_dnd=False):
+    async def send_error_dm(member: discord.Member, message: str, skip_dnd=False) -> discord.Message:
+        # TODO - consider "Do Not Disturb"
         embed = discord.Embed(colour=discord.Colour.red())
         embed.title = "Error"
         embed.description = message
-        await member.send(embed=embed)
+        return await member.send(embed=embed)
+
+    @staticmethod
+    async def send_success_dm(member: discord.Member, message: str) -> discord.Message:
+        embed = discord.Embed(colour=discord.Colour.green())
+        embed.title = "Success"
+        embed.description = message
+        return await member.send(embed=embed)
 
     @staticmethod
     async def add_tip_reaction(msg: discord.Message, amount: float):

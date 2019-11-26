@@ -1,11 +1,15 @@
-from tortoise.models import Model
-from tortoise.transactions import in_transaction
-from tortoise import fields
-from rpc.client import RPCClient
+import datetime
 
 import discord
+from tortoise import fields
+from tortoise.models import Model
+from tortoise.transactions import in_transaction
+
 import db.models.account as acct
 import db.models.stats as stats
+from models.constants import Constants
+from rpc.client import RPCClient
+from util.env import Env
 
 class User(Model):
     id = fields.BigIntField(pk=True, generated=False)
@@ -95,3 +99,21 @@ class User(Model):
         pending_send, pending_receive = await self.get_pending()
         actual = await RPCClient.instance().account_balance(address)
         return int(actual['balance']) - pending_send
+
+    async def get_available_balance_dec(self) -> float:
+        """Get available balance of user (in normal unit)"""
+        address = await self.get_address()
+        pending_send, pending_receive = await self.get_pending()
+        actual = await RPCClient.instance().account_balance(address)
+        available = int(actual['balance']) - pending_send
+        return Env.raw_to_amount(available)
+
+    async def get_next_withdraw_s(self) -> int:
+        """Get how long ago in seconds the user must wait until they can withdraw again"""
+        # select * from transactions where user_id = ? and created_at > current_timestamp - WITHDRAW_COOLDOWN order by created_at desc limit 1
+        last_withdraw = await self.sent_transactions.filter(created_at__gt=datetime.datetime.utcnow() - datetime.timedelta(seconds=Constants.WITHDRAW_COOLDOWN)).order_by('-transactions__created_at').first()
+        if last_withdraw is None:
+            return -1
+        # Get how many seconds until they can withdraw again
+        delta = (datetime.datetime.utcnow() - last_withdraw.created_at).total_seconds()
+        return int(Constants.WITHDRAW_COOLDOWN - delta)
