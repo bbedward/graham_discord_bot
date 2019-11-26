@@ -36,13 +36,13 @@ SEND_INFO = CommandInfo(
     triggers = ["send", "withdraw"],
     overview = f"Send {Env.currency_name()} to an external address.",
     details = f"Send specified amount to specified address." +
-                f"\nExample `{config.Config.instance().command_prefix}send 10 {Env.currency_symbol().lower()}_3o7uzba8b9e1wqu5ziwpruteyrs3scyqr761x7ke6w1xctohxfh5du75qgaj - Sends 10 {Env.currency_symbol()}"
+                f"\nExample `{config.Config.instance().command_prefix}send 10 {Env.currency_symbol().lower()}_3o7uzba8b9e1wqu5ziwpruteyrs3scyqr761x7ke6w1xctohxfh5du75qgaj` - Sends 10 {Env.currency_symbol()}"
 )
 SENDMAX_INFO = CommandInfo(
     triggers = ["sendmax", "withdrawmax"],
     overview = f"Send all of your {Env.currency_name()} to an external address.",
     details = f"Send entire balance to specified address." +
-                f"\nExample `{config.Config.instance().command_prefix}sendmax {Env.currency_symbol().lower()}_3o7uzba8b9e1wqu5ziwpruteyrs3scyqr761x7ke6w1xctohxfh5du75qgaj - Sends entire {Env.currency_symbol()} balance"
+                f"\nExample `{config.Config.instance().command_prefix}sendmax {Env.currency_symbol().lower()}_3o7uzba8b9e1wqu5ziwpruteyrs3scyqr761x7ke6w1xctohxfh5du75qgaj` - Sends entire {Env.currency_symbol()} balance"
 )
 
 class Account(commands.Cog):

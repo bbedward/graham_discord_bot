@@ -21,7 +21,7 @@ TIP_INFO = CommandInfo(
     details = f"Tip specified amount to mentioned user(s) (minimum tip is {Constants.TIP_MINIMUM} {Constants.TIP_UNIT})" +
         "\nThe recipient(s) will be notified of your tip via private message" +
         "\nSuccessful tips will be deducted from your available balance immediately.\n" +
-     f"{config.Config.instance().command_prefix}{'ban' if Env.banano() else 'ntip'} 2 @user1 @user2` would send 2 to user1 and 2 to user2"
+     f"Example: `{config.Config.instance().command_prefix}{'ban' if Env.banano() else 'ntip'} 2 @user1 @user2` would send 2 to user1 and 2 to user2"
 )
 
 class Tips(commands.Cog):
