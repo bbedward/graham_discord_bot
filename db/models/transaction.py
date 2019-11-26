@@ -66,7 +66,7 @@ class Transaction(Model):
         resp = await RPCClient.instance().send(
             id=str(self.id),
             source=await self.sending_user.get_address(),
-            destination=await self.destination,
+            destination=self.destination,
             amount=self.amount
         )
         if resp is not None:
