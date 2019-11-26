@@ -21,7 +21,11 @@ class Stats(Model):
     created_at = fields.DatetimeField(auto_now_add=True)
     modified_at = fields.DatetimeField(auto_now=True)
 
+    class Meta:
+        unique_together('user', 'server_id')
+
     async def update_tip_stats(self, amount: float, giveaway: bool = False, rain: bool = False):
+        # TODO - would be better to do these updates atomically
         amount_raw = Env.amount_to_raw(amount)
         # Update total tipped amount and count
         self.total_tipped_amount = str(int(self.total_tipped_amount) + amount_raw)
