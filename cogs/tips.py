@@ -86,7 +86,13 @@ class Tips(commands.Cog):
                 receiving_user=u
             )
             tx_list.append(tx)
-        # TODO - tip notification
+            asyncio.ensure_future(
+                Messages.send_basic_dm(
+                    member=u,
+                    message=f"You were tipped **{send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
+                    skip_dnd=True
+                )
+            )
         # Add reactions
         await Messages.add_tip_reaction(msg, send_amount * len(tx_list))
         # Queue the actual sends

@@ -5,7 +5,7 @@ try:
 except ImportError:
 	print("Couldn't install uvloop, falling back to the slower asyncio event loop")
 
-from cogs import account, help, tips
+from cogs import account, help, tips, tip_legacy
 from config import Config
 from discord.ext.commands import Bot
 from db.models.transaction import Transaction
@@ -31,7 +31,6 @@ logger = logging.getLogger()
 client = Bot(command_prefix=config.command_prefix)
 client.remove_command('help')
 
-
 ### Bot events
 
 @client.event
@@ -43,6 +42,8 @@ async def on_ready():
 	logger.info(f"Bot name: {client.user.name}")
 	logger.info(f"Bot Discord ID: {client.user.id}")
 	await client.change_presence(activity=discord.Game(config.playing_status))
+
+	# Process any transactions in our DB that are outstanding
 	logger.info(f"Re-queueing any unprocessed transactions")
 	unprocessed_txs = await Transaction.filter(block_hash=None).all().prefetch_related('sending_user', 'receiving_user')
 	for tx in unprocessed_txs:
@@ -62,6 +63,9 @@ if __name__ == "__main__":
 	client.add_cog(account.Account(client))
 	client.add_cog(tips.Tips(client))
 	client.add_cog(help.Help(client, config.command_prefix))
+	if not Env.banano():
+		# Add a command to warn users that tip unit has changed
+		client.add_cog(tip_legacy.TipLegacy(client))
 	# Start bot
 	loop = asyncio.get_event_loop()
 	try:

@@ -9,22 +9,47 @@ class Messages():
         embed = discord.Embed(colour=discord.Colour.purple())
         embed.title = "Usage"
         embed.add_field(name=f"{config.Config.instance().command_prefix}{command.triggers[0]}", value=command.details, inline=False)
-        return await member.send(embed=embed)
+        try:
+            return await member.send(embed=embed)
+        except Exception:
+            # May raise if user has blocked the bot
+            return None
  
     @staticmethod
     async def send_error_dm(member: discord.Member, message: str, skip_dnd=False) -> discord.Message:
-        # TODO - consider "Do Not Disturb"
+        if skip_dnd and member.status == discord.Status.dnd:
+            return None
         embed = discord.Embed(colour=discord.Colour.red())
         embed.title = "Error"
         embed.description = message
-        return await member.send(embed=embed)
+        try:
+            return await member.send(embed=embed)
+        except Exception:
+            # May raise if user has blocked the bot
+            return None
 
     @staticmethod
-    async def send_success_dm(member: discord.Member, message: str) -> discord.Message:
+    async def send_success_dm(member: discord.Member, message: str, skip_dnd=False) -> discord.Message:
+        if skip_dnd and member.status == discord.Status.dnd:
+            return None
         embed = discord.Embed(colour=discord.Colour.green())
         embed.title = "Success"
         embed.description = message
-        return await member.send(embed=embed)
+        try:
+            return await member.send(embed=embed)
+        except Exception:
+            # May raise if user has blocked the bot
+            return None
+
+    @staticmethod
+    async def send_basic_dm(member: discord.Member, message: str, skip_dnd=False) -> discord.Message:
+        if skip_dnd and member.status == discord.Status.dnd:
+            return None
+        try:
+            return await member.send(message)
+        except Exception:
+            # May raise if user has blocked the bot
+            return None
 
     @staticmethod
     async def add_tip_reaction(msg: discord.Message, amount: float):

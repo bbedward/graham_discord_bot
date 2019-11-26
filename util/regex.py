@@ -31,6 +31,7 @@ class RegexUtil():
 
     @staticmethod
     def find_address_match(input_text):
+        """Find nano/banano address in a string"""
         if Env.banano():
             address_regex = '(?:ban)(?:_)(?:1|3)(?:[13456789abcdefghijkmnopqrstuwxyz]{59})'
         else:
