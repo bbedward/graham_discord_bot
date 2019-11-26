@@ -19,7 +19,7 @@ import asyncio
 import discord
 import logging
 from rpc.client import RPCClient
-from process.transaction_queue import TransactionQueue
+from tasks.transaction_queue import TransactionQueue
 
 # Configuration
 config = Config.instance()
