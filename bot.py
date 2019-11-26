@@ -67,8 +67,8 @@ if __name__ == "__main__":
 		tasks = [
 			client.start(config.bot_token),
 			# Create two queue consumers for transactions
-			TransactionQueue.instance().queue_consumer(),
-			TransactionQueue.instance().queue_consumer()
+			TransactionQueue.instance(bot=client).queue_consumer(),
+			TransactionQueue.instance(bot=client).queue_consumer()
 		]
 		loop.run_until_complete(asyncio.wait(tasks))
 	except Exception:
