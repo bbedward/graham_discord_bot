@@ -54,7 +54,8 @@ class Transaction(Model):
             tx = Transaction(
                 sending_user = sending_user,
                 amount = str(Env.amount_to_raw(amount)),
-                destination = destination
+                destination = destination,
+                receiving_user = None
             )
             await tx.save(using_db=conn)
         return tx
