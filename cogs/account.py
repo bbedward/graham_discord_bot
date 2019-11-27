@@ -57,7 +57,7 @@ class Account(commands.Cog):
             try:
                 ctx.send_amount = RegexUtil.find_send_amounts(ctx.message.content)
                 if Validators.too_many_decimals(ctx.send_amount):
-                    await Messages.send_error_dm(ctx.message.author, f"You are only allowed to use {Env.precision_digits()} after the decimal.")
+                    await Messages.send_error_dm(ctx.message.author, f"You are only allowed to use {Env.precision_digits()} digits after the decimal.")
                     ctx.error = True
                     return
             except AmountMissingException:

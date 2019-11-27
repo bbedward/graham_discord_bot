@@ -59,7 +59,7 @@ class Tips(commands.Cog):
             if send_amount < Constants.TIP_MINIMUM:
                 raise AmountMissingException(f"Tip amount is too low, minimum is {Constants.TIP_MINIMUM}")
             elif Validators.too_many_decimals(send_amount):
-                await Messages.send_error_dm(ctx.message.author, f"You are only allowed to use {Env.precision_digits()} after the decimal.")
+                await Messages.send_error_dm(ctx.message.author, f"You are only allowed to use {Env.precision_digits()} digits after the decimal.")
                 ctx.error = True
                 return
         except AmountMissingException:
