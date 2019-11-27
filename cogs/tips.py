@@ -140,6 +140,9 @@ class Tips(commands.Cog):
             return
 
         individual_send_amount = NumberUtil.truncate_digits(send_amount / len(users_to_tip))
+        if individual_send_amount < Constants.TIP_MINIMUM:
+            await Messages.send_error_dm(msg.author, f"Tip amount too small, each user needs to receive at least {Constants.TIP_MINIMUM}. With your tip they'd only be getting {individual_send_amount}")
+            return
 
         # See how much they need to make this tip.
         amount_needed = individual_send_amount * len(users_to_tip)
