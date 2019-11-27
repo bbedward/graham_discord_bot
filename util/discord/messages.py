@@ -56,9 +56,11 @@ class Messages():
         # TODO - banano reactions idsabled for now
         if Env.banano():
             if amount > 0:
-                await msg.add_reaction('\U00002611')
-                #await msg.add_reaction('\:tip:425878628119871488') # TIP mark
-                #await msg.add_reaction('\:tick:425880814266351626') # check mark
+                try:
+                    await msg.add_reaction('\:tip:425878628119871488') # TIP mark
+                    await msg.add_reaction('\:tick:425880814266351626') # check mark
+                except Exception:
+                    await msg.add_reaction('\U00002611') # fallback for non-banano server
             if amount > 0 and amount < 50:
                 await msg.add_reaction('\U0001F987') # S
             elif amount >= 50 and amount < 250:
