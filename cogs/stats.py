@@ -46,7 +46,7 @@ class TipStats(commands.Cog):
         msg = ctx.message
         user: User = ctx.user
 
-        if await RedisDB.instance().get(f"tipstatsspam{msg.author.id}"):
+        if await RedisDB.instance().exists(f"tipstatsspam{msg.author.id}{msg.guild.id}"):
             await Messages.post_error_dm(msg.author, "Why don't you wait awhile before trying to get your tipstats again")
             return
 
@@ -59,4 +59,4 @@ class TipStats(commands.Cog):
 
         # TODO - no spam channels
         await msg.channel.send(response)
-        await RedisDB.instance().set(f"tipstatsspam{msg.author.id}", "as", expires=300)
+        await RedisDB.instance().set(f"tipstatsspam{msg.author.id}{msg.guild.id}", "as", expires=300)

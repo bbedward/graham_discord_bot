@@ -44,3 +44,9 @@ class RedisDB(object):
         key = f"{Env.currency_name().lower()}{key}"
         redis = await self.get_redis()
         await redis.get(key)
+
+    async def exists(self, key: str):
+        """See if a key exists"""
+        key = f"{Env.currency_name().lower()}{key}"
+        redis = await self.get_redis()
+        return (await redis.get(key)) is not None
