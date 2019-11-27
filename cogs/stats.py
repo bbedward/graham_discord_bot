@@ -47,7 +47,7 @@ class TipStats(commands.Cog):
         user: User = ctx.user
 
         if await RedisDB.instance().exists(f"tipstatsspam{msg.author.id}{msg.guild.id}"):
-            await Messages.post_error_dm(msg.author, "Why don't you wait awhile before trying to get your tipstats again")
+            await Messages.send_error_dm(msg.author, "Why don't you wait awhile before trying to get your tipstats again")
             return
 
         stats: Stats = await user.get_stats(server_id=msg.guild.id)
