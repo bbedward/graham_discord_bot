@@ -13,6 +13,7 @@ class RedisDB(object):
     def instance(cls) -> 'RPCClient':
         if cls._instance is None:
             cls._instance = cls.__new__(cls)
+            cls.redis = None
         return cls._instance
 
     @classmethod
