@@ -11,7 +11,7 @@ class Env():
     @staticmethod
     def raw_to_amount(raw_amt: int, truncate: bool = True) -> float:
         converted = BananoConversions.raw_to_banano(raw_amt) if Env.banano() else NanoConversions.raw_to_nano(raw_amt)
-        return NumberUtil.truncate_digits(converted) if truncate else converted
+        return NumberUtil.truncate_digits(converted, max_digits=Env.precision_digits()) if truncate else converted
 
     @staticmethod
     def amount_to_raw(amount: float) -> int:

@@ -9,6 +9,7 @@ from db.models.stats import Stats
 from db.redis import RedisDB
 
 import config
+import discord
 import datetime
 
 ## Command documentation
@@ -84,7 +85,7 @@ class TipStats(commands.Cog):
         # This would be better to be 1 query but, i'm not proficient enough with tortoise-orm
         top_tip = await Stats.filter(
             server_id=msg.guild.id
-        ).order_by('-top_tip').limit(1).first()
+        ).order_by('-top_tip').prefetch_related('user').limit(1).first()
         if top_tip is None:
             await RedisDB.instance().set(f"toptipsspam{msg.channel.id}", "as", expires=300)
             await msg.channel.send("There are no stats for this server yet. Send some tips first!")
@@ -92,19 +93,23 @@ class TipStats(commands.Cog):
         # Get datetime object representing first day of this month
         now = datetime.datetime.utcnow()
         month = str(now.month).zfill(2)
-        day = str(now.day).zfill(2)
         year = now.year
         first_day_of_month = datetime.datetime.strptime(f'{month}/01/{year} 00:00:00', '%m/%d/%Y %H:%M:%S')
         # Find top tip of the month
-        top_top_month = await Stats.filter(
+        top_tip_month = await Stats.filter(
             server_id=msg.guild.id,
             top_tip_month_at__gte=first_day_of_month
-        ).order_by('-top_tip_month').limit(1).first()
-        # Get datetime object representing first hour of today
-        today = datetime.datetime.strptime(f'{month}/{day}/{year} 00:00:00', '%m/%d/%Y %H:%M:%S')
+        ).order_by('-top_tip_month').prefetch_related('user').limit(1).first()
+        # Get datetime object representing 24 hours ago
+        past_24h = now - datetime.timedelta(hours=24)
         # Find top tip of the month
-        top_top_month = await Stats.filter(
+        top_tip_day = await Stats.filter(
             server_id=msg.guild.id,
-            top_tip_day_at__gte=today
-        ).order_by('-top_tip_day').limit(1).first()
-        # TODO - do something with this
+            top_tip_day_at__gte=past_24h
+        ).order_by('-top_tip_day').prefetch_related('user').limit(1).first()
+
+        embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
+        embed.set_author(name='Biggest Tips', icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
+        embed.description = f"**Last 24 Hours**\n`{top_tip_day.top_tip_day} {Env.currency_symbol()}`"
+        embed.description += f"\n**In {now.strftime('%B')}**\n`{top_tip_month.top_tip_month} {Env.currency_symbol()}`"
+        embed.description += f"\n**All Time**\n`{top_tip.top_tip} {Env.currency_symbol()}`"

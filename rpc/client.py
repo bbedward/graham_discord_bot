@@ -23,7 +23,7 @@ class RPCClient(object):
 
     @classmethod
     async def close(cls):
-        if cls.session is not None:
+        if hasattr(cls, 'session') and cls.session is not None:
             await cls.session.close()
         if cls._instance is not None:
             cls._instance = None

@@ -143,7 +143,7 @@ class Tips(commands.Cog):
             await Messages.send_error_dm(msg.author, f"No users you mentioned are eligible to receive tips.")
             return
 
-        individual_send_amount = NumberUtil.truncate_digits(send_amount / len(users_to_tip))
+        individual_send_amount = NumberUtil.truncate_digits(send_amount / len(users_to_tip), max_digits=Env.precision_digits())
         if individual_send_amount < Constants.TIP_MINIMUM:
             await Messages.add_x_reaction(msg)
             await Messages.send_error_dm(msg.author, f"Tip amount too small, each user needs to receive at least {Constants.TIP_MINIMUM}. With your tip they'd only be getting {individual_send_amount}")
@@ -179,4 +179,4 @@ class Tips(commands.Cog):
             await TransactionQueue.instance().put(tx)
         # Update stats
         stats: Stats = await user.get_stats(server_id=msg.guild.id)
-        await stats.update_tip_stats(amount_needed * len(tx_list))
+        await stats.update_tip_stats(amount_needed)

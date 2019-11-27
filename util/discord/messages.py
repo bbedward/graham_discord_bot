@@ -53,10 +53,12 @@ class Messages():
 
     @staticmethod
     async def add_tip_reaction(msg: discord.Message, amount: float):
+        # TODO - banano reactions idsabled for now
         if Env.banano():
             if amount > 0:
-                await msg.add_reaction('\:tip:425878628119871488') # TIP mark
-                await msg.add_reaction('\:tick:425880814266351626') # check mark
+                await msg.add_reaction('\U00002611')
+                #await msg.add_reaction('\:tip:425878628119871488') # TIP mark
+                #await msg.add_reaction('\:tick:425880814266351626') # check mark
             if amount > 0 and amount < 50:
                 await msg.add_reaction('\U0001F987') # S
             elif amount >= 50 and amount < 250:

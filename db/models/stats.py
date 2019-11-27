@@ -28,8 +28,8 @@ class Stats(Model):
     async def update_tip_stats(self, amount: float, giveaway: bool = False, rain: bool = False):
         # TODO - would be better to do these updates atomically
         # Update total tipped amount and count
-        amount = NumberUtil.truncate_digits(amount)
-        self.total_tipped_amount = NumberUtil.truncate_digits(self.total_tipped_amount + amount)
+        amount = NumberUtil.truncate_digits(amount, max_digits=Env.precision_digits())
+        self.total_tipped_amount = NumberUtil.truncate_digits(float(self.total_tipped_amount) + amount, max_digits=Env.precision_digits())
         self.total_tips += 1
         # Update all time tip if necessary
         top_tip_updated = False
@@ -54,10 +54,10 @@ class Stats(Model):
         rain_updated = False
         giveaway_updated = False
         if rain:
-            self.rain_amount = NumberUtil.truncate_digits(self.rain_amount + amount)
+            self.rain_amount = NumberUtil.truncate_digits(float(self.rain_amount) + amount, max_digits=Env.precision_digits())
             rain_updated = True
         elif giveaway:
-            self.giveaway_amount = NumberUtil.truncate_digits(self.giveaway_amount + amount)
+            self.giveaway_amount = NumberUtil.truncate_digits(float(self.giveaway_amount) + amount, max_digits=Env.precision_digits())
             giveaway_updated = True
 
         # Only update specific fields in save(), to avoid nuking the state potentially
