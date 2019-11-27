@@ -26,7 +26,7 @@ class TipStats(commands.Cog):
         # Only allow tip commands in public channels
         msg = ctx.message
         if ChannelUtil.is_private(msg.channel):
-            await Messages.send_error_dm("You can only view statistics in a server, not via DM.")
+            await Messages.send_error_dm(msg.author, "You can only view statistics in a server, not via DM.")
             ctx.error = True
             return
         # Make sure user exists in DB
