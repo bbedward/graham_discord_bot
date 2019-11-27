@@ -150,11 +150,11 @@ class Account(commands.Cog):
             embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
             embed.set_author(name="Balance", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
             embed.description = "**Available:**\n"
-            embed.description += f"{str(Env.raw_to_amount(balance_raw))} {Env.currency_symbol()}\n"
+            embed.description += f"```{str(Env.raw_to_amount(balance_raw))} {Env.currency_symbol()}```\n"
             embed.description += "**Pending Send:**\n"
-            embed.description += f"{str(Env.raw_to_amount(pending_raw + pending_send_db))} {Env.currency_symbol()}\n"
+            embed.description += f"```{str(Env.raw_to_amount(pending_raw + pending_send_db))} {Env.currency_symbol()}```\n"
             embed.description += "**Pending Receive:**\n"
-            embed.description += f"{str(Env.raw_to_amount(pending_raw + pending_receive_db))} {Env.currency_symbol()}"
+            embed.description += f"```{str(Env.raw_to_amount(pending_raw + pending_receive_db))} {Env.currency_symbol()}```"
             embed.set_footer(text="Pending balances are in queue and will become available after processing.")
             await msg.author.send(embed=embed)            
         except Exception:

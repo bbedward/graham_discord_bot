@@ -110,6 +110,8 @@ class TipStats(commands.Cog):
 
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name='Biggest Tips', icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
-        embed.description = f"**Last 24 Hours**\n`{top_tip_day.top_tip_day} {Env.currency_symbol()}`"
-        embed.description += f"\n**In {now.strftime('%B')}**\n`{top_tip_month.top_tip_month} {Env.currency_symbol()}`"
-        embed.description += f"\n**All Time**\n`{top_tip.top_tip} {Env.currency_symbol()}`"
+        embed.description = f"**Last 24 Hours**\n```{top_tip_day.top_tip_day} {Env.currency_symbol()}```"
+        embed.description += f"\n**In {now.strftime('%B')}**\n```{top_tip_month.top_tip_month} {Env.currency_symbol()}```"
+        embed.description += f"\n**All Time**\n```{top_tip.top_tip} {Env.currency_symbol()}```"
+
+        await msg.channel.send(embed=embed)
