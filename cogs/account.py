@@ -51,6 +51,7 @@ class Account(commands.Cog):
         self.logger = logging.getLogger()
 
     async def cog_before_invoke(self, ctx: Context):
+        ctx.error = False
         # TODO - check paused, frozen
         if ctx.command.name == 'send_cmd':
             try:

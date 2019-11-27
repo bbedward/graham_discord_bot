@@ -25,6 +25,7 @@ class TipLegacy(commands.Cog):
         self.bot = bot
 
     async def cog_before_invoke(self, ctx: Context):
+        ctx.error = False
         msg = ctx.message
         if ChannelUtil.is_private(msg.channel):
             ctx.error = True
