@@ -1,6 +1,7 @@
 import os
 
 from util.conversions import BananoConversions, NanoConversions
+from util.number import NumberUtil
 
 class Env():
     @staticmethod
@@ -8,8 +9,9 @@ class Env():
         return True if os.getenv('BANANO', None) is not None else False
 
     @staticmethod
-    def raw_to_amount(raw_amt: int) -> float:
-        return BananoConversions.raw_to_banano(raw_amt) if Env.banano() else NanoConversions.raw_to_nano(raw_amt)
+    def raw_to_amount(raw_amt: int, truncate: bool = True) -> float:
+        converted = BananoConversions.raw_to_banano(raw_amt) if Env.banano() else NanoConversions.raw_to_nano(raw_amt)
+        return NumberUtil.truncate_digits(converted) if truncate else converted
 
     @staticmethod
     def amount_to_raw(amount: float) -> int:

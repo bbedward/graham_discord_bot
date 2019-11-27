@@ -56,7 +56,9 @@ class TipStats(commands.Cog):
         if stats is None or stats.total_tips == 0:
             response = "You haven't sent any tips in this server yet, tip some people and then check your stats later"
         else:
-            response = f"You have sent {stats.total_tips} tips totaling {stats.total_tipped_amount} {Env.currency_symbol()}. Your biggest tip of all time is {stats.top_tip} {Env.currency_symbol()}"
+            top_tip_all_time = Env.raw_to_amount(stats.top_tip)
+            tipped_amount = Env.raw_to_amount(stats.total_tipped_amount)
+            response = f"You have sent **{stats.total_tips}** tips totaling **{tipped_amount} {Env.currency_symbol()}**. Your biggest tip of all time is **{top_tip_all_time} {Env.currency_symbol()}**"
 
         # TODO - no spam channels
         await msg.channel.send(response)
