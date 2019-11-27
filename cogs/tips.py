@@ -94,6 +94,7 @@ class Tips(commands.Cog):
         amount_needed = send_amount * len(users_to_tip)
         available_balance = Env.raw_to_amount(await user.get_available_balance())
         if amount_needed > available_balance:
+            await Messages.add_x_reaction(ctx.message)
             await Messages.send_error_dm(msg.author, f"Your balance isn't high enough to complete this tip. You have **{available_balance} {Env.currency_symbol()}**, but this tip would cost you **{amount_needed} {Env.currency_symbol()}**")
             return
 
