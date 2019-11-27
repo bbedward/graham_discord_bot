@@ -63,7 +63,7 @@ if __name__ == "__main__":
 	client.add_cog(account.Account(client))
 	client.add_cog(tips.Tips(client))
 	client.add_cog(help.Help(client, config.command_prefix))
-	client.add_cog(stats.Stats(client))
+	client.add_cog(stats.TipStats(client))
 	if not Env.banano():
 		# Add a command to warn users that tip unit has changed
 		client.add_cog(tip_legacy.TipLegacy(client))
