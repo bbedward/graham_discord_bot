@@ -52,10 +52,10 @@ class TipStats(commands.Cog):
 
         stats: Stats = await user.get_stats(server_id=msg.guild.id)
         response = ""
-        if stats is None:
+        if stats is None or stats.total_tips == 0:
             response = "You haven't sent any tips in this server yet, tip some people and then check your stats later"
         else:
-            response = f"You have send {stats.total_tips} tips, totaling {stats.total_tipped_amount} {Env.currency_name()}. Your biggest tip of all time is {stats.top_tip} {Env.currency_name()}"
+            response = f"You have sent {stats.total_tips} tips totaling {stats.total_tipped_amount} {Env.currency_symbol()}. Your biggest tip of all time is {stats.top_tip} {Env.currency_symbol()}"
 
         # TODO - no spam channels
         await msg.channel.send(response)
