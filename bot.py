@@ -37,6 +37,7 @@ client.remove_command('help')
 async def on_ready():
 	logger.info("Initializing database")
 	await init_db()
+	RedisDB.instance() # Open redis connection now
 	logger.info(f"Starting Graham v{__version__}")
 	logger.info(f"Discord.py version {discord.__version__}")
 	logger.info(f"Bot name: {client.user.name}")

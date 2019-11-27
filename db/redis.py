@@ -15,7 +15,7 @@ class RedisDB(object):
             cls._instance = cls.__new__(cls)
             # TODO - we should let them override redis host/port in configuration
             try:
-                cls.redis = asyncio.get_event_loop().run_until_complete(aioredis.create_redis_pool(('localhost', 6379), db=1, encoding='utf-8', minsize=1, maxsize=5))
+                cls.redis = asyncio.ensure_future(aioredis.create_redis_pool(('localhost', 6379), db=1, encoding='utf-8', minsize=1, maxsize=5))
             except Exception:
                 raise Exception("Could not connect to redis at localhost:6379")
         return cls._instance
