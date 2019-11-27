@@ -9,6 +9,7 @@ from db.models.stats import Stats
 from db.redis import RedisDB
 
 import config
+import datetime
 
 ## Command documentation
 TIPSTATS_INFO = CommandInfo(
@@ -88,8 +89,22 @@ class TipStats(commands.Cog):
             await RedisDB.instance().set(f"toptipsspam{msg.channel.id}", "as", expires=300)
             await msg.channel.send("There are no stats for this server yet. Send some tips first!")
             return
-        """
+        # Get datetime object representing first day of this month
+        now = datetime.datetime.utcnow()
+        month = str(now.month).zfill(2)
+        day = str(now.day).zfill(2)
+        year = now.year
+        first_day_of_month = datetime.datetime.strptime(f'{month}/01/{year} 00:00:00', '%m/%d/%Y %H:%M:%S')
+        # Find top tip of the month
         top_top_month = await Stats.filter(
             server_id=msg.guild.id,
-            top_tip_month_at__gt=
-        )"""
+            top_tip_month_at__gte=first_day_of_month
+        ).order_by('-top_tip_month').limit(1).first()
+        # Get datetime object representing first hour of today
+        today = datetime.datetime.strptime(f'{month}/{day}/{year} 00:00:00', '%m/%d/%Y %H:%M:%S')
+        # Find top tip of the month
+        top_top_month = await Stats.filter(
+            server_id=msg.guild.id,
+            top_tip_day_at__gte=today
+        ).order_by('-top_tip_day').limit(1).first()
+        # TODO - do something with this
