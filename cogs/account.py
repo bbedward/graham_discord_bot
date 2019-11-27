@@ -55,39 +55,52 @@ class Account(commands.Cog):
         if ctx.command.name == 'send_cmd':
             try:
                 ctx.send_amount = RegexUtil.find_send_amounts(ctx.message.content)
+                if Validators.too_many_decimals(ctx.send_amount):
+                    await Messages.send_error_dm(ctx.message.author, f"You are only allowed to use {Env.precision_digits()} after the decimal.")
+                    ctx.error = True
+                    return
             except AmountMissingException:
                 await Messages.send_usage_dm(ctx.message.author, SEND_INFO)
-                raise Exception(f"AmountMissingException {ctx.command.name}")
+                ctx.error = True
+                return
             except AmountAmbiguousException:
                 await Messages.send_error_dm(ctx.message.author, "You can only specify 1 amount to send")
-                raise Exception(f"AmountAmbiguousException {ctx.command.name}")
+                ctx.error = True
+                return
         if ctx.command.name in ['send_cmd', 'sendmax_cmd']:
             # See if user exists in DB
             user = await User.get_user(ctx.message.author)
             if user is None:
-                ctx.error = True
                 await Messages.send_error_dm(ctx.message.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
-                raise Exception(f"invoked command {ctx.command.name} without creating account")
+                ctx.error = True
+                return
             ctx.user = user
             # See if they are spammin'
             withdraw_delay = await user.get_next_withdraw_s()
             if withdraw_delay > 0:
                 await Messages.send_error_dm(ctx.message.author, f"You need to wait {withdraw_delay}s before you can withdraw again")
-                raise Exception(f"withdrawing too quickly {ctx.command.name} user id: {user.id}")
+                ctx.error = True
+                return
             try:
                 ctx.destination = RegexUtil.find_address_match(ctx.message.content)
             except AddressMissingException:
                 await Messages.send_usage_dm(ctx.message.author, SEND_INFO)
-                raise Exception(f"AddressMissingException {ctx.command.name}")
+                ctx.error = True
+                return
             except AddressAmbiguousException:
                 await Messages.send_error_dm(ctx.message.author, "You can only specify 1 destination address")
-                raise Exception(f"AddressAmbiguousException {ctx.command.name}")
+                ctx.error = True
+                return
             if not Validators.is_valid_address(ctx.destination):
                 await Messages.send_error_dm(ctx.message.author, "The destination address you specified is invalid")
-                raise Exception(f"Invalid address {ctx.command.name} {ctx.destination}")                
+                ctx.error = True
+                return
 
     @commands.command(aliases=REGISTER_INFO.triggers)
     async def register_cmd(self, ctx: Context):
+        if ctx.error:
+            return
+
         msg = ctx.message
         try:
             amount = RegexUtil.find_float(msg.content)
@@ -116,6 +129,9 @@ class Account(commands.Cog):
 
     @commands.command(aliases=BALANCE_INFO.triggers)
     async def balance_cmd(self, ctx: Context):
+        if ctx.error:
+            return
+
         msg = ctx.message
         try:
             user = await User.get_user(msg.author)
@@ -146,6 +162,9 @@ class Account(commands.Cog):
 
     @commands.command(aliases=SEND_INFO.triggers)
     async def send_cmd(self, ctx: Context):
+        if ctx.error:
+            return
+
         msg = ctx.message
 
         user: User = ctx.user
@@ -165,6 +184,9 @@ class Account(commands.Cog):
 
     @commands.command(aliases=SENDMAX_INFO.triggers)
     async def sendmax_cmd(self, ctx: Context):
+        if ctx.error:
+            return
+
         msg = ctx.message
 
         user: User = ctx.user

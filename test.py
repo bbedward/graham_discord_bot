@@ -1,3 +1,0 @@
-from util.validators import Validators
-
-print(Validators.is_valid_address('nano_1bboss18y784j9rbwgt95uwqamjpsi9oips5syohsjk37rn5ud7ndbjq61ft'))

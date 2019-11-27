@@ -22,3 +22,7 @@ class Env():
     @staticmethod
     def currency_symbol() -> str:
         return 'BAN' if Env.banano() else 'NANO'
+
+    @staticmethod
+    def precision_digits() -> int:
+        return 2 if Env.banano() else 6

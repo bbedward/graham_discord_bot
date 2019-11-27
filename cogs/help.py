@@ -1,4 +1,4 @@
-from cogs import tips, account
+from cogs import tips, account, stats
 from discord.ext import commands
 from discord.ext.commands import Bot, Context
 from util.env import Env
@@ -24,7 +24,15 @@ COMMANDS = {
         'header': 'Tipping Commands',
         'info': 'The different ways you are able to tip with this bot',
         'cmd_list': [
-            tips.TIP_INFO
+            tips.TIP_INFO,
+            tips.TIPSPLIT_INFO
+        ]
+    },
+    'STATS': {
+        'header': 'Statistics Commands',
+        'info': 'The different statistics related to tips within the bot.',
+        'cmd_list': [
+            stats.TIPSTATS_INFO
         ]
     }
 }

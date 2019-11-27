@@ -27,16 +27,19 @@ class TipLegacy(commands.Cog):
     async def cog_before_invoke(self, ctx: Context):
         msg = ctx.message
         if ChannelUtil.is_private(msg.channel):
-            raise Exception(f"invoked command {ctx.command.name} in private channel")
+            ctx.error = True
+            return
         # See if user exists in DB
         user = await User.get_user(msg.author)
         if user is None:
             ctx.error = True
             await Messages.send_error_dm(msg.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
-            raise Exception(f"invoked command {ctx.command.name} without creating account")
+            return
 
     @commands.command(aliases=['t'])
     async def tip(self, ctx: Context):
+        if ctx.error:
+            return
         msg = ctx.message
 
         await Messages.send_error_dm(

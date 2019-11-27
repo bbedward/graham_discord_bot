@@ -5,7 +5,7 @@ try:
 except ImportError:
 	print("Couldn't install uvloop, falling back to the slower asyncio event loop")
 
-from cogs import account, help, tips, tip_legacy
+from cogs import account, help, tips, tip_legacy, stats
 from config import Config
 from discord.ext.commands import Bot
 from db.models.transaction import Transaction
@@ -63,6 +63,7 @@ if __name__ == "__main__":
 	client.add_cog(account.Account(client))
 	client.add_cog(tips.Tips(client))
 	client.add_cog(help.Help(client, config.command_prefix))
+	client.add_cog(stats.Stats(client))
 	if not Env.banano():
 		# Add a command to warn users that tip unit has changed
 		client.add_cog(tip_legacy.TipLegacy(client))
