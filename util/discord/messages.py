@@ -105,3 +105,8 @@ class Messages():
     async def add_x_reaction(msg: discord.Message):
         await msg.add_reaction('\U0000274C') # X
         return
+
+    @staticmethod
+    async def add_timer_reaction(msg: discord.Message):
+        await msg.add_reaction('\U000023F2') # Timer Clock
+        return

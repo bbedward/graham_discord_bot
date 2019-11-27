@@ -1,6 +1,7 @@
 from tortoise.models import Model
 from tortoise import fields
 from util.env import Env
+from util.number import NumberUtil
 
 import datetime
 
@@ -8,16 +9,16 @@ class Stats(Model):
     user = fields.ForeignKeyField('db.User', related_name='stats', unique=True, index=True) 
     banned = fields.BooleanField(default=False)
     total_tips = fields.IntField(default=0)
-    total_tipped_amount = fields.CharField(max_length=40, default='0')
+    total_tipped_amount = fields.DecimalField(max_digits=20, decimal_places=Env.precision_digits(), default=0)
     server_id = fields.BigIntField()
-    top_tip = fields.CharField(max_length=40, default='0')
+    top_tip = fields.DecimalField(max_digits=20, decimal_places=Env.precision_digits(), default=0)
     top_tip_at = fields.DatetimeField(auto_now_add=True)
-    top_tip_month = fields.CharField(max_length=40, default='0')
+    top_tip_month = fields.DecimalField(max_digits=20, decimal_places=Env.precision_digits(), default=0)
     top_tip_month_at = fields.DatetimeField(auto_now_add=True)
-    top_tip_day = fields.CharField(max_length=40, default='0')
+    top_tip_day = fields.DecimalField(max_digits=20, decimal_places=Env.precision_digits(), default=0)
     top_tip_day_at = fields.DatetimeField(auto_now_add=True)
-    rain_amount = fields.CharField(max_length=40, default='0')
-    giveaway_amount = fields.CharField(max_length=40, default='0')
+    rain_amount = fields.DecimalField(max_digits=20, decimal_places=Env.precision_digits(), default=0)
+    giveaway_amount = fields.DecimalField(max_digits=20, decimal_places=Env.precision_digits(), default=0)
     created_at = fields.DatetimeField(auto_now_add=True)
     modified_at = fields.DatetimeField(auto_now=True)
 
@@ -26,37 +27,37 @@ class Stats(Model):
 
     async def update_tip_stats(self, amount: float, giveaway: bool = False, rain: bool = False):
         # TODO - would be better to do these updates atomically
-        amount_raw = Env.amount_to_raw(amount)
         # Update total tipped amount and count
-        self.total_tipped_amount = str(int(self.total_tipped_amount) + amount_raw)
+        amount = NumberUtil.truncate_digits(amount)
+        self.total_tipped_amount = NumberUtil.truncate_digits(self.total_tipped_amount + amount)
         self.total_tips += 1
         # Update all time tip if necessary
         top_tip_updated = False
-        if amount_raw > int(self.top_tip):
-            self.top_tip = str(amount_raw)
+        if amount > self.top_tip:
+            self.top_tip = amount
             self.top_tip_at = datetime.datetime.utcnow()
             top_tip_updated = True
         # Update monthly tip if necessary
         top_tip_month_updated = False
-        if self.top_tip_month_at.month != datetime.datetime.utcnow().month or amount_raw > int(self.top_tip_month):
-            self.top_tip_month = str(amount_raw)
+        if self.top_tip_month_at.month != datetime.datetime.utcnow().month or amount > self.top_tip_month:
+            self.top_tip_month = amount
             self.top_tip_month_at = datetime.datetime.utcnow()
             top_tip_month_updated = True
         # Update 24H tip if necessary
         top_tip_day_updated = False
         delta = datetime.datetime.utcnow() - self.top_tip_day_at
-        if delta.total_seconds() > 86400 or amount > int(self.top_tip_day):
-            self.top_tip_day = str(amount_raw)
+        if delta.total_seconds() > 86400 or amount > self.top_tip_day:
+            self.top_tip_day = amount
             self.top_tip_day_at = datetime.datetime.utcnow()
             top_tip_day_updated = True
         # Update rain or giveaway stats
         rain_updated = False
         giveaway_updated = False
         if rain:
-            self.rain_amount = str(int(self.rain_amount) + amount_raw)
+            self.rain_amount = NumberUtil.truncate_digits(self.rain_amount + amount)
             rain_updated = True
         elif giveaway:
-            self.giveaway_amount = str(int(self.giveaway_amount) + amount_raw)
+            self.giveaway_amount = NumberUtil.truncate_digits(self.giveaway_amount + amount)
             giveaway_updated = True
 
         # Only update specific fields in save(), to avoid nuking the state potentially

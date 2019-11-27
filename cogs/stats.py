@@ -16,6 +16,11 @@ TIPSTATS_INFO = CommandInfo(
     overview = "Display your personal tipping stats for a specific server.",
     details = f"This will display your personal tipping statistics from the server you send the command from. This command can't be used in DM"
 )
+TOPTIPS_INFO = CommandInfo(
+    triggers = ["toptips"],
+    overview = "Display biggest tips for a specific server.",
+    details = f"This will display the biggest tip of all time, of the current month, and of the day for the current server. This command can't be used in DM"
+)
 
 class TipStats(commands.Cog):
     def __init__(self, bot: Bot):
@@ -30,13 +35,14 @@ class TipStats(commands.Cog):
             await Messages.send_error_dm(msg.author, "You can only view statistics in a server, not via DM.")
             ctx.error = True
             return
-        # Make sure user exists in DB
-        user = await User.get_user(msg.author)
-        if user is None:
-            ctx.error = True
-            await Messages.send_error_dm(msg.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
-            return
-        ctx.user = user
+        if ctx.command.name in ['tipstats_cmd']:
+            # Make sure user exists in DB
+            user = await User.get_user(msg.author)
+            if user is None:
+                ctx.error = True
+                await Messages.send_error_dm(msg.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
+                return
+            ctx.user = user
 
     @commands.command(aliases=TIPSTATS_INFO.triggers)
     async def tipstats_cmd(self, ctx: Context):
@@ -56,10 +62,34 @@ class TipStats(commands.Cog):
         if stats is None or stats.total_tips == 0:
             response = "You haven't sent any tips in this server yet, tip some people and then check your stats later"
         else:
-            top_tip_all_time = Env.raw_to_amount(stats.top_tip)
-            tipped_amount = Env.raw_to_amount(stats.total_tipped_amount)
-            response = f"You have sent **{stats.total_tips}** tips totaling **{tipped_amount} {Env.currency_symbol()}**. Your biggest tip of all time is **{top_tip_all_time} {Env.currency_symbol()}**"
+            response = f"You have sent **{stats.total_tips}** tips totaling **{stats.total_tipped_amount} {Env.currency_symbol()}**. Your biggest tip of all time is **{stats.top_tip} {Env.currency_symbol()}**"
 
         # TODO - no spam channels
         await msg.channel.send(response)
         await RedisDB.instance().set(f"tipstatsspam{msg.author.id}{msg.guild.id}", "as", expires=300)
+
+    @commands.command(aliases=TOPTIPS_INFO.triggers)
+    async def toptips_cmd(self, ctx: Context):
+        if ctx.error:
+            await Messages.add_x_reaction(ctx.message)
+            return
+
+        msg = ctx.message   
+        if await RedisDB.instance().exists(f"toptipsspam{msg.channel.id}"):
+            await Messages.add_timer_reaction(msg)
+            return
+
+
+        # This would be better to be 1 query but, i'm not proficient enough with tortoise-orm
+        top_tip = await Stats.filter(
+            server_id=msg.guild.id
+        ).order_by('-top_tip').limit(1).first()
+        if top_tip is None:
+            await RedisDB.instance().set(f"toptipsspam{msg.channel.id}", "as", expires=300)
+            await msg.channel.send("There are no stats for this server yet. Send some tips first!")
+            return
+        """
+        top_top_month = await Stats.filter(
+            server_id=msg.guild.id,
+            top_tip_month_at__gt=
+        )"""
