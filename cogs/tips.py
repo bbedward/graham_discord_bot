@@ -58,7 +58,7 @@ class Tips(commands.Cog):
             send_amount = RegexUtil.find_float(msg.content)
             if send_amount < Constants.TIP_MINIMUM:
                 raise AmountMissingException(f"Tip amount is too low, minimum is {Constants.TIP_MINIMUM}")
-            elif Validators.too_many_decimals(ctx.send_amount):
+            elif Validators.too_many_decimals(send_amount):
                 await Messages.send_error_dm(ctx.message.author, f"You are only allowed to use {Env.precision_digits()} after the decimal.")
                 ctx.error = True
                 return
