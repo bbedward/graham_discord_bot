@@ -73,6 +73,7 @@ class Tips(commands.Cog):
     @commands.command(aliases=TIP_INFO.triggers)
     async def tip_cmd(self, ctx: Context):
         if ctx.error:
+            await Messages.add_x_reaction(ctx.message)
             return
 
         msg = ctx.message
@@ -124,6 +125,7 @@ class Tips(commands.Cog):
     @commands.command(aliases=TIPSPLIT_INFO.triggers)
     async def tipsplit_cmd(self, ctx: Context):
         if ctx.error:
+            await Messages.add_x_reaction(ctx.message)
             return
 
         msg = ctx.message
@@ -142,6 +144,7 @@ class Tips(commands.Cog):
 
         individual_send_amount = NumberUtil.truncate_digits(send_amount / len(users_to_tip))
         if individual_send_amount < Constants.TIP_MINIMUM:
+            await Messages.add_x_reaction(msg)
             await Messages.send_error_dm(msg.author, f"Tip amount too small, each user needs to receive at least {Constants.TIP_MINIMUM}. With your tip they'd only be getting {individual_send_amount}")
             return
 

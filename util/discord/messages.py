@@ -100,3 +100,8 @@ class Messages():
                 await msg.add_reaction('\U0001F1E9') # D
                 await msg.add_reaction('\U0001F1F4') # O
                 await msg.add_reaction('\U0001F1F3') # N
+
+    @staticmethod
+    async def add_x_reaction(msg: discord.Message):
+        await msg.add_reaction('\U0000274C') # X
+        return

@@ -41,6 +41,7 @@ class TipStats(commands.Cog):
     @commands.command(aliases=TIPSTATS_INFO.triggers)
     async def tipstats_cmd(self, ctx: Context):
         if ctx.error:
+            await Messages.add_x_reaction(ctx.message)
             return
 
         msg = ctx.message
