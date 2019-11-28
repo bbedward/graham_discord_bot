@@ -130,7 +130,7 @@ class Rain(commands.Cog):
                 await RedisDB.instance().set(user_key, json.dumps(active_stats), expires=1800)
 
     @staticmethod
-    async def get_active(ctx: Context) -> List[User]:
+    async def get_active(ctx: Context, excluding: int = 0) -> List[User]:
         """Return a list of active users"""
         msg = ctx.message
         redis = await RedisDB.instance().get_redis()
@@ -148,7 +148,9 @@ class Rain(commands.Cog):
         # Get IDs that meet requirements
         users_filtered = []
         for u in users_list:
-            if u['msg_count'] >= Constants.RAIN_MSG_REQUIREMENT:
+            if u['user_id'] == excluding:
+                continue
+            elif u['msg_count'] >= Constants.RAIN_MSG_REQUIREMENT:
                 users_filtered.append(u['user_id'])
 
         # Get only users in our database

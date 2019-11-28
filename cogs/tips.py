@@ -198,6 +198,7 @@ class Tips(commands.Cog):
 
     @commands.command(aliases=TIPRANDOM_INFO.triggers)
     async def tiprandom_cmd(self, ctx: Context):
+        # TODO - some anti-spam for this command
         if ctx.error:
             await Messages.add_x_reaction(ctx.message)
             return
@@ -206,7 +207,7 @@ class Tips(commands.Cog):
         user = ctx.user
         send_amount = ctx.send_amount
 
-        active_users = await rain.Rain.get_active(ctx)
+        active_users = await rain.Rain.get_active(ctx, excluding=msg.author.id)
         if len(active_users) < Constants.RAIN_MIN_ACTIVE_COUNT:
             await Messages.send_error_dm(msg.author, f"There aren't enough active people to do a random tip. Only **{len(active_users)}** are active, but I'd like to see at least **{Constants.RAIN_MIN_ACTIVE_COUNT}**")
             return
