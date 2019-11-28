@@ -10,7 +10,7 @@ class RedisDB(object):
         raise RuntimeError('Call instance() instead')
 
     @classmethod
-    def instance(cls) -> 'RPCClient':
+    def instance(cls) -> 'RedisDB':
         if cls._instance is None:
             cls._instance = cls.__new__(cls)
             cls.redis = None

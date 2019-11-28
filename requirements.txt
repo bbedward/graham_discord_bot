@@ -7,3 +7,4 @@ aiodns==2.0.0
 uvloop==0.14.0
 aioredis==1.3.0
 toml==0.10.0
+emoji==0.5.4

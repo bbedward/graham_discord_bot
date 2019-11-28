@@ -1,6 +1,7 @@
 import argparse
 import pathlib
 import toml
+from typing import List
 from util.env import Env
 from util.util import Utils
 from version import __version__
@@ -44,3 +45,23 @@ class Config(object):
             cls.node_url = options.node_url
             cls.node_port = options.node_port
         return cls._instance
+
+    def has_toml(self) -> bool:
+        return hasattr(self, 'toml') and self.toml is not None
+
+    def get_rain_roles(self) -> List[int]:
+        default = []
+        if not self.has_toml():
+            return default
+        elif 'restrictions' in self.toml and 'rain_roles' in self.toml['restrictions']:
+            return self.toml['restrictions']['rain_roles']
+        return default
+
+    def get_rain_minimum(self) -> int:
+        # 1000 BAN default or 1 NANO
+        default = 1000 if Env.banano() else 1
+        if not self.has_toml():
+            return default
+        elif 'restrictions' in self.toml and 'rain_minimum' in self.toml['restrictions']:
+            return self.toml['restrictions']['rain_minimum']
+        return default

@@ -5,7 +5,7 @@ try:
 except ImportError:
 	print("Couldn't install uvloop, falling back to the slower asyncio event loop")
 
-from cogs import account, help, tips, tip_legacy, stats
+from cogs import account, help, tips, tip_legacy, stats, rain
 from config import Config
 from discord.ext.commands import Bot
 from db.models.transaction import Transaction
@@ -51,12 +51,14 @@ async def on_ready():
 	logger.info(f"Re-queued {len(unprocessed_txs)} transactions")
 
 @client.event
-async def on_message(message):
+async def on_message(message: discord.Message):
 	# disregard messages sent by the bot
 	if message.author.id == client.user.id:
 		return
     # Process commands
 	await client.process_commands(message)
+	# Update active
+	await rain.Rain.update_activity_stats(message)
 
 if __name__ == "__main__":
 	# Add cogs
