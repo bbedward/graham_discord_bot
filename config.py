@@ -1,5 +1,8 @@
 import argparse
+import pathlib
+import toml
 from util.env import Env
+from util.util import Utils
 from version import __version__
 
 class Config(object):
@@ -12,6 +15,10 @@ class Config(object):
     def instance(cls) -> 'Config':
         if cls._instance is None:
             cls._instance = cls.__new__(cls)
+            try:
+                cls.toml = toml.load(f"{Utils.get_project_root().joinpath(pathlib.PurePath('config.toml'))}")
+            except FileNotFoundError:
+                cls.toml = None
             parser = argparse.ArgumentParser(description=f"Graham NANO/BANANO TipBot v{__version__}")
             parser.add_argument('-p', '--prefix', type=str, help='Command prefix for bot commands', default='!')
             parser.add_argument('-l', '--log-file', type=str, help='Log file location', default='/tmp/graham_tipbot.log')
