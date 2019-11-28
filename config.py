@@ -1,6 +1,6 @@
 import argparse
 import pathlib
-import toml
+import yaml
 from typing import List
 from util.env import Env
 from util.util import Utils
@@ -17,9 +17,10 @@ class Config(object):
         if cls._instance is None:
             cls._instance = cls.__new__(cls)
             try:
-                cls.toml = toml.load(f"{Utils.get_project_root().joinpath(pathlib.PurePath('config.toml'))}")
+                with open(f"{Utils.get_project_root().joinpath(pathlib.PurePath('config.yaml'))}", "r") as in_yaml:
+                    cls.yaml = yaml.load(in_yaml, Loader=yaml.FullLoader)
             except FileNotFoundError:
-                cls.toml = None
+                cls.yaml = None
             parser = argparse.ArgumentParser(description=f"Graham NANO/BANANO TipBot v{__version__}")
             parser.add_argument('-p', '--prefix', type=str, help='Command prefix for bot commands', default='!')
             parser.add_argument('-l', '--log-file', type=str, help='Log file location', default='/tmp/graham_tipbot.log')
@@ -46,22 +47,22 @@ class Config(object):
             cls.node_port = options.node_port
         return cls._instance
 
-    def has_toml(self) -> bool:
-        return hasattr(self, 'toml') and self.toml is not None
+    def has_yaml(self) -> bool:
+        return hasattr(self, 'yaml') and self.yaml is not None
 
     def get_rain_roles(self) -> List[int]:
         default = []
-        if not self.has_toml():
+        if not self.has_yaml():
             return default
-        elif 'restrictions' in self.toml and 'rain_roles' in self.toml['restrictions']:
-            return self.toml['restrictions']['rain_roles']
+        elif 'restrictions' in self.yaml and 'rain_roles' in self.yaml['restrictions']:
+            return self.yaml['restrictions']['rain_roles']
         return default
 
     def get_rain_minimum(self) -> int:
         # 1000 BAN default or 1 NANO
         default = 1000 if Env.banano() else 1
-        if not self.has_toml():
+        if not self.has_yaml():
             return default
-        elif 'restrictions' in self.toml and 'rain_minimum' in self.toml['restrictions']:
-            return self.toml['restrictions']['rain_minimum']
+        elif 'restrictions' in self.yaml and 'rain_minimum' in self.yaml['restrictions']:
+            return self.yaml['restrictions']['rain_minimum']
         return default

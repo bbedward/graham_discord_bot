@@ -123,4 +123,4 @@ venv/
 run_bot.sh
 
 # Configuration
-config.toml
+config.yaml
