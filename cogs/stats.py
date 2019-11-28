@@ -113,8 +113,11 @@ class TipStats(commands.Cog):
 
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name='Biggest Tips', icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
-        embed.description = f"**Last 24 Hours**\n```{top_tip_day.top_tip_day} {Env.currency_symbol()} - by {top_tip_day.user.name}```"
-        embed.description += f"\n**In {now.strftime('%B')}**\n```{top_tip_month.top_tip_month} {Env.currency_symbol()} - by {top_tip_month.user.name}```"
-        embed.description += f"\n**All Time**\n```{top_tip.top_tip} {Env.currency_symbol()} - by {top_tip.user.name}```"
+        new_line = '\n' # Can't use this directly inside f-expression, so store it in a variable
+        if top_tip_day is not None:
+            embed.description = f"**Last 24 Hours**\n```{top_tip_day.top_tip_day} {Env.currency_symbol()} - by {top_tip_day.user.name}```"
+        if top_tip_month is not None:
+            embed.description += f"{new_line if top_tip_day is not None else ''}**In {now.strftime('%B')}**\n```{top_tip_month.top_tip_month} {Env.currency_symbol()} - by {top_tip_month.user.name}```"
+        embed.description += f"{new_line if top_tip_day is not None or top_tip_month is not None else ''}**All Time**\n```{top_tip.top_tip} {Env.currency_symbol()} - by {top_tip.user.name}```"
 
         await msg.channel.send(embed=embed)
