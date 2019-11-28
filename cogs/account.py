@@ -75,6 +75,8 @@ class Account(commands.Cog):
                 await Messages.send_error_dm(ctx.message.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
                 ctx.error = True
                 return
+            # Update name, if applicable
+            await user.update_name(ctx.message.author.name)
             ctx.user = user
             # See if they are spammin'
             withdraw_delay = await user.get_next_withdraw_s()

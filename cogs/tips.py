@@ -52,6 +52,8 @@ class Tips(commands.Cog):
             ctx.error = True
             await Messages.send_error_dm(msg.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
             return
+        # Update name, if applicable
+        await user.update_name(msg.author.name)
         ctx.user = user
         # See if amount meets tip_minimum requirement
         try:

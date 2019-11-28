@@ -44,6 +44,8 @@ class TipStats(commands.Cog):
                 ctx.error = True
                 await Messages.send_error_dm(msg.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
                 return
+            # Update name, if applicable
+            await user.update_name(msg.author.name)
             ctx.user = user
 
     @commands.command(aliases=TIPSTATS_INFO.triggers)
@@ -63,9 +65,9 @@ class TipStats(commands.Cog):
         stats: Stats = await user.get_stats(server_id=msg.guild.id)
         response = ""
         if stats is None or stats.total_tips == 0:
-            response = "You haven't sent any tips in this server yet, tip some people and then check your stats later"
+            response = f"<@{msg.author.id}> You haven't sent any tips in this server yet, tip some people and then check your stats later"
         else:
-            response = f"You have sent **{stats.total_tips}** tips totaling **{stats.total_tipped_amount} {Env.currency_symbol()}**. Your biggest tip of all time is **{stats.top_tip} {Env.currency_symbol()}**"
+            response = f"<@{msg.author.id}> You have sent **{stats.total_tips}** tips totaling **{stats.total_tipped_amount} {Env.currency_symbol()}**. Your biggest tip of all time is **{stats.top_tip} {Env.currency_symbol()}**"
 
         # TODO - no spam channels
         await msg.channel.send(response)
@@ -111,8 +113,8 @@ class TipStats(commands.Cog):
 
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name='Biggest Tips', icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
-        embed.description = f"**Last 24 Hours**\n```{top_tip_day.top_tip_day} {Env.currency_symbol()}```"
-        embed.description += f"\n**In {now.strftime('%B')}**\n```{top_tip_month.top_tip_month} {Env.currency_symbol()}```"
-        embed.description += f"\n**All Time**\n```{top_tip.top_tip} {Env.currency_symbol()}```"
+        embed.description = f"**Last 24 Hours**\n```{top_tip_day.top_tip_day} {Env.currency_symbol()} - by {top_tip_day.user.name}```"
+        embed.description += f"\n**In {now.strftime('%B')}**\n```{top_tip_month.top_tip_month} {Env.currency_symbol()} - by {top_tip_month.user.name}```"
+        embed.description += f"\n**All Time**\n```{top_tip.top_tip} {Env.currency_symbol()} - by {top_tip.user.name}```"
 
         await msg.channel.send(embed=embed)

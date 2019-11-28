@@ -49,6 +49,12 @@ class User(Model):
         """Get discord user from database, return None if they haven't registered"""
         return await cls.filter(id=user.id).prefetch_related('account').first()
 
+    async def update_name(self, name: str):
+        """Update discord user name in database"""
+        if name != self.name:
+            self.name = name
+            await self.save(update_fields=['name'])
+
     async def get_address(self) -> str:
         """Get account address of user"""
         if isinstance(self.account, acct.Account):
