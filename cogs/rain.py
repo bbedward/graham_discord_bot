@@ -132,9 +132,8 @@ class Rain(commands.Cog):
     @staticmethod
     async def get_active(ctx: Context) -> List[User]:
         """Return a list of active users"""
-        msg_minimum = 5
         msg = ctx.message
-        redis = RedisDB.instance().get_redis()
+        redis = await RedisDB.instance().get_redis()
 
         # Get all activity stats from DB
         users_list = []
@@ -149,7 +148,7 @@ class Rain(commands.Cog):
         # Get IDs that meet requirements
         users_filtered = []
         for u in users_list:
-            if u['msg_count'] >= msg_minimum:
+            if u['msg_count'] >= Constants.RAIN_MSG_REQUIREMENT:
                 users_filtered.append(u['user_id'])
 
         # Get only users in our database

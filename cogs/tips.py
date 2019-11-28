@@ -15,6 +15,8 @@ from tasks.transaction_queue import TransactionQueue
 
 import asyncio
 import config
+import cogs.rain as rain
+import secrets
 
 ## Command documentation
 TIP_INFO = CommandInfo(
@@ -33,6 +35,12 @@ TIPSPLIT_INFO = CommandInfo(
         "\nSuccessful tips will be deducted from your available balance immediately.\n" +
      f"Example: `{config.Config.instance().command_prefix}{'bansplit' if Env.banano() else 'ntipsplit'} 2 @user1 @user2` would send 1 to user1 and 2 to user2"
 )
+TIPRANDOM_INFO = CommandInfo(
+    triggers = ["banrandom", "br"] if Env.banano() else ["ntiprandom", "ntr"],
+    overview = "Tip an active user at random.",
+    details = f"Tips the specified amount to an active user at random (**minimum tip is {Constants.TIP_MINIMUM} {Constants.TIP_UNIT}**)" +
+        "\nThe recipient will be notified of your tip via private message and you'll be notified of who the random recipient was."
+)
 
 class Tips(commands.Cog):
     def __init__(self, bot: Bot):
@@ -40,6 +48,8 @@ class Tips(commands.Cog):
 
     async def cog_before_invoke(self, ctx: Context):
         ctx.error = False
+        # Remove duplicate mentions
+        ctx.message.mentions = set(ctx.message.mentions)
         # TODO - incorporate frozen, paused,
         # Only allow tip commands in public channels
         msg = ctx.message
@@ -66,11 +76,14 @@ class Tips(commands.Cog):
                 return
         except AmountMissingException:
             ctx.error = True
-            await Messages.send_usage_dm(msg.author, TIP_INFO)
+            if ctx.command.name == 'tip_cmd':
+                await Messages.send_usage_dm(msg.author, TIP_INFO)
+            elif ctx.command.name == 'tipsplit_cmd':
+                await Messages.send_usage_dm(msg.author, TIPSPLIT_INFO)
+            elif ctx.command.name == 'tiprandom_cmd':
+                await Messages.send_usage_dm(msg.author, TIPRANDOM_INFO)
             return
         ctx.send_amount = send_amount
-        # Remove duplicate mentions
-        ctx.message.mentions = set(ctx.message.mentions)
 
     @commands.command(aliases=TIP_INFO.triggers)
     async def tip_cmd(self, ctx: Context):
@@ -182,3 +195,54 @@ class Tips(commands.Cog):
         # Update stats
         stats: Stats = await user.get_stats(server_id=msg.guild.id)
         await stats.update_tip_stats(amount_needed)
+
+    @commands.command(aliases=TIPRANDOM_INFO.triggers)
+    async def tiprandom_cmd(self, ctx: Context):
+        if ctx.error:
+            await Messages.add_x_reaction(ctx.message)
+            return
+
+        msg = ctx.message
+        user = ctx.user
+        send_amount = ctx.send_amount
+
+        active_users = await rain.Rain.get_active(ctx)
+        if len(active_users) < Constants.RAIN_MIN_ACTIVE_COUNT:
+            await Messages.send_error_dm(msg.author, f"There aren't enough active people to do a random tip. Only **{len(active_users)}** are active, but I'd like to see at least **{Constants.RAIN_MIN_ACTIVE_COUNT}**")
+            return
+
+        target_user = secrets.choice(active_users)
+
+        # See how much they need to make this tip.
+        available_balance = Env.raw_to_amount(await user.get_available_balance())
+        if send_amount > available_balance:
+            await Messages.add_x_reaction(ctx.message)
+            await Messages.send_error_dm(msg.author, f"Your balance isn't high enough to complete this tip. You have **{available_balance} {Env.currency_symbol()}**, but this tip would cost you **{send_amount} {Env.currency_symbol()}**")
+            return
+
+        # Make the transactions in the database
+        tx = await Transaction.create_transaction_internal(
+            sending_user=user,
+            amount=send_amount,
+            receiving_user=target_user
+        )
+        asyncio.ensure_future(
+            Messages.send_basic_dm(
+                member=target_user,
+                message=f"You were randomly selected and received **{send_amount} {Env.currency_symbol()}** from {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
+                skip_dnd=True
+            )
+        )
+        asyncio.ensure_future(
+            Messages.send_basic_dm(
+                member=msg.author,
+                message=f'"{target_user.name}" was the recipient of your random tip of {send_amount} {Env.currency_symbol()}'
+            )
+        )
+        # Add reactions
+        await Messages.add_tip_reaction(msg, send_amount)
+        # Queue the actual send
+        await TransactionQueue.instance().put(tx)
+        # Update stats
+        stats: Stats = await user.get_stats(server_id=msg.guild.id)
+        await stats.update_tip_stats(send_amount)
