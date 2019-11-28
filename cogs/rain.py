@@ -18,6 +18,7 @@ from util.discord.messages import Messages
 from db.models.user import User
 from db.redis import RedisDB
 from typing import List
+from models.constants import Constants
 
 # Commands Documentation
 RAIN_INFO = CommandInfo(
@@ -117,12 +118,16 @@ class Rain(commands.Cog):
         last_msg_dt = datetime.datetime.strptime(active_stats['last_msg'], '%m/%d/%Y %H:%M:%S')
         if last_msg_dt <= datetime.datetime.utcnow() - datetime.timedelta(minutes=2):
             return
-
-        # Update msg_count otherwise
-        active_stats['msg_count'] += 1
-
-        # Update DB
-        await RedisDB.instance().set(user_key, json.dumps(active_stats), expires=1800)
+        elif last_msg_dt > datetime.datetime.utcnow() - datetime.timedelta(minutes=15):
+            # Deduct a point
+            if active_stats['msg_count'] > 1:
+                active_stats['msg_count'] -= 1
+                await RedisDB.instance().set(user_key, json.dumps(active_stats), expires=1800)
+        else:
+            # add a point
+            if active_stats['msg_count'] <= Constants.RAIN_MSG_REQUIREMENT * 2:
+                active_stats['msg_count'] += 1
+                await RedisDB.instance().set(user_key, json.dumps(active_stats), expires=1800)
 
     @staticmethod
     async def get_active(ctx: Context) -> List[User]:
