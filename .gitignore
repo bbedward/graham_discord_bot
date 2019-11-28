@@ -121,3 +121,6 @@ venv/
 
 # Test
 run_bot.sh
+
+# Configuration
+config.toml
