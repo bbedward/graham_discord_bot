@@ -52,8 +52,7 @@ class Messages():
             return None
 
     @staticmethod
-    async def add_tip_reaction(msg: discord.Message, amount: float):
-        # TODO - banano reactions idsabled for now
+    async def add_tip_reaction(msg: discord.Message, amount: float, rain: bool = False):
         if Env.banano():
             if amount > 0:
                 try:
@@ -67,6 +66,11 @@ class Messages():
                 await msg.add_reaction('\U0001F412') # C
             elif amount >= 250:
                 await msg.add_reaction('\U0001F98D') # W
+            if rain:
+                try:
+                    await msg.add_reaction('\:bananorain:649988467580731464') # Banano rain
+                except Exception:
+                    await msg.add_reaction('\U0001F4A6') # Sweat Drops
         else:
             if amount > 0:
                 await msg.add_reaction('\U00002611') # check mark
@@ -104,6 +108,8 @@ class Messages():
                 await msg.add_reaction('\U0001F1E9') # D
                 await msg.add_reaction('\U0001F1F4') # O
                 await msg.add_reaction('\U0001F1F3') # N
+            if rain:
+                await msg.add_reaction('\U0001F4A6') # Sweat Drops
 
     @staticmethod
     async def add_x_reaction(msg: discord.Message):

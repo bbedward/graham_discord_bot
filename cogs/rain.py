@@ -6,6 +6,7 @@ from discord.ext.commands import Bot, Context
 from models.command import CommandInfo
 from util.env import Env
 
+import asyncio
 import config
 import datetime
 import json
@@ -19,6 +20,9 @@ from db.models.user import User
 from db.redis import RedisDB
 from typing import List
 from models.constants import Constants
+from util.number import NumberUtil
+from db.models.transaction import Transaction
+from tasks.transaction_queue import TransactionQueue
 
 # Commands Documentation
 RAIN_INFO = CommandInfo(
@@ -75,7 +79,55 @@ class Rain(commands.Cog):
 
         msg = ctx.message
         user = ctx.user
-        await msg.channel.send(f"<@{msg.author.id}> I can't do that yet")
+        send_amount = ctx.send_amount
+
+        # Get active users
+        active_users = await self.get_active(ctx, excluding=msg.author.id)
+        if len(active_users) < Constants.RAIN_MIN_ACTIVE_COUNT:
+            await Messages.send_error_dm(msg.author, f"Not enough users are active to rain - I need at least {Constants.RAIN_MIN_ACTIVE_COUNT}")
+            return
+
+        individual_send_amount = NumberUtil.truncate_digits(send_amount / len(active_users), max_digits=Env.precision_digits())
+        if individual_send_amount < 0.01:
+            await Messages.add_x_reaction(msg)
+            await Messages.send_error_dm(msg.author, f"Amount is too small to divide across {len(active_users)} users")
+            return
+
+        # See how much they need to make this tip.
+        amount_needed = individual_send_amount * len(active_users)
+        available_balance = Env.raw_to_amount(await user.get_available_balance())
+        if amount_needed > available_balance:
+            await Messages.add_x_reaction(msg)
+            await Messages.send_error_dm(msg.author, f"Your balance isn't high enough to complete this tip. You have **{available_balance} {Env.currency_symbol()}**, but this tip would cost you **{amount_needed} {Env.currency_symbol()}**")
+            return
+
+        # Make the transactions in the database
+        tx_list = []
+        task_list = []
+        for u in active_users:
+            tx = await Transaction.create_transaction_internal(
+                sending_user=user,
+                amount=individual_send_amount,
+                receiving_user=u
+            )
+            tx_list.append(tx)
+            task_list.append(
+                Messages.send_basic_dm(
+                    member=u,
+                    message=f"You were tipped **{individual_send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
+                    skip_dnd=True
+                )
+            )
+        # Send DMs in the background
+        asyncio.ensure_future(Utils.run_task_list(task_list))
+        # Add reactions
+        await Messages.add_tip_reaction(msg, amount_needed, rain=True)
+        # Queue the actual sends
+        for tx in tx_list:
+            await TransactionQueue.instance().put(tx)
+        # Update stats
+        stats: Stats = await user.get_stats(server_id=msg.guild.id)
+        await stats.update_tip_stats(amount_needed)
 
     @staticmethod
     async def update_activity_stats(msg: discord.Message):
@@ -154,5 +206,6 @@ class Rain(commands.Cog):
                 users_filtered.append(u['user_id'])
 
         # Get only users in our database
+        # TODO - consider tip banned, frozen
         return await User.filter(id__in=users_filtered).prefetch_related('account').all()
 

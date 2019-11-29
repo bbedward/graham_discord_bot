@@ -17,6 +17,7 @@ import asyncio
 import config
 import cogs.rain as rain
 import secrets
+from util.util import Utils
 
 ## Command documentation
 TIP_INFO = CommandInfo(
@@ -115,6 +116,7 @@ class Tips(commands.Cog):
 
         # Make the transactions in the database
         tx_list = []
+        task_list = []
         for u in users_to_tip:
             tx = await Transaction.create_transaction_internal(
                 sending_user=user,
@@ -122,13 +124,15 @@ class Tips(commands.Cog):
                 receiving_user=u
             )
             tx_list.append(tx)
-            asyncio.ensure_future(
+            task_list.append(
                 Messages.send_basic_dm(
                     member=u,
                     message=f"You were tipped **{send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
                     skip_dnd=True
                 )
             )
+        # Send DMs in background, this is an attempt to avoid discord throttling us for sending too many at once
+        asyncio.ensure_future(Utils.run_task_list(task_list))
         # Add reactions
         await Messages.add_tip_reaction(msg, send_amount * len(tx_list))
         # Queue the actual sends
@@ -168,11 +172,13 @@ class Tips(commands.Cog):
         amount_needed = individual_send_amount * len(users_to_tip)
         available_balance = Env.raw_to_amount(await user.get_available_balance())
         if amount_needed > available_balance:
+            await Messages.add_x_reaction(msg)
             await Messages.send_error_dm(msg.author, f"Your balance isn't high enough to complete this tip. You have **{available_balance} {Env.currency_symbol()}**, but this tip would cost you **{amount_needed} {Env.currency_symbol()}**")
             return
 
         # Make the transactions in the database
         tx_list = []
+        task_list = []
         for u in users_to_tip:
             tx = await Transaction.create_transaction_internal(
                 sending_user=user,
@@ -180,13 +186,15 @@ class Tips(commands.Cog):
                 receiving_user=u
             )
             tx_list.append(tx)
-            asyncio.ensure_future(
+            task_list.append(
                 Messages.send_basic_dm(
                     member=u,
                     message=f"You were tipped **{individual_send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
                     skip_dnd=True
                 )
             )
+        # Send DMs
+        asyncio.ensure_future(Utils.run_task_list(task_list))
         # Add reactions
         await Messages.add_tip_reaction(msg, amount_needed)
         # Queue the actual sends
@@ -227,19 +235,21 @@ class Tips(commands.Cog):
             amount=send_amount,
             receiving_user=target_user
         )
-        asyncio.ensure_future(
+        task_list = []
+        task_list.append(
             Messages.send_basic_dm(
                 member=target_user,
                 message=f"You were randomly selected and received **{send_amount} {Env.currency_symbol()}** from {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
                 skip_dnd=True
             )
         )
-        asyncio.ensure_future(
+        task_list.append(
             Messages.send_basic_dm(
                 member=msg.author,
                 message=f'"{target_user.name}" was the recipient of your random tip of {send_amount} {Env.currency_symbol()}'
             )
         )
+        asyncio.ensure_future(Utils.run_task_list(task_list))
         # Add reactions
         await Messages.add_tip_reaction(msg, send_amount)
         # Queue the actual send
