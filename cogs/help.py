@@ -41,7 +41,7 @@ COMMANDS = {
 }
 
 class Help(commands.Cog):
-    def __init__(self, bot: Bot, command_prefix: str):
+    def __init__(self, bot: Bot):
         self.bot = bot
         self.logger = logging.getLogger()
 
