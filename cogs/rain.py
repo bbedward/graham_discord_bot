@@ -113,7 +113,7 @@ class Rain(commands.Cog):
             tx_list.append(tx)
             task_list.append(
                 Messages.send_basic_dm(
-                    member=u,
+                    member=msg.guild.get_member(u.id),
                     message=f"You were tipped **{individual_send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
                     skip_dnd=True
                 )

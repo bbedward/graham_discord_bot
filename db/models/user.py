@@ -41,7 +41,6 @@ class User(Model):
                     address = address
                 )
                 await account.save(using_db=conn)
-                dbuser.account = account
         return dbuser
 
     @classmethod
