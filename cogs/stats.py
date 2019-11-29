@@ -42,10 +42,22 @@ class TipStats(commands.Cog):
             await Messages.send_error_dm(msg.author, "You can only view statistics in a server, not via DM.")
             ctx.error = True
             return
+        else:
+            # Check admins
+            ctx.god = msg.author.id in config.Config.instance().get_admin_ids()
+            ctx.admin = False
+            author: discord.Member = msg.author
+            for role in author.roles:
+                if role.id in config.Config.instance().get_admin_roles():
+                    ctx.admin = True
+                    break
+
+        # Can't spam stats commands
         if msg.channel.id in config.Config.instance().get_no_spam_channels():
             ctx.error = True
             await Messages.send_error_dm(msg.author, "I can't post stats in that channel.")
             return
+
         if ctx.command.name in ['tipstats_cmd']:
             # Make sure user exists in DB
             user = await User.get_user(msg.author)
@@ -66,7 +78,7 @@ class TipStats(commands.Cog):
         msg = ctx.message
         user: User = ctx.user
 
-        if await RedisDB.instance().exists(f"tipstatsspam{msg.author.id}{msg.guild.id}"):
+        if not ctx.god and await RedisDB.instance().exists(f"tipstatsspam{msg.author.id}{msg.guild.id}"):
             await Messages.add_timer_reaction(msg)
             await Messages.send_error_dm(msg.author, "Why don't you wait awhile before trying to get your tipstats again")
             return
@@ -78,7 +90,6 @@ class TipStats(commands.Cog):
         else:
             response = f"<@{msg.author.id}> You have sent **{stats.total_tips}** tips totaling **{stats.total_tipped_amount} {Env.currency_symbol()}**. Your biggest tip of all time is **{stats.top_tip} {Env.currency_symbol()}**"
 
-        # TODO - no spam channels
         await msg.channel.send(response)
         await RedisDB.instance().set(f"tipstatsspam{msg.author.id}{msg.guild.id}", "as", expires=300)
 
@@ -89,10 +100,9 @@ class TipStats(commands.Cog):
             return
 
         msg = ctx.message   
-        if await RedisDB.instance().exists(f"toptipsspam{msg.channel.id}"):
+        if not ctx.god and await RedisDB.instance().exists(f"toptipsspam{msg.channel.id}"):
             await Messages.add_timer_reaction(msg)
             return
-
 
         # This would be better to be 1 query but, i'm not proficient enough with tortoise-orm
         top_tip = await Stats.filter(
@@ -129,6 +139,9 @@ class TipStats(commands.Cog):
             embed.description += f"{new_line if top_tip_day is not None else ''}**In {now.strftime('%B')}**\n```{top_tip_month.top_tip_month} {Env.currency_symbol()} - by {top_tip_month.user.name}```"
         embed.description += f"{new_line if top_tip_day is not None or top_tip_month is not None else ''}**All Time**\n```{top_tip.top_tip} {Env.currency_symbol()} - by {top_tip.user.name}```"
 
+        # No spam
+        await RedisDB.instance().set(f"toptipsspam{msg.channel.id}", "as", expires=300)
+
         await msg.channel.send(embed=embed)
 
     @commands.command(aliases=LEADERBOARD_INFO.triggers)
@@ -139,7 +152,7 @@ class TipStats(commands.Cog):
 
         msg = ctx.message
 
-        if await RedisDB.instance().exists(f"ballerspam{msg.guild.id}"):
+        if not ctx.god and await RedisDB.instance().exists(f"ballerspam{msg.channel.id}"):
             await Messages.add_timer_reaction(msg)
             await Messages.send_error_dm(msg.author, "Why don't you wait awhile before checking the ballers list again")
             return
@@ -167,4 +180,6 @@ class TipStats(commands.Cog):
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name=f"Here are the top {len(ballers)} tippers \U0001F44F", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
         embed.description = response_msg
+
+        await RedisDB.instance().set(f"ballerspam{msg.channel.id}", "as", expires=300)
         await msg.channel.send(f"<@{msg.author.id}>", embed=embed)    

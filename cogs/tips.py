@@ -11,6 +11,7 @@ from util.validators import Validators
 from db.models.stats import Stats
 from db.models.transaction import Transaction
 from db.models.user import User
+from db.redis import RedisDB
 from tasks.transaction_queue import TransactionQueue
 
 import asyncio
@@ -51,11 +52,23 @@ class Tips(commands.Cog):
         ctx.error = False
         # Remove duplicate mentions
         ctx.message.mentions = set(ctx.message.mentions)
-        # TODO - incorporate frozen, paused,
+        # TODO - incorporate frozen
         # Only allow tip commands in public channels
         msg = ctx.message
         if ChannelUtil.is_private(msg.channel):
             ctx.error = True
+            return
+        else:
+            # Check admins
+            ctx.god = msg.author.id in config.Config.instance().get_admin_ids()
+            ctx.admin = False
+            author: discord.Member = msg.author
+            for role in author.roles:
+                if role.id in config.Config.instance().get_admin_roles():
+                    ctx.admin = True
+                    break
+        if await RedisDB.instance().is_paused():
+            await Messages.send_error_dm(ctx.message.author, f"Transaction activity is currently suspended. I'll be back online soon!")
             return
         # See if user exists in DB
         user = await User.get_user(msg.author)
@@ -215,6 +228,12 @@ class Tips(commands.Cog):
         user = ctx.user
         send_amount = ctx.send_amount
 
+        # Check anti-spam
+        if not ctx.god and await RedisDB.instance().exists(f"tiprandomspam{msg.guild.id}{msg.author.id}"):
+            await Messages.add_timer_reaction(msg)
+            await Messages.send_basic_dm(msg.author, "You can only tiprandom once every minute")
+            return
+
         active_users = await rain.Rain.get_active(ctx, excluding=msg.author.id)
         if len(active_users) < Constants.RAIN_MIN_ACTIVE_COUNT:
             await Messages.send_error_dm(msg.author, f"There aren't enough active people to do a random tip. Only **{len(active_users)}** are active, but I'd like to see at least **{Constants.RAIN_MIN_ACTIVE_COUNT}**")
@@ -254,6 +273,8 @@ class Tips(commands.Cog):
         await Messages.add_tip_reaction(msg, send_amount)
         # Queue the actual send
         await TransactionQueue.instance().put(tx)
+        # anti spam
+        await RedisDB.instance().set(f"tiprandomspam{msg.guild.id}{msg.author.id}", "as", expires=60)
         # Update stats
         stats: Stats = await user.get_stats(server_id=msg.guild.id)
         await stats.update_tip_stats(send_amount)

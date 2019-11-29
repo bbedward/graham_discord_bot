@@ -6,6 +6,7 @@ from models.constants import Constants
 from db.models.account import Account
 from db.models.transaction import Transaction
 from db.models.user import User
+from db.redis import RedisDB
 from rpc.client import RPCClient
 from tasks.transaction_queue import TransactionQueue
 from util.env import Env
@@ -52,7 +53,10 @@ class Account(commands.Cog):
 
     async def cog_before_invoke(self, ctx: Context):
         ctx.error = False
-        # TODO - check paused, frozen
+        # TODO - check frozen
+        if await RedisDB.instance().is_paused():
+            await Messages.send_error_dm(ctx.message.author, f"Transaction activity is currently suspended. I'll be back online soon!")
+            return
         if ctx.command.name == 'send_cmd':
             try:
                 ctx.send_amount = RegexUtil.find_send_amounts(ctx.message.content)

@@ -84,3 +84,21 @@ class Config(object):
         elif 'server' in self.yaml and 'host' in self.yaml['server'] and 'port' in self.yaml['server']:
             return (self.yaml['server']['host'], self.yaml['server']['port'])
         return (None, None)
+
+    def get_admin_roles(self) -> List[int]:
+        """Return a list of admin role IDs"""
+        default = []
+        if not self.has_yaml():
+            return default
+        elif 'admin' in self.yaml and 'admin_roles' in self.has_yaml['admin']:
+            return self.yaml['admin']['admin_roles']
+        return default
+
+    def get_admin_ids(self) -> List[int]:
+        """Return a list of admin user IDs"""
+        default = []
+        if not self.has_yaml():
+            return default
+        elif 'admin' in self.yaml and 'admin_ids' in self.has_yaml['admin']:
+            return self.yaml['admin']['admin_ids']
+        return default

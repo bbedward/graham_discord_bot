@@ -40,35 +40,58 @@ class Rain(commands.Cog):
 
     async def cog_before_invoke(self, ctx: Context):
         ctx.error = False
-        # TODO - check paused, frozen
+        msg = ctx.message
+        # TODO - check frozen
         if ChannelUtil.is_private(ctx.message.channel):
             ctx.error = True
             return
+        else:
+            # Check admins
+            ctx.god = msg.author.id in config.Config.instance().get_admin_ids()
+            ctx.admin = False
+            author: discord.Member = msg.author
+            for role in author.roles:
+                if role.id in config.Config.instance().get_admin_roles():
+                    ctx.admin = True
+                    break
+
+        # Check paused
+        if await RedisDB.instance().is_paused():
+            await Messages.send_error_dm(msg.author, f"Transaction activity is currently suspended. I'll be back online soon!")
+            return
+
+        # Check anti-spam
+        if not ctx.god and await RedisDB.instance().exists(f"rainspam{msg.author.id}"):
+            await Messages.add_timer_reaction(msg)
+            await Messages.send_basic_dm(msg.author, "You can only rain once every 5 minutes")
+            return
+
+        # Parse some info
         try:
-            ctx.send_amount = RegexUtil.find_send_amounts(ctx.message.content)
+            ctx.send_amount = RegexUtil.find_send_amounts(msg.content)
             if Validators.too_many_decimals(ctx.send_amount):
-                await Messages.send_error_dm(ctx.message.author, f"You are only allowed to use {Env.precision_digits()} digits after the decimal.")
+                await Messages.send_error_dm(msg.author, f"You are only allowed to use {Env.precision_digits()} digits after the decimal.")
                 ctx.error = True
                 return
             elif ctx.send_amount < config.Config.instance().get_rain_minimum():
                 ctx.error = True
-                await Messages.send_usage_dm(ctx.message.author, RAIN_INFO)
+                await Messages.send_usage_dm(msg.author, RAIN_INFO)
                 return
             # See if user exists in DB
-            user = await User.get_user(ctx.message.author)
+            user = await User.get_user(msg.author)
             if user is None:
-                await Messages.send_error_dm(ctx.message.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
+                await Messages.send_error_dm(msg.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
                 ctx.error = True
                 return
             # Update name, if applicable
-            await user.update_name(ctx.message.author.name)
+            await user.update_name(msg.author.name)
             ctx.user = user
         except AmountMissingException:
-            await Messages.send_usage_dm(ctx.message.author, RAIN_INFO)
+            await Messages.send_usage_dm(msg.author, RAIN_INFO)
             ctx.error = True
             return
         except AmountAmbiguousException:
-            await Messages.send_error_dm(ctx.message.author, "You can only specify 1 amount to send")
+            await Messages.send_error_dm(msg.author, "You can only specify 1 amount to send")
             ctx.error = True
             return
 
@@ -125,6 +148,8 @@ class Rain(commands.Cog):
         # Queue the actual sends
         for tx in tx_list:
             await TransactionQueue.instance().put(tx)
+        # Add anti-spam
+        await RedisDB.instance().set(f"rainspam{msg.author.id}", "as", expires=300)
         # Update stats
         stats: Stats = await user.get_stats(server_id=msg.guild.id)
         await stats.update_tip_stats(amount_needed)
