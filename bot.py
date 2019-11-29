@@ -12,6 +12,7 @@ from db.models.transaction import Transaction
 from db.tortoise_config import init_db
 from db.redis import RedisDB
 from server import GrahamServer
+from util.discord.channel import ChannelUtil
 from util.env import Env
 from util.logger import setup_logger
 from version import __version__
@@ -59,7 +60,8 @@ async def on_message(message: discord.Message):
     # Process commands
 	await client.process_commands(message)
 	# Update active
-	await rain.Rain.update_activity_stats(message)
+	if not ChannelUtil.is_private(message.channel):
+		await rain.Rain.update_activity_stats(message)
 
 if __name__ == "__main__":
 	# Add cogs
