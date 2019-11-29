@@ -23,6 +23,11 @@ TOPTIPS_INFO = CommandInfo(
     overview = "Display biggest tips for a specific server.",
     details = f"This will display the biggest tip of all time, of the current month, and of the day for the current server. This command can't be used in DM"
 )
+LEADERBOARD_INFO = CommandInfo(
+    triggers = ["ballers" if Env.banano() else "leaderboard"],
+    overview = "Show a list of the top 15 tippers.",
+    details = f"This will display a list of the top 15 tippers on the current server. This command can't be used in DM"
+)
 
 class TipStats(commands.Cog):
     def __init__(self, bot: Bot):
@@ -30,12 +35,16 @@ class TipStats(commands.Cog):
 
     async def cog_before_invoke(self, ctx: Context):
         ctx.error = False
-        # TODO - account for stats banned
+        # TODO - account for stats banned in every command
         # Only allow tip commands in public channels
         msg = ctx.message
         if ChannelUtil.is_private(msg.channel):
             await Messages.send_error_dm(msg.author, "You can only view statistics in a server, not via DM.")
             ctx.error = True
+            return
+        if msg.channel.id in config.Config.instance().get_no_spam_channels():
+            ctx.error = True
+            await Messages.send_error_dm(msg.author, "I can't post stats in that channel.")
             return
         if ctx.command.name in ['tipstats_cmd']:
             # Make sure user exists in DB
@@ -121,3 +130,41 @@ class TipStats(commands.Cog):
         embed.description += f"{new_line if top_tip_day is not None or top_tip_month is not None else ''}**All Time**\n```{top_tip.top_tip} {Env.currency_symbol()} - by {top_tip.user.name}```"
 
         await msg.channel.send(embed=embed)
+
+    @commands.command(aliases=LEADERBOARD_INFO.triggers)
+    async def leaderboard_cmd(self, ctx: Context):
+        if ctx.error:
+            await Messages.add_x_reaction(ctx.message)
+            return
+
+        msg = ctx.message
+
+        if await RedisDB.instance().exists(f"ballerspam{msg.guild.id}"):
+            await Messages.add_timer_reaction(msg)
+            await Messages.send_error_dm(msg.author, "Why don't you wait awhile before checking the ballers list again")
+            return
+
+        # Get list
+        ballers = await Stats.filter(server_id=msg.guild.id).order_by('-total_tipped_amount').prefetch_related('user').limit(15).all()
+
+        if len(ballers) == 0:
+            await msg.channel.send(f"<@{msg.author.id}> There are no stats for this server yet, send some tips!")
+            return
+
+        response_msg = "```"
+        # Get biggest tip to adjust the padding
+        biggest_num = 0
+        for stats in ballers:
+            length = len(str(stats.total_tipped_amount))
+            if length > biggest_num:
+                biggest_num = length
+        for rank, stats in enumerate(ballers, start=1):
+            adj_rank = str(rank) if rank < 10 else f" {rank}"
+            user_name = stats.user.name.replace("`", "") # Escape symbols
+            response_msg += f"{adj_rank}. {str(stats.total_tipped_amount).rjust(biggest_num)} {Env.currency_symbol()} - by {user_name}" 
+        response_msg += "```"
+
+        embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
+        embed.set_author(name=f"Here are the top {len(ballers)} tippers \U0001F44F", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
+        embed.description = response_msg
+        await msg.channel.send(f"<@{msg.author.id}>", embed=embed)    

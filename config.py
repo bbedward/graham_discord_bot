@@ -66,3 +66,12 @@ class Config(object):
         elif 'restrictions' in self.yaml and 'rain_minimum' in self.yaml['restrictions']:
             return self.yaml['restrictions']['rain_minimum']
         return default
+
+    def get_no_spam_channels(self) -> List[int]:
+        """Get a list of channel IDs that we can't post publicly in"""
+        default = []
+        if not self.has_yaml():
+            return default
+        elif 'restrictions' in self.yaml and 'no_spam_channels' in self.yaml['restrictions']:
+            return self.yaml['restrictions']['no_spam_channels']
+        return default

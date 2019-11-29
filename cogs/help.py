@@ -35,7 +35,8 @@ COMMANDS = {
         'info': 'The different statistics related to tips within the bot.',
         'cmd_list': [
             stats.TIPSTATS_INFO,
-            stats.TOPTIPS_INFO
+            stats.TOPTIPS_INFO,
+            stats.LEADERBOARD_INFO
         ]
     }
 }
