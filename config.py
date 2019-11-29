@@ -1,7 +1,7 @@
 import argparse
 import pathlib
 import yaml
-from typing import List
+from typing import List, Tuple
 from util.env import Env
 from util.util import Utils
 from version import __version__
@@ -75,3 +75,12 @@ class Config(object):
         elif 'restrictions' in self.yaml and 'no_spam_channels' in self.yaml['restrictions']:
             return self.yaml['restrictions']['no_spam_channels']
         return default
+
+    def get_server_info(self) -> Tuple[str, int]:
+        """Returns a tuple with server host, port - or none if server is disabled"""
+        default = (None, None)
+        if not self.has_yaml():
+            return default
+        elif 'server' in self.yaml and 'host' in self.yaml['server'] and 'port' in self.yaml['server']:
+            return (self.yaml['server']['host'], self.yaml['server']['port'])
+        return (None, None)

@@ -29,12 +29,14 @@ class Messages():
             return None
 
     @staticmethod
-    async def send_success_dm(member: discord.Member, message: str, skip_dnd=False) -> discord.Message:
+    async def send_success_dm(member: discord.Member, message: str, header: str = "Success", footer: str = None, skip_dnd=False) -> discord.Message:
         if skip_dnd and member.status == discord.Status.dnd:
             return None
         embed = discord.Embed(colour=discord.Colour.green())
-        embed.title = "Success"
+        embed.title = header
         embed.description = message
+        if footer is not None:
+            embed.set_footer(text=footer)
         try:
             return await member.send(embed=embed)
         except Exception:

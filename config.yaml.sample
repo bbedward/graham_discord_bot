@@ -39,3 +39,10 @@ restrictions:
   # Roles that can receive rain
   rain_roles:
   - 589916036745396235
+
+server:
+  # The host/port of the bot's aiohttp server
+  # Used for callbacks and APIs
+  # Callback is at $host:$port/callback (e.g. 127.0.0.1:11337/callback)
+  host: 127.0.0.1
+  port: 11337

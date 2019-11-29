@@ -11,6 +11,7 @@ from discord.ext.commands import Bot
 from db.models.transaction import Transaction
 from db.tortoise_config import init_db
 from db.redis import RedisDB
+from server import GrahamServer
 from util.env import Env
 from util.logger import setup_logger
 from version import __version__
@@ -79,6 +80,14 @@ if __name__ == "__main__":
 			TransactionQueue.instance(bot=client).queue_consumer(),
 			TransactionQueue.instance(bot=client).queue_consumer()
 		]
+		# Setup optional server if configured
+		server_host, server_port = Config.instance().get_server_info()
+		if server_host is None or server_port is None:
+			logger.info("Graham server is disabled")
+		else:
+			server = GrahamServer(client, server_host, server_port)
+			logger.info(f"Graham server running at {server_host}:{server_port}")
+			tasks.append(server.start())
 		loop.run_until_complete(asyncio.wait(tasks))
 	except Exception:
 		logger.exception("Graham exited with exception")
