@@ -58,16 +58,16 @@ class RedisDB(object):
 
     async def pause(self):
         """Pause tipbot activity"""
-        key = f"{Env.currency_name.lower()}:botpaused"
+        key = f"{Env.currency_name().lower()}:botpaused"
         redis = await self.get_redis()
         await redis.set(key, "paused")
 
     async def resume(self):
         """Resume tipbot activity"""
-        key = f"{Env.currency_name.lower()}:botpaused"
+        key = f"{Env.currency_name().lower()}:botpaused"
         await self.delete(key)
 
     async def is_paused(self) -> bool:
         """Return True if the bot is paused or not"""
-        key = f"{Env.currency_name.lower()}:botpaused"
-        return self.exists(key)
+        key = f"{Env.currency_name().lower()}:botpaused"
+        return await self.exists(key)

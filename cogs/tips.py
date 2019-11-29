@@ -67,8 +67,10 @@ class Tips(commands.Cog):
                 if role.id in config.Config.instance().get_admin_roles():
                     ctx.admin = True
                     break
+        # Check paused
         if await RedisDB.instance().is_paused():
-            await Messages.send_error_dm(ctx.message.author, f"Transaction activity is currently suspended. I'll be back online soon!")
+            ctx.error = True
+            await Messages.send_error_dm(msg.author, f"Transaction activity is currently suspended. I'll be back online soon!")
             return
         # See if user exists in DB
         user = await User.get_user(msg.author)

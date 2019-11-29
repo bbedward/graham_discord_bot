@@ -53,53 +53,56 @@ class Account(commands.Cog):
 
     async def cog_before_invoke(self, ctx: Context):
         ctx.error = False
+        msg = ctx.message
         # TODO - check frozen
+        # Check paused
         if await RedisDB.instance().is_paused():
-            await Messages.send_error_dm(ctx.message.author, f"Transaction activity is currently suspended. I'll be back online soon!")
+            ctx.error = True
+            await Messages.send_error_dm(msg.author, f"Transaction activity is currently suspended. I'll be back online soon!")
             return
         if ctx.command.name == 'send_cmd':
             try:
-                ctx.send_amount = RegexUtil.find_send_amounts(ctx.message.content)
+                ctx.send_amount = RegexUtil.find_send_amounts(msg.content)
                 if Validators.too_many_decimals(ctx.send_amount):
-                    await Messages.send_error_dm(ctx.message.author, f"You are only allowed to use {Env.precision_digits()} digits after the decimal.")
+                    await Messages.send_error_dm(msg.author, f"You are only allowed to use {Env.precision_digits()} digits after the decimal.")
                     ctx.error = True
                     return
             except AmountMissingException:
-                await Messages.send_usage_dm(ctx.message.author, SEND_INFO)
+                await Messages.send_usage_dm(msg.author, SEND_INFO)
                 ctx.error = True
                 return
             except AmountAmbiguousException:
-                await Messages.send_error_dm(ctx.message.author, "You can only specify 1 amount to send")
+                await Messages.send_error_dm(msg.author, "You can only specify 1 amount to send")
                 ctx.error = True
                 return
         if ctx.command.name in ['send_cmd', 'sendmax_cmd']:
             # See if user exists in DB
-            user = await User.get_user(ctx.message.author)
+            user = await User.get_user(msg.author)
             if user is None:
-                await Messages.send_error_dm(ctx.message.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
+                await Messages.send_error_dm(msg.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
                 ctx.error = True
                 return
             # Update name, if applicable
-            await user.update_name(ctx.message.author.name)
+            await user.update_name(msg.author.name)
             ctx.user = user
             # See if they are spammin'
             withdraw_delay = await user.get_next_withdraw_s()
             if withdraw_delay > 0:
-                await Messages.send_error_dm(ctx.message.author, f"You need to wait {withdraw_delay}s before you can withdraw again")
+                await Messages.send_error_dm(msg.author, f"You need to wait {withdraw_delay}s before you can withdraw again")
                 ctx.error = True
                 return
             try:
-                ctx.destination = RegexUtil.find_address_match(ctx.message.content)
+                ctx.destination = RegexUtil.find_address_match(msg.content)
             except AddressMissingException:
-                await Messages.send_usage_dm(ctx.message.author, SEND_INFO)
+                await Messages.send_usage_dm(msg.author, SEND_INFO)
                 ctx.error = True
                 return
             except AddressAmbiguousException:
-                await Messages.send_error_dm(ctx.message.author, "You can only specify 1 destination address")
+                await Messages.send_error_dm(msg.author, "You can only specify 1 destination address")
                 ctx.error = True
                 return
             if not Validators.is_valid_address(ctx.destination):
-                await Messages.send_error_dm(ctx.message.author, "The destination address you specified is invalid")
+                await Messages.send_error_dm(msg.author, "The destination address you specified is invalid")
                 ctx.error = True
                 return
 

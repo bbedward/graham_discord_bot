@@ -90,7 +90,7 @@ class Config(object):
         default = []
         if not self.has_yaml():
             return default
-        elif 'admin' in self.yaml and 'admin_roles' in self.has_yaml['admin']:
+        elif 'admin' in self.yaml and 'admin_roles' in self.yaml['admin']:
             return self.yaml['admin']['admin_roles']
         return default
 
@@ -99,6 +99,6 @@ class Config(object):
         default = []
         if not self.has_yaml():
             return default
-        elif 'admin' in self.yaml and 'admin_ids' in self.has_yaml['admin']:
+        elif 'admin' in self.yaml and 'admin_ids' in self.yaml['admin']:
             return self.yaml['admin']['admin_ids']
         return default

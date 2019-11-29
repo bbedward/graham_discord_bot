@@ -57,11 +57,13 @@ class Rain(commands.Cog):
 
         # Check paused
         if await RedisDB.instance().is_paused():
+            ctx.error = True
             await Messages.send_error_dm(msg.author, f"Transaction activity is currently suspended. I'll be back online soon!")
             return
 
         # Check anti-spam
         if not ctx.god and await RedisDB.instance().exists(f"rainspam{msg.author.id}"):
+            ctx.error = True
             await Messages.add_timer_reaction(msg)
             await Messages.send_basic_dm(msg.author, "You can only rain once every 5 minutes")
             return
@@ -107,7 +109,8 @@ class Rain(commands.Cog):
         # Get active users
         active_users = await self.get_active(ctx, excluding=msg.author.id)
         if len(active_users) < Constants.RAIN_MIN_ACTIVE_COUNT:
-            await Messages.send_error_dm(msg.author, f"Not enough users are active to rain - I need at least {Constants.RAIN_MIN_ACTIVE_COUNT}")
+            await Messages.add_x_reaction(msg)
+            await Messages.send_error_dm(msg.author, f"Not enough users are active to rain - I need at least {Constants.RAIN_MIN_ACTIVE_COUNT} but there's only {len(active_users)} active bros")
             return
 
         individual_send_amount = NumberUtil.truncate_digits(send_amount / len(active_users), max_digits=Env.precision_digits())
