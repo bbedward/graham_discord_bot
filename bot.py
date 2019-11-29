@@ -59,9 +59,6 @@ async def on_message(message: discord.Message):
 		return
     # Process commands
 	await client.process_commands(message)
-	# Update active
-	if not ChannelUtil.is_private(message.channel):
-		await rain.Rain.update_activity_stats(message)
 
 if __name__ == "__main__":
 	# Add cogs

@@ -38,6 +38,12 @@ class Rain(commands.Cog):
         self.bot = bot
         self.logger = logging.getLogger()
 
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        # Update active
+        if not ChannelUtil.is_private(message.channel):
+            await self.update_activity_stats(message)
+
     async def cog_before_invoke(self, ctx: Context):
         ctx.error = False
         msg = ctx.message
