@@ -24,7 +24,7 @@ TOPTIPS_INFO = CommandInfo(
     details = f"This will display the biggest tip of all time, of the current month, and of the day for the current server. This command can't be used in DM"
 )
 LEADERBOARD_INFO = CommandInfo(
-    triggers = ["ballers" if Env.banano() else "leaderboard"],
+    triggers = ["ballers", "leaderboard"],
     overview = "Show a list of the top 15 tippers.",
     details = f"This will display a list of the top 15 tippers on the current server. This command can't be used in DM"
 )
