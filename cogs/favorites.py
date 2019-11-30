@@ -255,6 +255,12 @@ class FavoriteCog(commands.Cog):
         user = ctx.user
         send_amount = ctx.send_amount
 
+        # Check anti-spam
+        if not ctx.god and await RedisDB.instance().exists(f"tipfavoritesspam{msg.author.id}"):
+            await Messages.add_timer_reaction(msg)
+            await Messages.send_basic_dm(msg.author, "You can only tipfavorites once every 5 minutes")
+            return
+
         # Get their favorites
         favorites = await Favorite.filter(user=user).prefetch_related('favorited_user').all()
         if len(favorites) < 1:
@@ -306,6 +312,8 @@ class FavoriteCog(commands.Cog):
         # Queue the actual sends
         for tx in tx_list:
             await TransactionQueue.instance().put(tx)
+        # anti spam
+        await RedisDB.instance().set(f"tipfavoritesspam{msg.author.id}", "as", expires=300)
         # Update stats
         stats: Stats = await user.get_stats(server_id=msg.guild.id)
         await stats.update_tip_stats(amount_needed)
