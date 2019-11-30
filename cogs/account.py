@@ -46,7 +46,7 @@ SENDMAX_INFO = CommandInfo(
                 f"\nExample `{config.Config.instance().command_prefix}sendmax {Env.currency_symbol().lower()}_3o7uzba8b9e1wqu5ziwpruteyrs3scyqr761x7ke6w1xctohxfh5du75qgaj` - Sends entire {Env.currency_symbol()} balance"
 )
 
-class Account(commands.Cog):
+class AccountCog(commands.Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
         self.logger = logging.getLogger()

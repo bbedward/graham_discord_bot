@@ -30,7 +30,7 @@ LEADERBOARD_INFO = CommandInfo(
     details = f"This will display a list of the top 15 tippers on the current server. This command can't be used in DM"
 )
 
-class TipStats(commands.Cog):
+class StatsCog(commands.Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
 

@@ -68,7 +68,7 @@ STATSBANNED_INFO = CommandInfo(
     details = "Lists all the users that have been stats banned."
 )
 
-class Admin(commands.Cog):
+class AdminCog(commands.Cog):
     """Commands for admins only"""
     def __init__(self, bot: Bot):
         self.bot = bot

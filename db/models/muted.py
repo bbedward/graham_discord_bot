@@ -12,11 +12,15 @@ class Muted(Model):
 
     @staticmethod
     async def mute_user(muted_by: usr.User, muted_target: usr.User):
-        m = Muted(
-            user = muted_by,
-            target_user = muted_target
-        )
-        await m.save()
+        m = await Muted.filter(user = muted_by, target_user = muted_target).first()
+        if m is None:
+            m = Muted(
+                user = muted_by,
+                target_user = muted_target
+            )
+            await m.save()
+        else:
+            raise Exception("User is already muted")
 
     @staticmethod
     async def unmute_user(unmuted_by: usr.User, muted_target: usr.User):

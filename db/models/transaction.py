@@ -28,7 +28,7 @@ class Transaction(Model):
     async def create_transaction_internal(
                                 sending_user: usr.User,
                                 amount: float,
-                                receiving_user: discord.Member) -> 'Transaction':
+                                receiving_user: discord.User) -> 'Transaction':
         """Create a transaction in the database, among discord users"""
         # See if receiving user exists in our database
         receiving_user_db : usr.User = await usr.User.create_or_fetch_user(receiving_user)
@@ -42,6 +42,24 @@ class Transaction(Model):
                 amount = str(Env.amount_to_raw(amount)),
                 destination = await receiving_user_db.get_address(),
                 receiving_user = receiving_user_db
+            )
+            await tx.save(using_db=conn)
+        return tx
+
+    @staticmethod
+    async def create_transaction_internal_dbuser(
+                                sending_user: usr.User,
+                                amount: float,
+                                receiving_user: usr.User) -> 'Transaction':
+        """Create a transaction in the database, among discord users"""
+        # Create transaction
+        tx = None
+        async with in_transaction() as conn:
+            tx = Transaction(
+                sending_user = sending_user,
+                amount = str(Env.amount_to_raw(amount)),
+                destination = await receiving_user.get_address(),
+                receiving_user = receiving_user
             )
             await tx.save(using_db=conn)
         return tx

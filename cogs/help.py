@@ -1,4 +1,4 @@
-from cogs import tips, account, stats, rain, admin, useroptions
+from cogs import tips, account, stats, rain, admin, useroptions, favorites
 from discord.ext import commands
 from discord.ext.commands import Bot, Context
 from util.env import Env
@@ -27,7 +27,8 @@ COMMANDS = {
             tips.TIP_INFO,
             tips.TIPSPLIT_INFO,
             tips.TIPRANDOM_INFO,
-            rain.RAIN_INFO
+            rain.RAIN_INFO,
+            favorites.TIPFAVORITES_INFO
         ]
     },
     'STATS': {
@@ -44,7 +45,10 @@ COMMANDS = {
         'info': 'Various user-specific options.',
         'cmd_list': [
             useroptions.MUTE_INFO,
-            useroptions.UNMUTE_INFO
+            useroptions.UNMUTE_INFO,
+            favorites.ADD_FAVORITE_INFO,
+            favorites.REMOVE_FAVORITE_INFO,
+            favorites.FAVORITES_INFO
         ]
     },    
 }
@@ -69,7 +73,7 @@ ADMIN_COMMANDS = {
     }
 }
 
-class Help(commands.Cog):
+class HelpCog(commands.Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
         self.logger = logging.getLogger()

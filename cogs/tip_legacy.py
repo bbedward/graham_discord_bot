@@ -4,22 +4,8 @@ from util.discord.channel import ChannelUtil
 from util.discord.messages import Messages
 from db.models.user import User
 import config
-"""
-from models.command import CommandInfo
-from models.constants import Constants
-from util.discord.channel import ChannelUtil
-from util.discord.messages import Messages
-from util.env import Env
-from util.regex import RegexUtil, AmountMissingException
-from db.models.stats import Stats
-from db.models.transaction import Transaction
-from db.models.user import User
-from tasks.transaction_queue import TransactionQueue
 
-import asyncio
-import config"""
-
-class TipLegacy(commands.Cog):
+class TipLegacyCog(commands.Cog):
     """Just show information about the new tip command for NANO bot"""
     def __init__(self, bot: Bot):
         self.bot = bot

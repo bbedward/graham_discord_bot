@@ -49,7 +49,7 @@ TIPAUTHOR_INFO = CommandInfo(
     details = f"Support the author of this bot (bbedward)"
 )
 
-class Tips(commands.Cog):
+class TipsCog(commands.Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
 
@@ -255,17 +255,13 @@ class Tips(commands.Cog):
             await Messages.send_basic_dm(msg.author, "You can only tiprandom once every minute")
             return
 
-        active_users = await rain.Rain.get_active(ctx, excluding=msg.author.id)
-        active_members = []
-        for u in active_users:
-            discord_member = msg.guild.get_member(u.id)
-            if discord_member is not None:
-                active_members.append(discord_member)
-        if len(active_members) < Constants.RAIN_MIN_ACTIVE_COUNT:
-            await Messages.send_error_dm(msg.author, f"There aren't enough active people to do a random tip. Only **{len(active_members)}** are active, but I'd like to see at least **{Constants.RAIN_MIN_ACTIVE_COUNT}**")
+        active_users = await rain.RainCog.get_active(ctx, excluding=msg.author.id)
+
+        if len(active_users) < Constants.RAIN_MIN_ACTIVE_COUNT:
+            await Messages.send_error_dm(msg.author, f"There aren't enough active people to do a random tip. Only **{len(active_users)}** are active, but I'd like to see at least **{Constants.RAIN_MIN_ACTIVE_COUNT}**")
             return
 
-        target_user = secrets.choice(active_members)
+        target_user = secrets.choice(active_users)
 
         # See how much they need to make this tip.
         available_balance = Env.raw_to_amount(await user.get_available_balance())
@@ -275,7 +271,7 @@ class Tips(commands.Cog):
             return
 
         # Make the transactions in the database
-        tx = await Transaction.create_transaction_internal(
+        tx = await Transaction.create_transaction_internal_dbuser(
             sending_user=user,
             amount=send_amount,
             receiving_user=target_user
@@ -284,7 +280,7 @@ class Tips(commands.Cog):
         if not await user.is_muted_by(target_user.id):
             task_list.append(
                 Messages.send_basic_dm(
-                    member=target_user,
+                    member=msg.guild.get_member(target_user.id),
                     message=f"You were randomly selected and received **{send_amount} {Env.currency_symbol()}** from {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
                     skip_dnd=True
                 )

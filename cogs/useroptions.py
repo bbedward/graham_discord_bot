@@ -27,7 +27,7 @@ MUTED_INFO = CommandInfo(
 )
 
 
-class UserOptions(commands.Cog):
+class UserOptionsCog(commands.Cog):
     """Commands for admins only"""
     def __init__(self, bot: Bot):
         self.bot = bot
@@ -156,7 +156,7 @@ class UserOptions(commands.Cog):
         # Build user list
         entries = []
         for u in muted_list:
-            entries.append(Entry(f"{u.target_user.id}:{u.target_user.name}", f"Unmute with `{config.Config.instance().command_prefix}unmute {u.target_user.id}`"))
+            entries.append(Entry(f"{u.target_user.name}", f"Unmute with `{config.Config.instance().command_prefix}unmute {u.target_user.id}`"))
 
         # Build pages
         pages = []
