@@ -72,6 +72,8 @@ class UserOptionsCog(commands.Cog):
             except Exception:
                 pass
 
+        to_mute = set(to_mute)
+
         if len(to_mute) < 1:
             await Messages.send_usage_dm(msg.author, MUTE_INFO)
             return

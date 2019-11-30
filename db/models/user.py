@@ -31,7 +31,7 @@ class User(Model):
                 # Create user and return them
                 dbuser = User(
                     id = user.id,
-                    name = user.name
+                    name = user.name.replace("`", "")
                 )
                 await dbuser.save(using_db=conn)
                 # Create an account
@@ -53,7 +53,7 @@ class User(Model):
     async def update_name(self, name: str):
         """Update discord user name in database"""
         if name != self.name:
-            self.name = name
+            self.name = name.replace("`", "")
             await self.save(update_fields=['name'])
 
     async def get_address(self) -> str:

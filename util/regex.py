@@ -1,6 +1,7 @@
 import re
 
 from util.env import Env
+from typing import List
 
 class RegexUtil():
     @staticmethod
@@ -14,8 +15,7 @@ class RegexUtil():
         matches = re.findall(regex, input_text, re.IGNORECASE)
         if len(matches) >= 1:
             return float(matches[0].strip())
-        else:
-            raise AmountMissingException("amount_not_found")
+        raise AmountMissingException("amount_not_found")
 
     @staticmethod
     def find_send_amounts(input_text: str) -> float:
@@ -26,11 +26,10 @@ class RegexUtil():
             raise AmountAmbiguousException("amount_ambiguous")
         elif len(matches) == 1:
             return float(matches[0].strip())
-        else:
-            raise AmountMissingException("amount_not_found")
+        raise AmountMissingException("amount_not_found")
 
     @staticmethod
-    def find_address_match(input_text):
+    def find_address_match(input_text: str) -> str:
         """Find nano/banano address in a string"""
         if Env.banano():
             address_regex = '(?:ban)(?:_)(?:1|3)(?:[13456789abcdefghijkmnopqrstuwxyz]{59})'
@@ -41,8 +40,19 @@ class RegexUtil():
             return matches[0]
         elif len(matches) > 1:
             raise AddressAmbiguousException("too_many_addresses")
+        raise AddressMissingException("address_not_found")
+
+    @staticmethod
+    def find_address_matches(input_text: str) -> List[str]:
+        """Find nano/banano addresses in a string"""
+        if Env.banano():
+            address_regex = '(?:ban)(?:_)(?:1|3)(?:[13456789abcdefghijkmnopqrstuwxyz]{59})'
         else:
-            raise AddressMissingException("address_not_found")
+            address_regex = '(?:nano|xrb)(?:_)(?:1|3)(?:[13456789abcdefghijkmnopqrstuwxyz]{59})'
+        matches = re.findall(address_regex, input_text)
+        if len(matches) >= 1:
+            return matches
+        raise AddressMissingException("address_not_found")
 
 class AmountMissingException(Exception):
     pass

@@ -180,7 +180,7 @@ class StatsCog(commands.Cog):
                 biggest_num = length
         for rank, stats in enumerate(ballers, start=1):
             adj_rank = str(rank) if rank < 10 else f" {rank}"
-            user_name = stats.user.name.replace("`", "") # Escape symbols
+            user_name = stats.user.name
             response_msg += f"{adj_rank}. {NumberUtil.format_float(stats.total_tipped_amount).rjust(biggest_num)} {Env.currency_symbol()} - by {user_name}\n" 
         response_msg += "```"
 
