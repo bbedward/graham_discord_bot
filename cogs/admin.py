@@ -5,7 +5,9 @@ from db.redis import RedisDB
 from models.command import CommandInfo
 
 import config
+import logging
 from util.discord.messages import Messages
+from util.discord.paginator import Entry, Page, Paginator
 
 ## Command documentation
 PAUSE_INFO = CommandInfo(
@@ -28,11 +30,17 @@ DEFROST_INFO = CommandInfo(
     overview = "Un-freeze a user",
     details = "Give user access to his account again"
 )
+FROZEN_INFO = CommandInfo(
+    triggers = ["frozen"],
+    overview = "Get a list of frozen users",
+    details = "Lists all the users that have been frozen."
+)
 
 class Admin(commands.Cog):
     """Commands for admins only"""
     def __init__(self, bot: Bot):
         self.bot = bot
+        self.logger = logging.getLogger()
 
     async def cog_before_invoke(self, ctx: Context):
         ctx.error = False
@@ -160,3 +168,42 @@ class Admin(commands.Cog):
 
         await msg.author.send(f"{len(freeze_ids)} users have been defrosted")
         await msg.add_reaction("\U0001F525")
+
+    @commands.command(aliases=FROZEN_INFO.triggers)
+    async def frozen_cmd(self, ctx: Context):
+        if ctx.error:
+            return
+
+        msg = ctx.message
+
+        frozen_list = await User.filter(frozen=True).all()
+
+        if len(frozen_list) < 1:
+            await msg.author.send("There aren't any frozen users")
+            return
+
+        # Build user list
+        entries = []
+        for u in frozen_list:
+            entries.append(Entry(f"{u.id}:{u.name}", f"Unfreeze with `{config.Config.instance().command_prefix}defrost {u.id}`"))
+
+        # Build pages
+        pages = []
+        # Overview
+        author=f"Frozen Users"
+        description = f"Use `{config.Config.instance().command_prefix}defrost <user_id>` to unfreeze a user"
+        i = 0
+        entry_subset = []
+        for e in entries:
+            entry_subset.append(e)
+            if i == 14:
+                pages.append(Page(entries=entry_subset, author=author, description=description))
+                i = 0
+                entry_subset = []
+            else:
+                i += 1
+        pages.append(Page(entries=entry_subset, author=author, description=description))
+
+        # Start pagination
+        pages = Paginator(self.bot, message=msg, page_list=pages,as_dm=True)
+        await pages.paginate(start_page=1)

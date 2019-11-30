@@ -49,7 +49,8 @@ ADMIN_COMMANDS = {
             admin.PAUSE_INFO,
             admin.RESUME_INFO,
             admin.FREEZE_INFO,
-            admin.DEFROST_INFO
+            admin.DEFROST_INFO,
+            admin.FROZEN_INFO
         ]
     }
 }
