@@ -202,7 +202,8 @@ class Admin(commands.Cog):
                 entry_subset = []
             else:
                 i += 1
-        pages.append(Page(entries=entry_subset, author=author, description=description))
+        if len(entry_subset) > 0:
+            pages.append(Page(entries=entry_subset, author=author, description=description))
 
         # Start pagination
         pages = Paginator(self.bot, message=msg, page_list=pages,as_dm=True)
