@@ -1,6 +1,6 @@
 from tortoise import Tortoise
 
-modules = {'db': ['db.models.user', 'db.models.account', 'db.models.stats', 'db.models.transaction']}
+modules = {'db': ['db.models.user', 'db.models.account', 'db.models.stats', 'db.models.transaction', 'db.models.muted']}
 
 async def init_db():
     await Tortoise.init(
