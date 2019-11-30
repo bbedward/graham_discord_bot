@@ -151,7 +151,7 @@ class Rain(commands.Cog):
                 receiving_user=u
             )
             tx_list.append(tx)
-            if not user.is_muted_by(u.id):
+            if not await user.is_muted_by(u.id):
                 task_list.append(
                     Messages.send_basic_dm(
                         member=msg.guild.get_member(u.id),

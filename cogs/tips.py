@@ -148,7 +148,7 @@ class Tips(commands.Cog):
             )
             if tx is not None:
                 tx_list.append(tx)
-                if not user.is_muted_by(u.id):
+                if not await user.is_muted_by(u.id):
                     task_list.append(
                         Messages.send_basic_dm(
                             member=u,
@@ -216,7 +216,7 @@ class Tips(commands.Cog):
             )
             if tx is not None:
                 tx_list.append(tx)
-                if not user.is_muted_by(u.id):
+                if not await user.is_muted_by(u.id):
                     task_list.append(
                         Messages.send_basic_dm(
                             member=u,
@@ -281,7 +281,7 @@ class Tips(commands.Cog):
             receiving_user=target_user
         )
         task_list = []
-        if not user.is_muted_by(target_user.id):
+        if not await user.is_muted_by(target_user.id):
             task_list.append(
                 Messages.send_basic_dm(
                     member=target_user,
