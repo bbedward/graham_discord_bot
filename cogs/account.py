@@ -191,17 +191,23 @@ class AccountCog(commands.Cog):
 
     async def pocket_pendings(self, msg: discord.Message, address: str, dbuser: User):
         """Pocket some pending transactions and edit the users message"""
+        # Check if they've done this recently to avoid spam
+        if await RedisDB.instance().exists(f"pocketpendingspam:{dbuser.id}"):
+            return
         # Check for pendings
         pendings = await RPCClient.instance().pending(address)
         should_update_balance = False
         if pendings is None or len(pendings) == 0:
             return
+        # Update spam flag
+        await RedisDB.instance().set(f"pocketpendingspam:{dbuser.id}", "as", expires=60)
         # Pocket pendings
         for p in pendings:
             if await RPCClient.instance().receive(address, p) is not None:
                 should_update_balance = True
         # Update their balance message
         if should_update_balance:
+            # Update balance
             balance_json = await RPCClient.instance().account_balance(address)
             if balance_json is None:
                 raise Exception("balance_json was None")
