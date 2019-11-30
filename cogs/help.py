@@ -1,4 +1,4 @@
-from cogs import tips, account, stats, rain, admin
+from cogs import tips, account, stats, rain, admin, useroptions
 from discord.ext import commands
 from discord.ext.commands import Bot, Context
 from util.env import Env
@@ -38,7 +38,15 @@ COMMANDS = {
             stats.TOPTIPS_INFO,
             stats.LEADERBOARD_INFO
         ]
-    }
+    },
+    'USER_OPTIONS': {
+        'header': 'User Options Commands',
+        'info': 'Various user-specific options.',
+        'cmd_list': [
+            useroptions.MUTE_INFO,
+            useroptions.UNMUTE_INFO
+        ]
+    },    
 }
 
 ADMIN_COMMANDS = {

@@ -14,8 +14,13 @@ MUTE_INFO = CommandInfo(
     overview = "Mute a user by ID",
     details = f"No longer receive tip notifications from a specific user. Example: `{config.Config.instance().command_prefix}mute 419483863115366410`"
 )
+UNMUTE_INFO = CommandInfo(
+    triggers = ["unmute"],
+    overview = "Unmute a user by ID",
+    details = f"Receive tip notifications from a user again. Example: `{config.Config.instance().command_prefix}unmute 419483863115366410`"
+)
 
-class Mute(commands.Cog):
+class UserOptions(commands.Cog):
     """Commands for admins only"""
     def __init__(self, bot: Bot):
         self.bot = bot
@@ -52,9 +57,11 @@ class Mute(commands.Cog):
         for u in ctx.message.content.split():
             try:
                 u_id = int(u.strip())
+                if u_id == msg.author.id:
+                    continue
                 discord_user = self.bot.get_user(u_id)
                 if discord_user is not None:
-                    to_mute.append(discord_user.id)
+                    to_mute.append(discord_user)
             except Exception:
                 pass
 
@@ -77,4 +84,45 @@ class Mute(commands.Cog):
             await Messages.send_error_dm(msg.author, "I was unable to mute any users you mentioned.")
             return
 
-        await Messages.send_success_dm(msg.authro, f"Successfully muted {muted_count} user(s)")
+        await Messages.send_success_dm(msg.author, f"Successfully muted {muted_count} user(s)")
+
+    @commands.command(aliases=UNMUTE_INFO.triggers)
+    async def unmute_cmd(self, ctx: Context):
+        if ctx.error:
+            return
+
+        msg = ctx.message
+        user = ctx.user
+
+        to_unmute = []
+        for u in ctx.message.content.split():
+            try:
+                u_id = int(u.strip())
+                if u_id == msg.author.id:
+                    continue
+                discord_user = self.bot.get_user(u_id)
+                if discord_user is not None:
+                    to_unmute.append(discord_user)
+            except Exception:
+                pass
+
+        if len(to_unmute) < 1:
+            await Messages.send_usage_dm(msg.author, UNMUTE_INFO)
+            return
+
+        # Ununmute users
+        unmuted_count = 0
+        for u in to_unmute:
+            try:
+                target_user = await User.get_user(u)
+                if target_user is not None:
+                    await Muted.unmute_user(user, target_user)
+                    unmuted_count += 1
+            except Exception:
+                pass
+
+        if unmuted_count < 1:
+            await Messages.send_error_dm(msg.author, "I was unable to unmute any users you mentioned.")
+            return
+
+        await Messages.send_success_dm(msg.author, f"Successfully unmuted {unmuted_count} user(s)")
