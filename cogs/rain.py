@@ -119,7 +119,7 @@ class Rain(commands.Cog):
         active_users = await self.get_active(ctx, excluding=msg.author.id)
         active_members = []
         for u in active_users:
-            discord_member = msg.guild.get_member(u)
+            discord_member = msg.guild.get_member(u.id)
             if discord_member is not None:
                 active_members.append(discord_member)
         if len(active_members) < Constants.RAIN_MIN_ACTIVE_COUNT:
