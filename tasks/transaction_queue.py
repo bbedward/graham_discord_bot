@@ -27,6 +27,8 @@ class TransactionQueue(object):
         await queue.put(tx)
 
     async def notify_user(self, tx: Transaction, hash: str):
+        if tx.destination == Env.donation_address():
+            return
         bot: Bot = self.bot
         user = bot.get_user(tx.sending_user.id)
         if user is None:

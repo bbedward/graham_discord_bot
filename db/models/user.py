@@ -16,6 +16,7 @@ class User(Model):
     name = fields.CharField(max_length=50)
     created_at = fields.DatetimeField(auto_now_add=True)
     modified_at = fields.DatetimeField(auto_now=True)
+    frozen = fields.BooleanField(default=False) # Completely banned
 
     class Meta:
         table = "users"

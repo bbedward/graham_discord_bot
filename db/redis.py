@@ -70,4 +70,5 @@ class RedisDB(object):
     async def is_paused(self) -> bool:
         """Return True if the bot is paused or not"""
         key = f"{Env.currency_name().lower()}:botpaused"
-        return await self.exists(key)
+        redis = await self.get_redis()
+        return (await redis.get(key)) is not None

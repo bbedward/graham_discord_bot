@@ -28,3 +28,7 @@ class Env():
     @staticmethod
     def precision_digits() -> int:
         return 2 if Env.banano() else 6
+
+    @staticmethod
+    def donation_address() -> str:
+        return 'ban_1bboss18y784j9rbwgt95uwqamjpsi9oips5syohsjk37rn5ud7ndbjq61ft' if Env.banano() else 'nano_1bboss18y784j9rbwgt95uwqamjpsi9oips5syohsjk37rn5ud7ndbjq61ft'

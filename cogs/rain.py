@@ -47,7 +47,6 @@ class Rain(commands.Cog):
     async def cog_before_invoke(self, ctx: Context):
         ctx.error = False
         msg = ctx.message
-        # TODO - check frozen
         if ChannelUtil.is_private(ctx.message.channel):
             ctx.error = True
             return
@@ -90,6 +89,10 @@ class Rain(commands.Cog):
             if user is None:
                 await Messages.send_error_dm(msg.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
                 ctx.error = True
+                return
+            elif user.frozen:
+                ctx.error = True
+                await Messages.send_error_dm(msg.author, f"Your account is frozen. Contact an admin if you need further assistance.")
                 return
             # Update name, if applicable
             await user.update_name(msg.author.name)
@@ -240,6 +243,5 @@ class Rain(commands.Cog):
                 users_filtered.append(u['user_id'])
 
         # Get only users in our database
-        # TODO - consider tip banned, frozen
-        return await User.filter(id__in=users_filtered).prefetch_related('account').all()
+        return await User.filter(id__in=users_filtered, frozen=False).prefetch_related('account').all()
 

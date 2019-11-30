@@ -43,6 +43,11 @@ TIPRANDOM_INFO = CommandInfo(
     details = f"Tips the specified amount to an active user at random (**minimum tip is {Constants.TIP_MINIMUM} {Constants.TIP_UNIT}**)" +
         "\nThe recipient will be notified of your tip via private message and you'll be notified of who the random recipient was."
 )
+TIPAUTHOR_INFO = CommandInfo(
+    triggers = ["banauthor", "tipauthor"],
+    overview = "Donate to support my creator",
+    details = f"Support the author of this bot (bbedward)"
+)
 
 class Tips(commands.Cog):
     def __init__(self, bot: Bot):
@@ -52,7 +57,6 @@ class Tips(commands.Cog):
         ctx.error = False
         # Remove duplicate mentions
         ctx.message.mentions = set(ctx.message.mentions)
-        # TODO - incorporate frozen
         # Only allow tip commands in public channels
         msg = ctx.message
         if ChannelUtil.is_private(msg.channel):
@@ -77,6 +81,10 @@ class Tips(commands.Cog):
         if user is None:
             ctx.error = True
             await Messages.send_error_dm(msg.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
+            return
+        elif user.frozen:
+            ctx.error = True
+            await Messages.send_error_dm(msg.author, f"Your account is frozen. Contact an admin if you need further assistance.")
             return
         # Update name, if applicable
         await user.update_name(msg.author.name)
@@ -277,6 +285,43 @@ class Tips(commands.Cog):
         await TransactionQueue.instance().put(tx)
         # anti spam
         await RedisDB.instance().set(f"tiprandomspam{msg.guild.id}{msg.author.id}", "as", expires=60)
+        # Update stats
+        stats: Stats = await user.get_stats(server_id=msg.guild.id)
+        await stats.update_tip_stats(send_amount)
+
+    @commands.command(aliases=TIPAUTHOR_INFO.triggers)
+    async def tipauthor_cmd(self, ctx: Context):
+        if ctx.error:
+            await Messages.add_x_reaction(ctx.message)
+            return
+
+        msg = ctx.message
+        user = ctx.user
+        send_amount = ctx.send_amount
+
+        # See how much they need to make this tip.
+        available_balance = Env.raw_to_amount(await user.get_available_balance())
+        if send_amount > available_balance:
+            await Messages.add_x_reaction(ctx.message)
+            await Messages.send_error_dm(msg.author, f"Your balance isn't high enough to complete this tip. You have **{available_balance} {Env.currency_symbol()}**, but this tip would cost you **{send_amount} {Env.currency_symbol()}**")
+            return
+
+        # Make the transactions in the database
+        tx_list = []
+        task_list = []
+        tx = await Transaction.create_transaction_external(
+            sending_user=user,
+            amount=send_amount,
+            destination=Env.donation_address()
+        )
+        # Add reactions
+        await msg.add_reaction('\U00002611')
+        await msg.add_reaction('\U0001F618')
+        await msg.add_reaction('\u2764')
+        await msg.add_reaction('\U0001F499')
+        await msg.add_reaction('\U0001F49B')
+        # Queue the actual send
+        await TransactionQueue.instance().put(tx)
         # Update stats
         stats: Stats = await user.get_stats(server_id=msg.guild.id)
         await stats.update_tip_stats(send_amount)

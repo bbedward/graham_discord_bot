@@ -54,7 +54,6 @@ class Account(commands.Cog):
     async def cog_before_invoke(self, ctx: Context):
         ctx.error = False
         msg = ctx.message
-        # TODO - check frozen
         # Check paused
         if await RedisDB.instance().is_paused():
             ctx.error = True
@@ -81,6 +80,10 @@ class Account(commands.Cog):
             if user is None:
                 await Messages.send_error_dm(msg.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
                 ctx.error = True
+                return
+            elif user.frozen:
+                ctx.error = True
+                await Messages.send_error_dm(msg.author, f"Your account is frozen. Contact an admin if you need further assistance.")
                 return
             # Update name, if applicable
             await user.update_name(msg.author.name)
