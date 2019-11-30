@@ -82,11 +82,11 @@ class Help(commands.Cog):
             entries.append(Entry(f"{config.Config.instance().command_prefix}{cmd.triggers[0]}", cmd.details))
         return entries
 
-    def get_help_pages(self, cmd_dict: dict) -> list:
+    def get_help_pages(self, cmd_dict: dict, adminhelp: bool = False) -> list:
         """Builds paginated help menu"""
         pages = []
         # Overview
-        author=f"Graham v{__version__} ({'BANANO' if Env.banano() else 'Nano'}) edition - by bbedward"
+        author=f"Graham v{__version__} ({'BANANO' if Env.banano() else 'Nano'}) edition"
         title="Command Overview"
         description=("Use `{0}help command` for more information about a specific command " +
                 " or go to the next page").format(config.Config.instance().command_prefix)
@@ -94,6 +94,8 @@ class Help(commands.Cog):
         for k, cmd_list in cmd_dict.items():
             for cmd in cmd_dict[k]['cmd_list']:
                 entries.append(Entry(f"{config.Config.instance().command_prefix}{cmd.triggers[0]}", cmd.overview))
+        if adminhelp:
+            entries.append(Entry(f"{config.Config.instance().command_prefix}adminhelp", "View the full list of admin commands"))
         pages.append(Page(entries=entries, title=title,author=author, description=description))
         # Build detail pages
         for group, details in cmd_dict.items():
@@ -103,10 +105,10 @@ class Help(commands.Cog):
             pages.append(Page(entries=entries, author=author,description=description))
         # Info
         entries = [Entry(f"{config.Config.instance().command_prefix}{tips.TIPAUTHOR_INFO.triggers[0]}", tips.TIPAUTHOR_INFO.details)]
-        author=f"Graham v{__version__} for {Env.currency_name()} - by bbedward"
+        author=f"Graham v{__version__} for {Env.currency_name()}"
         heart = '\U0001F49B' if Env.banano() else '\U0001F499'
         description = "This bot is completely free, open source, and MIT licnesed"
-        description+= f"\n\nMade with {heart} by **bbedward** for the **BANANO** community"
+        description+= f"\n\nMade with {heart} for the **BANANO** and **NANO** communities"
         description+= f"\nHangout with some awesome people at https://chat.banano.cc"
         description+= f"\nMy Discord: **@bbedward#9246**"
         description+= f"\nMy Reddit: **/u/bbedward**"
@@ -133,7 +135,7 @@ class Help(commands.Cog):
                 await Messages.send_error_dm(msg.author, f'No such command: "**{arg}**"')
         else:
             try:
-                pages = Paginator(self.bot, message=msg, page_list=self.get_help_pages(COMMANDS),as_dm=True)
+                pages = Paginator(self.bot, message=msg, page_list=self.get_help_pages(COMMANDS, adminhelp=ctx.admin),as_dm=True)
                 await pages.paginate(start_page=1)
             except CannotPaginate as e:
                 self.logger.exception('Exception in paginator')
