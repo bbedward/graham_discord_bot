@@ -15,6 +15,7 @@ from util.validators import Validators
 from util.discord.channel import ChannelUtil
 from util.discord.messages import Messages
 
+import asyncio
 import config
 import logging
 
@@ -140,6 +141,19 @@ class AccountCog(commands.Cog):
         await msg.author.send(embed=embed)
         await msg.author.send(user_address)
 
+    def format_balance_message(self, balance_raw: int, pending_raw: int, pending_send_db: int, pending_receive_db: int) -> discord.Embed:
+        embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
+        embed.set_author(name="Balance", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
+        embed.description = "**Available:**\n"
+        embed.description += f"```{str(Env.raw_to_amount(balance_raw))} {Env.currency_symbol()}```\n"
+        embed.description += "**Pending:**\n"
+        pending_receive_str = f"{str(Env.raw_to_amount(pending_raw + pending_send_db))} {Env.currency_symbol()}"
+        pending_send_str = f"{str(Env.raw_to_amount(pending_raw + pending_receive_db))} {Env.currency_symbol()}"
+        rjust_size = max(len(pending_send_str), len(pending_receive_str))
+        embed.description += f"```{pending_receive_str.rjust(rjust_size)} (Pending Receipt)\n{pending_send_str.rjust(rjust_size)} (Pending Send)```\n"
+        embed.set_footer(text="Pending balances are in queue and will become available after processing.")
+        return embed          
+
     @commands.command(aliases=BALANCE_INFO.triggers)
     async def balance_cmd(self, ctx: Context):
         if ctx.error:
@@ -152,26 +166,51 @@ class AccountCog(commands.Cog):
                 await Messages.send_error_dm(msg.author, f"It looks like you haven't created an account yet, you should use `{config.Config.instance().command_prefix}register` to create one.")
                 return
             # Get "actual" balance
-            balance_json = await RPCClient.instance().account_balance(await user.get_address())
+            address = await user.get_address()
+            balance_json = await RPCClient.instance().account_balance(address)
             if balance_json is None:
                 raise Exception("balance_json was None")
             balance_raw = int(balance_json['balance'])
             pending_raw = int(balance_json['pending'])
             # Consider unprocessed amounts as well
             pending_send_db, pending_receive_db = await user.get_pending()
-            embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
-            embed.set_author(name="Balance", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
-            embed.description = "**Available:**\n"
-            embed.description += f"```{str(Env.raw_to_amount(balance_raw))} {Env.currency_symbol()}```\n"
-            embed.description += "**Pending Send:**\n"
-            embed.description += f"```{str(Env.raw_to_amount(pending_raw + pending_send_db))} {Env.currency_symbol()}```\n"
-            embed.description += "**Pending Receive:**\n"
-            embed.description += f"```{str(Env.raw_to_amount(pending_raw + pending_receive_db))} {Env.currency_symbol()}```"
-            embed.set_footer(text="Pending balances are in queue and will become available after processing.")
-            await msg.author.send(embed=embed)            
+            embed = self.format_balance_message(balance_raw, pending_raw, pending_send_db, pending_receive_db)
+            sent = await msg.author.send(embed=embed)
+            if pending_raw >= 1000000000000000000000000000:
+                # Pocket some transactions and update their balance
+                asyncio.ensure_future(
+                    self.pocket_pendings(
+                        sent,
+                        address,
+                        user
+                    )
+                )
         except Exception:
             self.logger.exception("Unavailble to retrieve user from database")
             await Messages.send_error_dm(msg.author, "I was unable to retrieve your balance, try again later.")
+
+    async def pocket_pendings(self, msg: discord.Message, address: str, dbuser: User):
+        """Pocket some pending transactions and edit the users message"""
+        # Check for pendings
+        pendings = await RPCClient.instance().pending(address)
+        should_update_balance = False
+        if pendings is None or len(pendings) == 0:
+            return
+        # Pocket pendings
+        for p in pendings:
+            if await RPCClient.instance().receive(address, p) is not None:
+                should_update_balance = True
+        # Update their balance message
+        if should_update_balance:
+            balance_json = await RPCClient.instance().account_balance(address)
+            if balance_json is None:
+                raise Exception("balance_json was None")
+            balance_raw = int(balance_json['balance'])
+            pending_raw = int(balance_json['pending'])
+            # Consider unprocessed amounts as well
+            pending_send_db, pending_receive_db = await dbuser.get_pending()
+            balance_msg = self.format_balance_message(balance_raw, pending_raw, pending_send_db, pending_receive_db)
+            await msg.edit(embed=balance_msg)
 
     @commands.command(aliases=SEND_INFO.triggers)
     async def send_cmd(self, ctx: Context):

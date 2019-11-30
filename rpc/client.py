@@ -1,6 +1,7 @@
 import aiohttp
 import socket
 from config import Config
+from typing import List
 
 class RPCClient(object):
     _instance = None
@@ -63,6 +64,31 @@ class RPCClient(object):
             'id': id
         }
         respjson = await self.make_request(send_action)
+        if 'block' in respjson:
+            return respjson['block']
+        return None
+
+    async def pending(self, account: str, count: int = 5) -> List[str]:
+        """Return a list of pending blocks"""
+        pending_action = {
+            'action': 'pending',
+            'account': account,
+            'count': count
+        }
+        respjson = await self.make_request(pending_action)
+        if 'blocks' in respjson:
+            return respjson['blocks']
+        return None
+
+    async def receive(self, account: str, hash: str) -> str:
+        """Receive a block and return hash of receive block if successful"""
+        receive_action = {
+            'action': 'receive',
+            'wallet': Config.instance().wallet,
+            'account': account,
+            'block': hash
+        }
+        respjson = await self.make_request(receive_action)
         if 'block' in respjson:
             return respjson['block']
         return None
