@@ -148,13 +148,14 @@ class Tips(commands.Cog):
             )
             if tx is not None:
                 tx_list.append(tx)
-                task_list.append(
-                    Messages.send_basic_dm(
-                        member=u,
-                        message=f"You were tipped **{send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
-                        skip_dnd=True
+                if not user.is_muted_by(u.id):
+                    task_list.append(
+                        Messages.send_basic_dm(
+                            member=u,
+                            message=f"You were tipped **{send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
+                            skip_dnd=True
+                        )
                     )
-                )
         if len(tx_list) < 1:
             await Messages.add_x_reaction(msg)
             await Messages.send_error_dm(msg.author, f"No users you mentioned are eligible to receive tips.")
@@ -215,13 +216,14 @@ class Tips(commands.Cog):
             )
             if tx is not None:
                 tx_list.append(tx)
-                task_list.append(
-                    Messages.send_basic_dm(
-                        member=u,
-                        message=f"You were tipped **{individual_send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
-                        skip_dnd=True
+                if not user.is_muted_by(u.id):
+                    task_list.append(
+                        Messages.send_basic_dm(
+                            member=u,
+                            message=f"You were tipped **{individual_send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
+                            skip_dnd=True
+                        )
                     )
-                )
         if len(tx_list) < 1:
             await Messages.add_x_reaction(msg)
             await Messages.send_error_dm(msg.author, f"No users you mentioned are eligible to receive tips.")
@@ -254,11 +256,16 @@ class Tips(commands.Cog):
             return
 
         active_users = await rain.Rain.get_active(ctx, excluding=msg.author.id)
-        if len(active_users) < Constants.RAIN_MIN_ACTIVE_COUNT:
-            await Messages.send_error_dm(msg.author, f"There aren't enough active people to do a random tip. Only **{len(active_users)}** are active, but I'd like to see at least **{Constants.RAIN_MIN_ACTIVE_COUNT}**")
+        active_members = []
+        for u in active_users:
+            discord_member = msg.guild.get_member(u)
+            if discord_member is not None:
+                active_members.append(discord_member)
+        if len(active_members) < Constants.RAIN_MIN_ACTIVE_COUNT:
+            await Messages.send_error_dm(msg.author, f"There aren't enough active people to do a random tip. Only **{len(active_members)}** are active, but I'd like to see at least **{Constants.RAIN_MIN_ACTIVE_COUNT}**")
             return
 
-        target_user = secrets.choice(active_users)
+        target_user = secrets.choice(active_members)
 
         # See how much they need to make this tip.
         available_balance = Env.raw_to_amount(await user.get_available_balance())
@@ -274,13 +281,14 @@ class Tips(commands.Cog):
             receiving_user=target_user
         )
         task_list = []
-        task_list.append(
-            Messages.send_basic_dm(
-                member=target_user,
-                message=f"You were randomly selected and received **{send_amount} {Env.currency_symbol()}** from {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
-                skip_dnd=True
+        if not user.is_muted_by(target_user.id):
+            task_list.append(
+                Messages.send_basic_dm(
+                    member=target_user,
+                    message=f"You were randomly selected and received **{send_amount} {Env.currency_symbol()}** from {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
+                    skip_dnd=True
+                )
             )
-        )
         task_list.append(
             Messages.send_basic_dm(
                 member=msg.author,

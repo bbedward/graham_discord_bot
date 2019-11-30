@@ -117,19 +117,24 @@ class Rain(commands.Cog):
 
         # Get active users
         active_users = await self.get_active(ctx, excluding=msg.author.id)
-        if len(active_users) < Constants.RAIN_MIN_ACTIVE_COUNT:
+        active_members = []
+        for u in active_users:
+            discord_member = msg.guild.get_member(u)
+            if discord_member is not None:
+                active_members.append(discord_member)
+        if len(active_members) < Constants.RAIN_MIN_ACTIVE_COUNT:
             await Messages.add_x_reaction(msg)
-            await Messages.send_error_dm(msg.author, f"Not enough users are active to rain - I need at least {Constants.RAIN_MIN_ACTIVE_COUNT} but there's only {len(active_users)} active bros")
+            await Messages.send_error_dm(msg.author, f"Not enough users are active to rain - I need at least {Constants.RAIN_MIN_ACTIVE_COUNT} but there's only {len(active_members)} active bros")
             return
 
-        individual_send_amount = NumberUtil.truncate_digits(send_amount / len(active_users), max_digits=Env.precision_digits())
+        individual_send_amount = NumberUtil.truncate_digits(send_amount / len(active_members), max_digits=Env.precision_digits())
         if individual_send_amount < 0.01:
             await Messages.add_x_reaction(msg)
-            await Messages.send_error_dm(msg.author, f"Amount is too small to divide across {len(active_users)} users")
+            await Messages.send_error_dm(msg.author, f"Amount is too small to divide across {len(active_members)} users")
             return
 
         # See how much they need to make this tip.
-        amount_needed = individual_send_amount * len(active_users)
+        amount_needed = individual_send_amount * len(active_members)
         available_balance = Env.raw_to_amount(await user.get_available_balance())
         if amount_needed > available_balance:
             await Messages.add_x_reaction(msg)
@@ -139,20 +144,21 @@ class Rain(commands.Cog):
         # Make the transactions in the database
         tx_list = []
         task_list = []
-        for u in active_users:
+        for u in active_members:
             tx = await Transaction.create_transaction_internal(
                 sending_user=user,
                 amount=individual_send_amount,
                 receiving_user=u
             )
             tx_list.append(tx)
-            task_list.append(
-                Messages.send_basic_dm(
-                    member=msg.guild.get_member(u.id),
-                    message=f"You were tipped **{individual_send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
-                    skip_dnd=True
+            if not user.is_muted_by(u.id):
+                task_list.append(
+                    Messages.send_basic_dm(
+                        member=msg.guild.get_member(u.id),
+                        message=f"You were tipped **{individual_send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
+                        skip_dnd=True
+                    )
                 )
-            )
         # Send DMs in the background
         asyncio.ensure_future(Utils.run_task_list(task_list))
         # Add reactions

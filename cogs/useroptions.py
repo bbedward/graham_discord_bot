@@ -7,6 +7,7 @@ from util.discord.channel import ChannelUtil
 from util.discord.messages import Messages
 from db.models.muted import Muted
 from db.models.user import User
+from util.discord.paginator import Entry, Page, Paginator
 
 ## Command documentation
 MUTE_INFO = CommandInfo(
@@ -19,6 +20,12 @@ UNMUTE_INFO = CommandInfo(
     overview = "Unmute a user by ID",
     details = f"Receive tip notifications from a user again. Example: `{config.Config.instance().command_prefix}unmute 419483863115366410`"
 )
+MUTED_INFO = CommandInfo(
+    triggers = ["muted"],
+    overview = "View list of muted users",
+    details = f"View the list of every user you have muted."
+)
+
 
 class UserOptions(commands.Cog):
     """Commands for admins only"""
@@ -126,3 +133,49 @@ class UserOptions(commands.Cog):
             return
 
         await Messages.send_success_dm(msg.author, f"Successfully unmuted {unmuted_count} user(s)")
+
+    @commands.command(aliases=MUTED_INFO.triggers)
+    async def muted_cmd(self, ctx: Context):
+        if ctx.error:
+            return
+
+        msg = ctx.message
+        user = ctx.user
+
+        if not ChannelUtil.is_private(msg.channel):
+            await Messages.add_x_reaction(msg)
+            await Messages.send_error_dm(msg.author, "You can only view users you have muted in DM")
+            return
+
+        muted_list = await Muted.filter(user=ctx.user).prefetch_related('target_user').all()
+
+        if len(muted_list) < 1:
+            await msg.author.send("You haven't muted anybody.")
+            return
+
+        # Build user list
+        entries = []
+        for u in muted_list:
+            entries.append(Entry(f"{u.target_user.id}:{u.target_user.name}", f"Unmute with `{config.Config.instance().command_prefix}unmute {u.target_user.id}`"))
+
+        # Build pages
+        pages = []
+        # Overview
+        author=f"Muted Users"
+        description = f"Use `{config.Config.instance().command_prefix}unmute <user_id>` to unmute a user"
+        i = 0
+        entry_subset = []
+        for e in entries:
+            entry_subset.append(e)
+            if i == 14:
+                pages.append(Page(entries=entry_subset, author=author, description=description))
+                i = 0
+                entry_subset = []
+            else:
+                i += 1
+        if len(entry_subset) > 0:
+            pages.append(Page(entries=entry_subset, author=author, description=description))
+
+        # Start pagination
+        pages = Paginator(self.bot, message=msg, page_list=pages,as_dm=True)
+        await pages.paginate(start_page=1)

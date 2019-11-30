@@ -6,6 +6,7 @@ from tortoise.models import Model
 from tortoise.transactions import in_transaction
 
 import db.models.account as acct
+import db.models.muted as mtd
 import db.models.stats as stats
 from models.constants import Constants
 from rpc.client import RPCClient
@@ -124,3 +125,8 @@ class User(Model):
         # Get how many seconds until they can withdraw again
         delta = (datetime.datetime.utcnow() - last_withdraw.created_at).total_seconds()
         return int(Constants.WITHDRAW_COOLDOWN - delta)
+
+    async def is_muted_by(self, user_id: int) -> bool:
+        """Returns true if this user has been muted by passed in"""
+        muted = await mtd.Muted.filter(user__id=user_id, target_user__id=self.id).count()
+        return muted > 0
