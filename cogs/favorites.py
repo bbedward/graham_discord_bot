@@ -23,7 +23,7 @@ from tasks.transaction_queue import TransactionQueue
 ADD_FAVORITE_INFO = CommandInfo(
     triggers = ["addfavorite"],
     overview = "Add a user to your favorites list",
-    details = f"Add a user to your favorites list. Example: `{config.Config.instance().command_prefix}addfavorite @bbedward`"
+    details = f"Add a user to your favorites list. You can have up to **25 favorites**. Example: `{config.Config.instance().command_prefix}addfavorite @bbedward`"
 )
 REMOVE_FAVORITE_INFO = CommandInfo(
     triggers = ["unfavorite", "removefavorite"],
@@ -122,6 +122,12 @@ class FavoriteCog(commands.Cog):
 
         if len(to_add) < 1:
             await Messages.send_usage_dm(msg.author, ADD_FAVORITE_INFO)
+            return
+
+        fav_count = await Favorite.filter(user=ctx.user).count()
+        if fav_count >= 25:
+            await Messages.add_x_reaction(msg)
+            await Messages.send_error_dm(msg.author, "You can only have up to **25 favorites**. You have too many, remove some first.")
             return
 
         # Mute users
