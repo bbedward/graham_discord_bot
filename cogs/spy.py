@@ -6,6 +6,9 @@ from util.regex import RegexUtil, AddressMissingException
 from db.models.account import Account
 from db.models.user import User
 
+import discord
+from util.env import Env
+
 # Commands Documentation
 WFU_INFO = CommandInfo(
     triggers = ["wfu", "walletfor", "walletforuser"],
@@ -58,7 +61,11 @@ class SpyCog(commands.Cog):
             response += f"```{u.account.address}```"
             response += f"https://creeper.banano.cc/explorer/account/{u.account.address}\n"
 
-        await msg.author.send(response)
+        embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
+        embed.set_author(name="WFU Result", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
+        embed.description = response
+
+        await msg.author.send(embed=embed)
 
     @commands.command(aliases=UFW_INFO.triggers)
     async def ufw_cmd(self, ctx: Context):
@@ -82,4 +89,8 @@ class SpyCog(commands.Cog):
             response += f"```{acct.address}```"
             response += f"https://creeper.banano.cc/explorer/account/{acct.address}\n"
 
-        await msg.author.send(response)
+        embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
+        embed.set_author(name="UFW Result", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
+        embed.description = response
+
+        await msg.author.send(embed=embed)
