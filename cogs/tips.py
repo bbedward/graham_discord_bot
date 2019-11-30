@@ -122,10 +122,10 @@ class Tips(commands.Cog):
         # Get all eligible users to tip in their message
         users_to_tip = []
         for m in msg.mentions:
-            # TODO - consider tip banned
             if not m.bot and m.id != msg.author.id:
                 users_to_tip.append(m)
         if len(users_to_tip) < 1:
+            await Messages.add_x_reaction(msg)
             await Messages.send_error_dm(msg.author, f"No users you mentioned are eligible to receive tips.")
             return
 
@@ -146,14 +146,19 @@ class Tips(commands.Cog):
                 amount=send_amount,
                 receiving_user=u
             )
-            tx_list.append(tx)
-            task_list.append(
-                Messages.send_basic_dm(
-                    member=u,
-                    message=f"You were tipped **{send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
-                    skip_dnd=True
+            if tx is not None:
+                tx_list.append(tx)
+                task_list.append(
+                    Messages.send_basic_dm(
+                        member=u,
+                        message=f"You were tipped **{send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
+                        skip_dnd=True
+                    )
                 )
-            )
+        if len(tx_list) < 1:
+            await Messages.add_x_reaction(msg)
+            await Messages.send_error_dm(msg.author, f"No users you mentioned are eligible to receive tips.")
+            return
         # Send DMs in background, this is an attempt to avoid discord throttling us for sending too many at once
         asyncio.ensure_future(Utils.run_task_list(task_list))
         # Add reactions
@@ -178,10 +183,10 @@ class Tips(commands.Cog):
         # Get all eligible users to tip in their message
         users_to_tip = []
         for m in msg.mentions:
-            # TODO - consider tip banned
             if not m.bot and m.id != msg.author.id:
                 users_to_tip.append(m)
         if len(users_to_tip) < 1:
+            await Messages.add_x_reaction(msg)
             await Messages.send_error_dm(msg.author, f"No users you mentioned are eligible to receive tips.")
             return
 
@@ -208,14 +213,19 @@ class Tips(commands.Cog):
                 amount=individual_send_amount,
                 receiving_user=u
             )
-            tx_list.append(tx)
-            task_list.append(
-                Messages.send_basic_dm(
-                    member=u,
-                    message=f"You were tipped **{individual_send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
-                    skip_dnd=True
+            if tx is not None:
+                tx_list.append(tx)
+                task_list.append(
+                    Messages.send_basic_dm(
+                        member=u,
+                        message=f"You were tipped **{individual_send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
+                        skip_dnd=True
+                    )
                 )
-            )
+        if len(tx_list) < 1:
+            await Messages.add_x_reaction(msg)
+            await Messages.send_error_dm(msg.author, f"No users you mentioned are eligible to receive tips.")
+            return
         # Send DMs
         asyncio.ensure_future(Utils.run_task_list(task_list))
         # Add reactions
@@ -229,7 +239,6 @@ class Tips(commands.Cog):
 
     @commands.command(aliases=TIPRANDOM_INFO.triggers)
     async def tiprandom_cmd(self, ctx: Context):
-        # TODO - some anti-spam for this command
         if ctx.error:
             await Messages.add_x_reaction(ctx.message)
             return

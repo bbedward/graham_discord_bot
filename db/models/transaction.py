@@ -32,6 +32,8 @@ class Transaction(Model):
         """Create a transaction in the database, among discord users"""
         # See if receiving user exists in our database
         receiving_user_db : usr.User = await usr.User.create_or_fetch_user(receiving_user)
+        if receiving_user_db.tip_banned:
+            return None
         # Create transaction
         tx = None
         async with in_transaction() as conn:

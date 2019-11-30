@@ -50,7 +50,13 @@ ADMIN_COMMANDS = {
             admin.RESUME_INFO,
             admin.FREEZE_INFO,
             admin.DEFROST_INFO,
-            admin.FROZEN_INFO
+            admin.FROZEN_INFO,
+            admin.TIPBAN_INFO,
+            admin.TIPUNBAN_INFO,
+            admin.TIPBANNED_INFO,
+            admin.STATSBAN_INFO,
+            admin.STATSUNBAN_INFO,
+            admin.STATSBANNED_INFO
         ]
     }
 }

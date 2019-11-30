@@ -17,6 +17,7 @@ class User(Model):
     created_at = fields.DatetimeField(auto_now_add=True)
     modified_at = fields.DatetimeField(auto_now=True)
     frozen = fields.BooleanField(default=False) # Completely banned
+    tip_banned = fields.BooleanField(default=False) # Can't receive tips
 
     class Meta:
         table = "users"

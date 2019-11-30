@@ -11,6 +11,7 @@ from db.redis import RedisDB
 import config
 import discord
 import datetime
+from util.number import NumberUtil
 
 ## Command documentation
 TIPSTATS_INFO = CommandInfo(
@@ -35,7 +36,6 @@ class TipStats(commands.Cog):
 
     async def cog_before_invoke(self, ctx: Context):
         ctx.error = False
-        # TODO - account for stats banned in every command
         # Only allow tip commands in public channels
         msg = ctx.message
         if ChannelUtil.is_private(msg.channel):
@@ -84,11 +84,15 @@ class TipStats(commands.Cog):
             return
 
         stats: Stats = await user.get_stats(server_id=msg.guild.id)
+        if stats.banned:
+            await Messages.add_x_reaction(msg)
+            await Messages.send_error_dm(msg.author, "You are stats banned, contact an admin if you want to be unbanned")
+            return
         response = ""
         if stats is None or stats.total_tips == 0:
             response = f"<@{msg.author.id}> You haven't sent any tips in this server yet, tip some people and then check your stats later"
         else:
-            response = f"<@{msg.author.id}> You have sent **{stats.total_tips}** tips totaling **{stats.total_tipped_amount} {Env.currency_symbol()}**. Your biggest tip of all time is **{stats.top_tip} {Env.currency_symbol()}**"
+            response = f"<@{msg.author.id}> You have sent **{stats.total_tips}** tips totaling **{NumberUtil.format_float(stats.total_tipped_amount)} {Env.currency_symbol()}**. Your biggest tip of all time is **{NumberUtil.format_float(stats.top_tip)} {Env.currency_symbol()}**"
 
         await msg.channel.send(response)
         await RedisDB.instance().set(f"tipstatsspam{msg.author.id}{msg.guild.id}", "as", expires=300)
@@ -106,8 +110,9 @@ class TipStats(commands.Cog):
 
         # This would be better to be 1 query but, i'm not proficient enough with tortoise-orm
         top_tip = await Stats.filter(
-            server_id=msg.guild.id
-        ).order_by('-top_tip').prefetch_related('user').limit(1).first()
+            server_id=msg.guild.id,
+            banned=False
+        ).order_by('top_tip').prefetch_related('user').limit(1).first()
         if top_tip is None:
             await RedisDB.instance().set(f"toptipsspam{msg.channel.id}", "as", expires=300)
             await msg.channel.send("There are no stats for this server yet. Send some tips first!")
@@ -120,24 +125,26 @@ class TipStats(commands.Cog):
         # Find top tip of the month
         top_tip_month = await Stats.filter(
             server_id=msg.guild.id,
-            top_tip_month_at__gte=first_day_of_month
-        ).order_by('-top_tip_month').prefetch_related('user').limit(1).first()
+            top_tip_month_at__gte=first_day_of_month,
+            banned=False
+        ).order_by('top_tip_month').prefetch_related('user').limit(1).first()
         # Get datetime object representing 24 hours ago
         past_24h = now - datetime.timedelta(hours=24)
         # Find top tip of the month
         top_tip_day = await Stats.filter(
             server_id=msg.guild.id,
-            top_tip_day_at__gte=past_24h
-        ).order_by('-top_tip_day').prefetch_related('user').limit(1).first()
+            top_tip_day_at__gte=past_24h,
+            banned=False
+        ).order_by('top_tip_day').prefetch_related('user').limit(1).first()
 
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name='Biggest Tips', icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
         new_line = '\n' # Can't use this directly inside f-expression, so store it in a variable
         if top_tip_day is not None:
-            embed.description = f"**Last 24 Hours**\n```{top_tip_day.top_tip_day} {Env.currency_symbol()} - by {top_tip_day.user.name}```"
+            embed.description = f"**Last 24 Hours**\n```{NumberUtil.format_float(top_tip_day.top_tip_day)} {Env.currency_symbol()} - by {top_tip_day.user.name}```"
         if top_tip_month is not None:
-            embed.description += f"{new_line if top_tip_day is not None else ''}**In {now.strftime('%B')}**\n```{top_tip_month.top_tip_month} {Env.currency_symbol()} - by {top_tip_month.user.name}```"
-        embed.description += f"{new_line if top_tip_day is not None or top_tip_month is not None else ''}**All Time**\n```{top_tip.top_tip} {Env.currency_symbol()} - by {top_tip.user.name}```"
+            embed.description += f"{new_line if top_tip_day is not None else ''}**In {now.strftime('%B')}**\n```{NumberUtil.format_float(top_tip_month.top_tip_month)} {Env.currency_symbol()} - by {top_tip_month.user.name}```"
+        embed.description += f"{new_line if top_tip_day is not None or top_tip_month is not None else ''}**All Time**\n```{NumberUtil.format_float(top_tip.top_tip)} {Env.currency_symbol()} - by {top_tip.user.name}```"
 
         # No spam
         await RedisDB.instance().set(f"toptipsspam{msg.channel.id}", "as", expires=300)
@@ -158,7 +165,7 @@ class TipStats(commands.Cog):
             return
 
         # Get list
-        ballers = await Stats.filter(server_id=msg.guild.id).order_by('-total_tipped_amount').prefetch_related('user').limit(15).all()
+        ballers = await Stats.filter(server_id=msg.guild.id, banned=False).order_by('total_tipped_amount').prefetch_related('user').limit(15).all()
 
         if len(ballers) == 0:
             await msg.channel.send(f"<@{msg.author.id}> There are no stats for this server yet, send some tips!")
@@ -174,7 +181,7 @@ class TipStats(commands.Cog):
         for rank, stats in enumerate(ballers, start=1):
             adj_rank = str(rank) if rank < 10 else f" {rank}"
             user_name = stats.user.name.replace("`", "") # Escape symbols
-            response_msg += f"{adj_rank}. {str(stats.total_tipped_amount).rjust(biggest_num)} {Env.currency_symbol()} - by {user_name}" 
+            response_msg += f"{adj_rank}. {NumberUtil.format_float(stats.total_tipped_amount).rjust(biggest_num)} {Env.currency_symbol()} - by {user_name}\n" 
         response_msg += "```"
 
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())

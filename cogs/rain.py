@@ -26,7 +26,7 @@ from tasks.transaction_queue import TransactionQueue
 
 # Commands Documentation
 RAIN_INFO = CommandInfo(
-    triggers = ["brain" if Env.banano() else "nrain"],
+    triggers = ["brain" if Env.banano() else "nrain", "brian", "nrian"],
     overview = "Distribute a tip amount amongst active users",
     details = "Distribute amount amongst active users." +
                 f"\nExample: `{config.Config.instance().command_prefix}{'b' if Env.banano() else 'n'}rain 1000` will distribute 1000 {Env.currency_symbol()} between everyone who is active." +
@@ -243,5 +243,5 @@ class Rain(commands.Cog):
                 users_filtered.append(u['user_id'])
 
         # Get only users in our database
-        return await User.filter(id__in=users_filtered, frozen=False).prefetch_related('account').all()
+        return await User.filter(id__in=users_filtered, frozen=False, tip_banned=False).prefetch_related('account').all()
 
