@@ -1,5 +1,6 @@
 from tortoise.models import Model
 from tortoise import fields
+from typing import List
 from util.env import Env
 
 import datetime
@@ -22,9 +23,8 @@ class Giveaway(Model):
     @staticmethod
     async def get_active_giveaway(server_id: int) -> 'Giveaway':
         """Returns the current active giveaway, if there is one."""
-        giveaway = await Giveaway.filter(server_id=server_id, end_at__not_isnull=True, winning_user=None).order_by('end_at').first()
+        giveaway = await Giveaway.filter(server_id=server_id, end_at__not_isnull=True, winning_user=None).prefetch_related('started_by').order_by('end_at').first()
         return giveaway
-
 
     @staticmethod
     async def start_giveaway_user(server_id: int, started_by: usr.User, amount: float, entry_fee: float, duration: int, started_in_channel: int, conn = None) -> 'Giveaway':
@@ -42,3 +42,7 @@ class Giveaway(Model):
         )
         await giveaway.save(using_db=conn)
         return giveaway
+
+    async def get_transactions(self):
+        """Get transactions belonging to this giveaway"""
+        return await self.giveaway_transactions.all()

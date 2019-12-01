@@ -29,6 +29,18 @@ class Messages():
             return None
 
     @staticmethod
+    async def send_error_public(channel: discord.TextChannel, message: str) -> discord.Message:
+        embed = discord.Embed(colour=discord.Colour.red())
+        embed.title = "Error"
+        embed.description = message
+        try:
+            return await channel.send(embed=embed)
+        except Exception:
+            # May raise if user has blocked the bot
+            return None
+
+
+    @staticmethod
     async def send_success_dm(member: discord.Member, message: str, header: str = "Success", footer: str = None, skip_dnd=False) -> discord.Message:
         if skip_dnd and member.status == discord.Status.dnd:
             return None

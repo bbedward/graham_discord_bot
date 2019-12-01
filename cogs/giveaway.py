@@ -22,6 +22,7 @@ from util.discord.channel import ChannelUtil
 from db.redis import RedisDB
 from tasks.transaction_queue import TransactionQueue
 from util.validators import Validators
+from util.number import NumberUtil
 
 # Commands Documentation
 START_GIVEAWAY_INFO = CommandInfo(
@@ -40,6 +41,11 @@ TICKET_INFO = CommandInfo(
     details = "Enter the currently active giveaway, if there is one." +
                 f"\nFor giveaways without a fee, simply use `{config.Config.instance().command_prefix} ticket`"
                 f"\nFor giveaways with a fee, simply use `{config.Config.instance().command_prefix} ticket <fee>`"
+)
+GIVEAWAYSTATS_INFO = CommandInfo(
+    triggers = ["giveawaystats", "gs"],
+    overview = "View stats related to the currently active giveaway",
+    details = "View time left, number of entries, and other information about the currently active giveaway"
 )
 
 class GiveawayCog(commands.Cog):
@@ -119,8 +125,8 @@ class GiveawayCog(commands.Cog):
 
     def format_giveaway_announcement(self, giveaway: Giveaway) -> discord.Embed:
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
-        embed.set_author(name="New Giveaway!", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
-        embed.description = f"{giveaway.started_by.name} has sponsored a giveaway of **{Env.raw_to_amount(int(giveaway.base_amount))} {Env.currency_name()}**!"
+        embed.set_author(name=f"New Giveaway! #{giveaway.id}", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
+        embed.description = f"'{giveaway.started_by.name if giveaway.started_by is not None else self.bot.user.name}' has sponsored a giveaway of **{Env.raw_to_amount(int(giveaway.base_amount))} {Env.currency_name()}**!\n"
         fee = Env.raw_to_amount(int(giveaway.entry_fee))
         if fee > 0:
             embed.description+= f"\nThis giveaway has an entry fee of **{fee} {Env.currency_name()}**"
@@ -132,10 +138,10 @@ class GiveawayCog(commands.Cog):
             embed.description+= f"\n`{config.Config.instance().command_prefix}{'donate' if Env.banano() else 'ntipgiveaway'} <amount>` - To increase the pot"            
         duration = (giveaway.end_at - datetime.datetime.utcnow()).total_seconds()
         if duration < 60:
-            embed.description += f"\nThis giveaway will end in **{int(duration)} seconds**"
+            embed.description += f"\n\nThis giveaway will end in **{int(duration)} seconds**"
         else:
             duration = duration // 60
-            embed.description += f"\nThis giveaway will end in **{duration} minutes**"
+            embed.description += f"\n\nThis giveaway will end in **{duration} minutes**"
         embed.description += "\nGood luck! \U0001F340"
         return embed
 
@@ -188,7 +194,7 @@ class GiveawayCog(commands.Cog):
         ann_message = f"Congratulations! <@{winner.id}> was the winner of the giveaway!"
         ann_message+= f"\nThey have been sent **{Env.raw_to_amount(tx_sum)} {Env.currency_symbol()}**"
         if isinstance(giveaway.started_by, User):
-            ann_message+= f"\nThanks to <@{giveaway.started_by.id}> for sponsoring this giveaway!"
+            ann_message+= f"\n\nThanks to <@{giveaway.started_by.id}> for sponsoring this giveaway!"
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name="We have a winner!", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
         embed.description = ann_message
@@ -198,6 +204,10 @@ class GiveawayCog(commands.Cog):
                 await ann.send(embed=embed)
             except Exception:
                 pass
+        # DM the winner
+        member = self.bot.get_user(winner.id)
+        if member is not None:
+            await Messages.send_success_dm(member, f"Congratulations! **You've won giveaway #{giveaway.id}**! I've sent you **{Env.raw_to_amount(tx_sum)} {Env.currency_symbol()}**")
 
     @commands.command(aliases=START_GIVEAWAY_INFO.triggers)
     async def giveaway_cmd(self, ctx: Context):
@@ -353,7 +363,10 @@ class GiveawayCog(commands.Cog):
 
         if gw is None:
             await Messages.send_error_dm(msg.author, "There aren't any active giveaways to enter.")
-            await msg.delete()
+            try:
+                await msg.delete()
+            except Exception:
+                pass
             # Block ticket spam
             await RedisDB.instance().set(f"ticketspam:{msg.guild.id}:{msg.author.id}", str(spam + 1), expires=3600)
             return
@@ -362,7 +375,10 @@ class GiveawayCog(commands.Cog):
         is_entered = await Transaction.filter(giveaway__id=gw.id, sending_user__id=user.id).first() is not None
         if is_entered:
             await Messages.send_error_dm(msg.author, "You've already entered this giveaway.")
-            await msg.delete()
+            try:
+                await msg.delete()
+            except Exception:
+                pass
             await RedisDB.instance().set(f"ticketspam:{msg.guild.id}:{msg.author.id}", str(spam + 1), expires=3600)
             return
 
@@ -371,11 +387,24 @@ class GiveawayCog(commands.Cog):
         fee = Env.raw_to_amount(fee)
         # Check balance if fee is > 0
         if fee > 0:
+            try:
+                amount = RegexUtil.find_float(msg.content)
+                if amount < fee:
+                    await Messages.send_error_dm(msg.author, f"This giveaway has a fee of {fee} {Env.currency_symbol()}. The amount you specified isn't enough to cover the entry fee")
+                    await msg.delete()
+                    return
+            except AmountMissingException:
+                await Messages.send_error_dm(msg.author, f"This giveaway has a fee, you need to specify the amount to enter. `{config.Config.instance().command_prefix}ticket {fee}`")
+                await msg.delete()
+                return
             available_balance = Env.raw_to_amount(await user.get_available_balance())
             if fee > available_balance:
                 await Messages.add_x_reaction(ctx.message)
                 await Messages.send_error_dm(msg.author, f"Your balance isn't high enough to complete this tip. You have **{available_balance} {Env.currency_symbol()}**, but this entry would cost you **{fee} {Env.currency_symbol()}**")
-                await msg.delete()
+                try:
+                    await msg.delete()
+                except Exception:
+                    pass
                 await RedisDB.instance().set(f"ticketspam:{msg.guild.id}:{msg.author.id}", str(spam + 1), expires=3600)
                 return
         await Transaction.create_transaction_giveaway(
@@ -386,3 +415,85 @@ class GiveawayCog(commands.Cog):
         await Messages.send_success_dm(msg.author, f"You've successfully been entered into giveaway #{gw.id}")
         await msg.delete()
         return
+
+    @commands.command(aliases=GIVEAWAYSTATS_INFO.triggers)
+    async def giveawaystats_cmd(self, ctx: Context):
+        if ctx.error:
+            return
+
+        msg = ctx.message
+        user = ctx.user
+
+        as_dm = False
+
+        # Punish them for trying to do this command in a no spam channel
+        if msg.channel.id in config.Config.instance().get_no_spam_channels():
+            redis_key = f"ticketspam:{msg.guild.id}:{msg.author.id}"
+            if not ctx.god:
+                spam = await RedisDB.instance().get(redis_key)
+                if spam is not None:
+                    spam = int(spam)
+                else:
+                    spam = 0
+                await Messages.add_x_reaction(msg)
+                await Messages.send_error_dm(msg.author, "You can't view giveaway stats in this channel")
+                await RedisDB.instance().set(f"ticketspam:{msg.guild.id}:{msg.author.id}", str(spam + 1), expires=3600)
+                return
+
+        if not as_dm:
+            # Check spamming of this command
+            if await RedisDB.instance().exists(f'giveawaystatsspam:{msg.guild.id}'):
+                as_dm = True
+            else:
+                await RedisDB.instance().set(f'giveawaystatsspam:{msg.guild.id}', 'as', expires=60)
+
+        gw = await Giveaway.get_active_giveaway(server_id=msg.guild.id)
+        if gw is None:
+            if as_dm:
+                await Messages.send_error_dm(msg.author, "There are no active giveaways")
+            else:
+                await Messages.send_error_public(msg.channel, "There are no active giveaays")
+            try:
+                await msg.delete()
+            except Exception:
+                pass
+            return
+
+        # Get stats
+        transactions = await gw.get_transactions()
+        entries = 0
+        amount = 0
+        for tx in transactions:
+            tx: Transaction = tx
+            entries +=  1
+            amount += Env.raw_to_amount(int(tx.amount))
+
+        # Format stats message
+        embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
+        embed.set_author(name=f"Giveaway #{gw.id}", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
+        fee = Env.raw_to_amount(int(gw.entry_fee))
+        embed.description = f"There are **{entries} entries** to win **{NumberUtil.truncate_digits(amount, max_digits=Env.precision_digits())} {Env.currency_symbol()}**\n"
+        if fee > 0:
+            embed.description+= f"\nThis giveaway has an entry fee of **{fee} {Env.currency_name()}**"
+            embed.description+= f"\n`{config.Config.instance().command_prefix}ticket {fee}` - To enter this giveaway"
+            embed.description+= f"\n`{config.Config.instance().command_prefix}{'donate' if Env.banano() else 'ntipgiveaway'} <amount>` - To increase the pot"
+        else:
+            embed.description+= f"\nThis giveaway is free to enter:"
+            embed.description+= f"\n`{config.Config.instance().command_prefix}ticket` - To enter this giveaway"
+            embed.description+= f"\n`{config.Config.instance().command_prefix}{'donate' if Env.banano() else 'ntipgiveaway'} <amount>` - To increase the pot"            
+        duration = (gw.end_at - datetime.datetime.utcnow()).total_seconds()
+        if duration < 60:
+            embed.description += f"\n\nThis giveaway will end in **{int(duration)} seconds**"
+        else:
+            duration = duration // 60
+            embed.description += f"\n\nThis giveaway will end in **{duration} minutes**"
+        embed.description += "\nGood luck! \U0001F340"
+
+        try:
+            if as_dm:
+                await msg.author.send(embed=embed)
+            else:
+                await msg.channel.send(embed=embed)
+        except Exception:
+            pass
+        await msg.delete()
