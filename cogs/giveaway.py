@@ -15,6 +15,7 @@ import asyncio
 import config
 import datetime
 import discord
+import logging
 import secrets
 import random
 from util.discord.channel import ChannelUtil
@@ -33,10 +34,28 @@ START_GIVEAWAY_INFO = CommandInfo(
                 f"\n**Example:** `{config.Config.instance().command_prefix}giveaway 10 duration=30 fee=0.05`" + 
                 f"\nWould start a giveaway of 10 {Env.currency_symbol()} that lasts 30 minutes with a 0.05 {Env.currency_symbol()} fee."
 )
+TICKET_INFO = CommandInfo(
+    triggers = ["ticket", "enter", "e"],
+    overview = "Enter the currently active giveaway",
+    details = "Enter the currently active giveaway, if there is one." +
+                f"\nFor giveaways without a fee, simply use `{config.Config.instance().command_prefix} ticket`"
+                f"\nFor giveaways with a fee, simply use `{config.Config.instance().command_prefix} ticket <fee>`"
+)
 
 class GiveawayCog(commands.Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
+        self.logger = logging.getLogger()
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        # Get active giveaways
+        self.logger.info("Checking for active giveaways")
+        for guild in self.bot.guilds:
+            gw = await Giveaway.get_active_giveaway(server_id=guild.id)
+            if gw is not None:
+                self.logger.info(f"Resuming giveaway {gw.id}")
+                asyncio.create_task(self.start_giveaway_timer(gw))
 
     async def cog_before_invoke(self, ctx: Context):
         ctx.error = False
@@ -102,16 +121,16 @@ class GiveawayCog(commands.Cog):
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name="New Giveaway!", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
         embed.description = f"{giveaway.started_by.name} has sponsored a giveaway of **{Env.raw_to_amount(int(giveaway.base_amount))} {Env.currency_name()}**!"
-        fee = Env.raw_to_amount(giveaway.entry_fee)
+        fee = Env.raw_to_amount(int(giveaway.entry_fee))
         if fee > 0:
             embed.description+= f"\nThis giveaway has an entry fee of **{fee} {Env.currency_name()}**"
             embed.description+= f"\n`{config.Config.instance().command_prefix}ticket {fee}` - To enter this giveaway"
             embed.description+= f"\n`{config.Config.instance().command_prefix}{'donate' if Env.banano() else 'ntipgiveaway'} <amount>` - To increase the pot"
         else:
-            embed.description+= f"\nThis giveaway is free to enter"
-            embed.description+= f"\n`{config.Config.instance().command_prefix}ticket`"
+            embed.description+= f"\nThis giveaway is free to enter:"
+            embed.description+= f"\n`{config.Config.instance().command_prefix}ticket` - To enter this giveaway"
             embed.description+= f"\n`{config.Config.instance().command_prefix}{'donate' if Env.banano() else 'ntipgiveaway'} <amount>` - To increase the pot"            
-        duration = (datetime.datetime.utcnow() - giveaway.end_at).total_seconds()
+        duration = (giveaway.end_at - datetime.datetime.utcnow()).total_seconds()
         if duration < 60:
             embed.description += f"\nThis giveaway will end in **{int(duration)} seconds**"
         else:
@@ -123,16 +142,16 @@ class GiveawayCog(commands.Cog):
 
     async def start_giveaway_timer(self, giveaway: Giveaway):
         # Sleep for <giveaway duration> seconds
-        delta = (giveaway.end_time - datetime.datetime.utcnow()).total_seconds()
+        delta = (giveaway.end_at - datetime.datetime.utcnow()).total_seconds()
         if delta > 0:
             await asyncio.sleep(delta)
         # End the giveaway
         # Get entries
-        txs = await Transaction.filter(giveaway=giveaway).prefetch_related('user').all()
+        txs = await Transaction.filter(giveaway=giveaway).prefetch_related('sending_user').all()
         users = []
         for tx in txs:
-            if tx.user not in users:
-                users.append(tx.user)
+            if tx.sending_user not in users:
+                users.append(tx.sending_user)
         # Pick winner
         random.shuffle(users, secrets.randbelow(100) / 100)
         winner = secrets.choice(users)
@@ -140,12 +159,15 @@ class GiveawayCog(commands.Cog):
         async with in_transaction() as conn:
             giveaway.ended_at = datetime.datetime.utcnow()
             giveaway.winning_user = winner
-            await giveaway.save(using_db=conn, update_fields=['ended_at', 'winning_user'])
+            await giveaway.save(using_db=conn, update_fields=['ended_at', 'winning_user_id'])
             # Update transactions
-            winner_account = await winner.get_account()
+            winner_account = await winner.get_address()
             for tx in txs:
-                tx.destination = winner_account
-                await tx.save(using_db=conn, update_fields=['destination'])
+                if tx.amount == '0':
+                    await tx.delete()
+                else:
+                    tx.destination = winner_account
+                    await tx.save(using_db=conn, update_fields=['destination'])
         # Queue transactions
         tx_sum = 0
         for tx in txs:
@@ -179,6 +201,9 @@ class GiveawayCog(commands.Cog):
 
     @commands.command(aliases=START_GIVEAWAY_INFO.triggers)
     async def giveaway_cmd(self, ctx: Context):
+        if ctx.error:
+            return
+
         msg = ctx.message
         user = ctx.user
 
@@ -188,7 +213,7 @@ class GiveawayCog(commands.Cog):
             return
 
         # Check roles
-        if not self.role_check(msg):
+        if not await self.role_check(msg):
             return
         elif msg.channel.id in config.Config.instance().get_no_spam_channels():
             await Messages.send_error_dm(msg.author, f"You can't start giveaways in this channel")
@@ -297,3 +322,67 @@ class GiveawayCog(commands.Cog):
         except LockTimeoutError:
             await Messages.add_x_reaction(msg)
             await Messages.send_error_dm(msg.author, "I couldn't start a giveaway, maybe someone else beat you to it as there can only be 1 active at a time.")
+
+    @commands.command(aliases=TICKET_INFO.triggers)
+    async def ticket_cmd(self, ctx: Context):
+        if ctx.error:
+            return
+
+        msg = ctx.message
+        user = ctx.user
+        author = msg.author
+        content = msg.content
+
+        # See if they've been spamming
+        redis_key = f"ticketspam:{msg.guild.id}:{msg.author.id}"
+        if not ctx.god:
+            spam = await RedisDB.instance().get(redis_key)
+            if spam is not None:
+                spam = int(spam)
+                if spam >= 3:
+                    await Messages.send_error_dm(msg.author, "You're temporarily banned from entering giveaways")
+                    await msg.delete()
+                    return
+            else:
+                spam = 0
+        else:
+            spam = 0
+
+        # Get active giveaway
+        gw = await Giveaway.get_active_giveaway(server_id=msg.guild.id)
+
+        if gw is None:
+            await Messages.send_error_dm(msg.author, "There aren't any active giveaways to enter.")
+            await msg.delete()
+            # Block ticket spam
+            await RedisDB.instance().set(f"ticketspam:{msg.guild.id}:{msg.author.id}", str(spam + 1), expires=3600)
+            return
+
+        # There is an active giveaway, enter em if not already entered.
+        is_entered = await Transaction.filter(giveaway__id=gw.id, sending_user__id=user.id).first() is not None
+        if is_entered:
+            await Messages.send_error_dm(msg.author, "You've already entered this giveaway.")
+            await msg.delete()
+            await RedisDB.instance().set(f"ticketspam:{msg.guild.id}:{msg.author.id}", str(spam + 1), expires=3600)
+            return
+
+        # Enter em
+        fee_raw = int(gw.entry_fee)
+        fee = Env.raw_to_amount(fee)
+        # Check balance if fee is > 0
+        if fee > 0:
+            available_balance = Env.raw_to_amount(await user.get_available_balance())
+            if fee > available_balance:
+                await Messages.add_x_reaction(ctx.message)
+                await Messages.send_error_dm(msg.author, f"Your balance isn't high enough to complete this tip. You have **{available_balance} {Env.currency_symbol()}**, but this entry would cost you **{fee} {Env.currency_symbol()}**")
+                await msg.delete()
+                await RedisDB.instance().set(f"ticketspam:{msg.guild.id}:{msg.author.id}", str(spam + 1), expires=3600)
+                return
+        await Transaction.create_transaction_giveaway(
+            user,
+            fee,
+            gw
+        )
+        await Messages.send_success_dm(msg.author, f"You've successfully been entered into giveaway #{gw.id}")
+        await msg.delete()
+        return

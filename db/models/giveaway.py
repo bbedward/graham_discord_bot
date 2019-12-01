@@ -21,8 +21,8 @@ class Giveaway(Model):
 
     @staticmethod
     async def get_active_giveaway(server_id: int) -> 'Giveaway':
-        """Returns the current active giveaway"""
-        giveaway = await Giveaway.filter(server_id=server_id, end_at__not_isnull=True).first()
+        """Returns the current active giveaway, if there is one."""
+        giveaway = await Giveaway.filter(server_id=server_id, end_at__not_isnull=True, winning_user=None).order_by('end_at').first()
         return giveaway
 
 

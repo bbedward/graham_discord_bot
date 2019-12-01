@@ -5,7 +5,7 @@ try:
 except ImportError:
 	print("Couldn't install uvloop, falling back to the slower asyncio event loop")
 
-from cogs import account, help, tips, tip_legacy, stats, rain, admin, useroptions, favorites, spy
+from cogs import account, help, tips, tip_legacy, stats, rain, admin, useroptions, favorites, spy, giveaway
 from config import Config
 from discord.ext.commands import Bot
 from db.models.transaction import Transaction
@@ -37,8 +37,6 @@ client.remove_command('help')
 
 @client.event
 async def on_ready():
-	logger.info("Initializing database")
-	await init_db()
 	logger.info(f"Starting Graham v{__version__}")
 	logger.info(f"Discord.py version {discord.__version__}")
 	logger.info(f"Bot name: {client.user.name}")
@@ -71,12 +69,16 @@ if __name__ == "__main__":
 	client.add_cog(useroptions.UserOptionsCog(client))
 	client.add_cog(favorites.FavoriteCog(client))
 	client.add_cog(spy.SpyCog(client))
+	client.add_cog(giveaway.GiveawayCog(client))
 	if not Env.banano():
 		# Add a command to warn users that tip unit has changed
 		client.add_cog(tip_legacy.TipLegacy(client))
 	# Start bot
 	loop = asyncio.get_event_loop()
 	try:
+		# Initialize database first
+		logger.info("Initializing database")
+		loop.run_until_complete(init_db())
 		tasks = [
 			client.start(config.bot_token),
 			# Create two queue consumers for transactions

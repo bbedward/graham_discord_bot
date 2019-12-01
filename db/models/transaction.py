@@ -103,7 +103,7 @@ class Transaction(Model):
     async def send(self) -> str:
         if self.block_hash is not None:
             return self.block_hash
-        elif self.destinaion is None:
+        elif self.destination is None:
             return
         # Make transaction internal
         resp = await RPCClient.instance().send(

@@ -125,9 +125,9 @@ class FavoriteCog(commands.Cog):
             return
 
         fav_count = await Favorite.filter(user=ctx.user).count()
-        if fav_count >= 25:
+        if (fav_count + len(to_add)) >= 25:
             await Messages.add_x_reaction(msg)
-            await Messages.send_error_dm(msg.author, "You can only have up to **25 favorites**. You have too many, remove some first.")
+            await Messages.send_error_dm(msg.author, f"You can only have up to **25 favorites**. With this, you would have **{fav_count + len(to_add)}**.")
             return
 
         # Mute users
