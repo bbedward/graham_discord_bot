@@ -145,9 +145,9 @@ class AccountCog(commands.Cog):
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name="Balance", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
         embed.description = "**Available:**\n"
-        embed.description += f"```{str(Env.raw_to_amount(balance_raw))} {Env.currency_symbol()}```\n"
+        embed.description += f"```{str(Env.raw_to_amount(balance_raw - pending_send_db))} {Env.currency_symbol()}```\n"
         embed.description += "**Pending:**\n"
-        pending_receive_str = f"{str(Env.raw_to_amount(pending_raw + pending_reveive_db))} {Env.currency_symbol()}"
+        pending_receive_str = f"{str(Env.raw_to_amount(pending_raw + pending_receive_db))} {Env.currency_symbol()}"
         pending_send_str = f"{str(Env.raw_to_amount(pending_send_db))} {Env.currency_symbol()}"
         rjust_size = max(len(pending_send_str), len(pending_receive_str))
         embed.description += f"```{pending_receive_str.rjust(rjust_size)} (Pending Receipt)\n{pending_send_str.rjust(rjust_size)} (Pending Send)```\n"
