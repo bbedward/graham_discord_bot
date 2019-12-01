@@ -1,5 +1,4 @@
 from tortoise.models import Model
-from tortoise.transactions import TransactionContext
 from tortoise import fields
 from util.env import Env
 
@@ -26,8 +25,9 @@ class Giveaway(Model):
         giveaway = await Giveaway.filter(server_id=server_id, end_at__not_isnull=True).first()
         return giveaway
 
+
     @staticmethod
-    async def start_giveaway_user(server_id: int, started_by: usr.User, amount: float, entry_fee: float, duration: int, started_in_channel: int, conn: TransactionContext = None) -> 'Giveaway':
+    async def start_giveaway_user(server_id: int, started_by: usr.User, amount: float, entry_fee: float, duration: int, started_in_channel: int, conn = None) -> 'Giveaway':
         # Double check no active giveaways
         active = await Giveaway.get_active_giveaway(server_id)
         if active is not None:

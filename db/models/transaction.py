@@ -1,7 +1,7 @@
 import discord
 from tortoise import fields
 from tortoise.models import Model
-from tortoise.transactions import in_transaction, TransactionContext
+from tortoise.transactions import in_transaction
 
 import db.models.giveaway as gway
 import db.models.user as usr
@@ -88,7 +88,7 @@ class Transaction(Model):
                                 sending_user: usr.User,
                                 amount: float,
                                 giveaway: gway.Giveaway,
-                                conn: TransactionContext = None) -> 'Transaction':
+                                conn = None) -> 'Transaction':
         """Create a transaction in the database, among discord users"""
         # Create transaction
         tx = None
