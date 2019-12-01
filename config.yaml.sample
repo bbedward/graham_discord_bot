@@ -50,6 +50,21 @@ giveaway:
   min_duration: 10
   # Max giveaway duration (minutes)
   max_duration: 60
+  # Additional channels to announce new giveaways in
+  # (It will always be announced in the channel it was started from)
+  announce_channels:
+    - 416344480820494356
+    - 431938659852353536
+    - 433102807239884800
+    - 436075697765875712
+    - 436840337252810753
+    - 436840559970091008
+    - 540860429719830538
+    - 572250989654966293
+    - 559649394262147082
+  # Restrict giveaway participation to specific role(s)
+  roles:
+    - 431171347427622913
 
 server:
   # The host/port of the bot's aiohttp server

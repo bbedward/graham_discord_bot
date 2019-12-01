@@ -1,8 +1,9 @@
 import discord
 from tortoise import fields
 from tortoise.models import Model
-from tortoise.transactions import in_transaction
+from tortoise.transactions import in_transaction, TransactionContext
 
+import db.models.giveaway as gway
 import db.models.user as usr
 from db.redis import RedisDB
 
@@ -80,6 +81,23 @@ class Transaction(Model):
                 receiving_user = None
             )
             await tx.save(using_db=conn)
+        return tx
+
+    @staticmethod
+    async def create_transaction_giveaway(
+                                sending_user: usr.User,
+                                amount: float,
+                                giveaway: gway.Giveaway,
+                                conn: TransactionContext = None) -> 'Transaction':
+        """Create a transaction in the database, among discord users"""
+        # Create transaction
+        tx = None
+        tx = Transaction(
+            sending_user = sending_user,
+            amount = str(Env.amount_to_raw(amount)),
+            giveaway=giveaway
+        )
+        await tx.save(using_db=conn)
         return tx
 
     async def send(self) -> str:

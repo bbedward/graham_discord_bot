@@ -129,3 +129,7 @@ class User(Model):
         """Returns true if this user has been muted by passed in"""
         muted = await self.muted_by.filter(user__id=user_id).count()
         return muted > 0
+
+    def __eq__(self, other: 'User'):
+        """Overrides the default equality implementation"""
+        return self.id is not None and other is not None and other.id is not None and self.id == other.id
