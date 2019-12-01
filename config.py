@@ -102,3 +102,35 @@ class Config(object):
         elif 'admin' in self.yaml and 'admin_ids' in self.yaml['admin']:
             return self.yaml['admin']['admin_ids']
         return default
+
+    def get_giveaway_minimum(self) -> float:
+        default = 1000 if Env.banano() else 0.25
+        if not self.has_yaml():
+            return default
+        elif 'giveaway' in self.yaml and 'minimum' in self.yaml['giveaway']:
+            return self.yaml['giveaway']['minimum']
+        return default
+
+    def get_giveaway_max_fee_multiplier(self) -> float:
+        default = 0.05
+        if not self.has_yaml():
+            return default
+        elif 'giveaway' in self.yaml and 'max_fee' in self.yaml['giveaway']:
+            return self.yaml['giveaway']['max_fee'] / 100
+        return default
+
+    def get_giveaway_min_duration(self) -> int:
+        default = 10
+        if not self.has_yaml():
+            return default
+        elif 'giveaway' in self.yaml and 'min_duration' in self.yaml['giveaway']:
+            return int(self.yaml['giveaway']['min_duration'])
+        return default
+
+    def get_giveaway_max_duration(self) -> int:
+        default = 60
+        if not self.has_yaml():
+            return default
+        elif 'giveaway' in self.yaml and 'max_duration' in self.yaml['giveaway']:
+            return int(self.yaml['giveaway']['max_duration'])
+        return default

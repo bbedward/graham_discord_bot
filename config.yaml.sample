@@ -40,6 +40,17 @@ restrictions:
   rain_roles:
   - 589916036745396235
 
+giveaway:
+  # Minimum amount required to start a giveaway
+  minimum: 1000
+  # Max entry fee %
+  # E.g. if set to 10, and minimum is 1000 , max fee would be 100
+  max_fee: 5
+  # Minimum giveaway duration (minutes)
+  min_duration: 10
+  # Max giveaway duration (minutes)
+  max_duration: 60
+
 server:
   # The host/port of the bot's aiohttp server
   # Used for callbacks and APIs

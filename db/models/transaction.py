@@ -14,11 +14,12 @@ class Transaction(Model):
     id = fields.UUIDField(pk=True)
     sending_user = fields.ForeignKeyField('db.User', related_name='sent_transactions', index=True)
     receiving_user = fields.ForeignKeyField('db.User', related_name='received_transactions', null=True, index=True)
-    destination = fields.CharField(max_length=65)
+    destination = fields.CharField(max_length=65, null=True)
     block_hash = fields.CharField(max_length=64, index=True, null=True)
     amount = fields.CharField(max_length=50)
     created_at = fields.DatetimeField(auto_now_add=True, index=True)
     modified_at = fields.DatetimeField(auto_now=True)
+    giveaway = fields.ForeignKeyField('db.Giveaway', related_name='giveaway_transactions', null=True, index=True)
     retries = 0
 
     class Meta:
@@ -84,6 +85,8 @@ class Transaction(Model):
     async def send(self) -> str:
         if self.block_hash is not None:
             return self.block_hash
+        elif self.destinaion is None:
+            return
         # Make transaction internal
         resp = await RPCClient.instance().send(
             id=str(self.id),
