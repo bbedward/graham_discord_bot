@@ -1,4 +1,5 @@
 #TODO - allow giveaway spam in specific channels
+#TODO - add ticket status
 
 from aioredis_lock import RedisLock, LockTimeoutError
 from discord.ext import commands
@@ -139,10 +140,10 @@ class GiveawayCog(commands.Cog):
             return False
         return True
 
-    def format_giveaway_announcement(self, giveaway: Giveaway) -> discord.Embed:
+    def format_giveaway_announcement(self, giveaway: Giveaway, amount: int = None) -> discord.Embed:
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name=f"New Giveaway! #{giveaway.id}", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
-        embed.description = f"<@{giveaway.started_by.id if not giveaway.started_by_bot else self.bot.user.id}> has sponsored a giveaway of **{Env.raw_to_amount(int(giveaway.base_amount))} {Env.currency_name()}**!\n"
+        embed.description = f"<@{giveaway.started_by.id if not giveaway.started_by_bot else self.bot.user.id}> has sponsored a giveaway of **{Env.raw_to_amount(int(giveaway.base_amount if amount is None else amount))} {Env.currency_name()}**!\n"
         fee = Env.raw_to_amount(int(giveaway.entry_fee))
         if fee > 0:
             embed.description+= f"\nThis giveaway has an entry fee of **{fee} {Env.currency_name()}**"
@@ -731,7 +732,7 @@ class GiveawayCog(commands.Cog):
                     gw.started_in_channel = msg.channel.id
                     await gw.save(update_fields=['end_at', 'started_in_channel'])
                     # Announce giveaway
-                    embed = self.format_giveaway_announcement(gw)
+                    embed = self.format_giveaway_announcement(gw, amount=giveaway_sum_raw)
                     await msg.channel.send(embed=embed)
                     for ch in config.Config.instance().get_giveaway_announce_channels():
                         if ch != msg.channel.id:
