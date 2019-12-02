@@ -191,3 +191,14 @@ Check status:
 ```
 $ sudo systemctl status graham
 ```
+
+## How do I upgrade from Graham 3.0 to Graham 4.0?
+Upgrading is not officially supported or documented.
+
+If you want to attempt to update while migrating data - install a fresh Graham 4.0 first
+
+You can then reference the script in the `v3_migrate` folder.
+
+**The script MAY NOT fit your situation!**
+
+It should be used as a reference, and you should modify it as necessary.

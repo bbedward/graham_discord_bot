@@ -786,11 +786,11 @@ class GiveawayCog(commands.Cog):
             await RedisDB.instance().set(f"ticketspam:{msg.guild.id}:{msg.author.id}", str(spam + 1), expires=3600)
             return
 
-        # There is an active giveaway, enter em if not already entered.
+        # Get their active giveaway transaction
         active_tx = await Transaction.filter(giveaway__id=gw.id, sending_user__id=user.id).first()
         response = None
         if active_tx is None:
-            if int(gw.entryfee) > 0:
+            if int(gw.entry_fee) > 0:
                 fee_converted = Env.raw_to_amount(int(gw.entry_fee))
                 response = f"There is a fee of **{fee_converted} {Env.currency_symbol()}**!\n"
                 response+= f"Use `{config.Config.instance().command_prefix}ticket {fee_converted}` to pay the fee and enter"
