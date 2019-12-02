@@ -1,4 +1,5 @@
 import aiohttp
+import json
 import socket
 from config import Config
 from typing import List
@@ -106,12 +107,12 @@ class RPCClient(object):
 
     async def account_representative_set(self, account: str, rep: str) -> str:
         rep_action = {
-            'action': 'account_representative_set',
-            'account': account,
-            'representative': rep,
-            'wallet': Config.instance().wallet,
+            "action": "account_representative_set",
+            "wallet": Config.instance().wallet,
+            "account": account,
+            "representative": rep
         }
-        respjson = await self.make_request(rep)
+        respjson = await self.make_request(rep_action)
         if 'block' in respjson:
             return respjson['block']
         return None

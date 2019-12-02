@@ -32,7 +32,7 @@ class Config(object):
             parser.add_argument('-u', '--node-url', type=str, help='URL of the node', default='[::1]')
             parser.add_argument('-np', '--node-port', type=int, help='Port of the node', default=7072 if Env.banano() else 7076)
             parser.add_argument('--debug', action='store_true', help='Runs in debug mode if specified', default=False)
-            options = parser.parse_args()
+            options, unknown = parser.parse_known_args()
 
             # Parse options
             cls.command_prefix = options.prefix
