@@ -4,6 +4,7 @@ from db.models.stats import Stats
 from db.models.user import User
 from db.redis import RedisDB
 from models.command import CommandInfo
+from tortoise.transactions import in_transaction
 
 import config
 import logging
@@ -410,10 +411,11 @@ class AdminCog(commands.Cog):
 
         # We need to make sure that the stats objects are created for these users before banning them
         to_ban = await User.filter(id__in=ban_ids).all()
-        for u in to_ban:
-            stats = await u.get_stats(msg.guild.id)
-            stats.banned = True
-            await stats.save(update_fields=['banned'])
+        async with in_transaction() as conn:
+            for u in to_ban:
+                stats = await u.get_stats(msg.guild.id)
+                stats.banned = True
+                await stats.save(update_fields=['banned'], using_db=conn)
 
         await msg.author.send(f"{len(ban_ids)} users have been banned")
         await msg.add_reaction("\U0001F528")

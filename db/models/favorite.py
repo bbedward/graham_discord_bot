@@ -1,4 +1,5 @@
 from tortoise.models import Model
+from tortoise.transactions import in_transaction
 from tortoise import fields
 
 import db.models.user as usr
@@ -18,7 +19,8 @@ class Favorite(Model):
                 user = favorited_by,
                 favorited_user = favorited_target
             )
-            await m.save()
+            async with in_transaction() as conn:
+                await m.save(using_db=conn)
         else:
             raise Exception("User is already favorited")
 

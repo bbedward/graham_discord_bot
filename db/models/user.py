@@ -54,7 +54,8 @@ class User(Model):
         """Update discord user name in database"""
         if name != self.name:
             self.name = name.replace("`", "")
-            await self.save(update_fields=['name'])
+            async with in_transaction() as conn:
+                await self.save(update_fields=['name'], using_db=conn)
 
     async def get_address(self) -> str:
         """Get account address of user"""

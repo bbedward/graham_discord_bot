@@ -700,17 +700,19 @@ class GiveawayCog(commands.Cog):
         # See if they already contributed
         user_tx = await Transaction.filter(giveaway__id=gw.id, sending_user__id=user.id).first()
         already_entered = False
-        if user_tx is not None:
-            if Env.raw_to_amount(int(user_tx.amount)) >= config.Config.instance().get_giveaway_auto_fee():
-                already_entered=True
-            user_tx.amount = str(int(user_tx.amount) + Env.amount_to_raw(tip_amount))
-            await user_tx.save(update_fields=['amount'])
-        else:
-            user_tx = await Transaction.create_transaction_giveaway(
-                user,
-                tip_amount,
-                gw
-            )
+        async with in_transaction() as conn:
+            if user_tx is not None:
+                if Env.raw_to_amount(int(user_tx.amount)) >= config.Config.instance().get_giveaway_auto_fee():
+                    already_entered=True
+                user_tx.amount = str(int(user_tx.amount) + Env.amount_to_raw(tip_amount))
+                await user_tx.save(update_fields=['amount'], using_db=conn)
+            else:
+                user_tx = await Transaction.create_transaction_giveaway(
+                    user,
+                    tip_amount,
+                    gw,
+                    conn=conn
+                )
     
         if gw.end_at is None:
             if not already_entered and Env.raw_to_amount(int(user_tx.amount)) >= config.Config.instance().get_giveaway_auto_fee():
@@ -730,7 +732,8 @@ class GiveawayCog(commands.Cog):
                 if gw is not None:
                     gw.end_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=config.Config.instance().get_giveaway_auto_duration())
                     gw.started_in_channel = msg.channel.id
-                    await gw.save(update_fields=['end_at', 'started_in_channel'])
+                    async with in_transaction() as conn:
+                        await gw.save(update_fields=['end_at', 'started_in_channel'], using_db=conn)
                     # Announce giveaway
                     embed = self.format_giveaway_announcement(gw, amount=giveaway_sum_raw)
                     await msg.channel.send(embed=embed)

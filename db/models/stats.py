@@ -1,4 +1,5 @@
 from tortoise.models import Model
+from tortoise.transactions import in_transaction
 from tortoise import fields
 from util.env import Env
 from util.number import NumberUtil
@@ -27,6 +28,8 @@ class Stats(Model):
 
     async def update_tip_stats(self, amount: float, giveaway: bool = False, rain: bool = False):
         # TODO - would be better to do these updates atomically
+        # https://github.com/tortoise/tortoise-orm/issues/245
+
         # Update total tipped amount and count
         amount = NumberUtil.truncate_digits(amount, max_digits=Env.precision_digits())
         self.total_tipped_amount = NumberUtil.truncate_digits(float(self.total_tipped_amount) + amount, max_digits=Env.precision_digits())
@@ -60,22 +63,22 @@ class Stats(Model):
             self.giveaway_amount = NumberUtil.truncate_digits(float(self.giveaway_amount) + amount, max_digits=Env.precision_digits())
             giveaway_updated = True
 
-        # Only update specific fields in save(), to avoid nuking the state potentially
-        # It might be better to do Stats.filter(...).update() here, but this is easier to build into a single update
-        update_fields = ['total_tipped_amount', 'total_tips']
-        if top_tip_updated:
-            update_fields.append('top_tip')
-            update_fields.append('top_tip_at')
-        if top_tip_month_updated:
-            update_fields.append('top_tip_month')
-            update_fields.append('top_tip_month_at')
-        if top_tip_day_updated:
-            update_fields.append('top_tip_day')
-            update_fields.append('top_tip_day_at')
-        if rain_updated:
-            update_fields.append('rain_amount')
-        if giveaway_updated:
-            update_fields.append('giveaway_amount')
-        await self.save(
-            update_fields=update_fields
-        )
+        async with in_transaction() as conn:
+            update_fields = ['total_tipped_amount', 'total_tips']
+            if top_tip_updated:
+                update_fields.append('top_tip')
+                update_fields.append('top_tip_at')
+            if top_tip_month_updated:
+                update_fields.append('top_tip_month')
+                update_fields.append('top_tip_month_at')
+            if top_tip_day_updated:
+                update_fields.append('top_tip_day')
+                update_fields.append('top_tip_day_at')
+            if rain_updated:
+                update_fields.append('rain_amount')
+            if giveaway_updated:
+                update_fields.append('giveaway_amount')
+            await self.save(
+                update_fields=update_fields,
+                using_db=conn
+            )
