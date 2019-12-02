@@ -1,4 +1,4 @@
-#TODO - add ticketstatus, allow giveaway spam in specific channels
+#TODO - allow giveaway spam in specific channels
 
 from aioredis_lock import RedisLock, LockTimeoutError
 from discord.ext import commands
@@ -397,7 +397,6 @@ class GiveawayCog(commands.Cog):
                 await msg.delete()
             except Exception:
                 pass
-            await RedisDB.instance().set(f"ticketspam:{msg.guild.id}:{msg.author.id}", str(spam + 1), expires=3600)
             return
 
         # Enter em
