@@ -250,6 +250,11 @@ class GiveawayCog(commands.Cog):
             await Messages.send_error_dm(msg.author, f"You can't start giveaways in this channel")
             return
 
+        if 'fee=' not in msg.content or 'duration=' not in msg.content:
+            await Messages.send_usage_dm(msg.author, START_GIVEAWAY_INFO)
+            await Messages.add_x_reaction(msg)
+            return
+
         # Parse message
         split_content = msg.content.split(' ')
         cleaned_content = msg.content
