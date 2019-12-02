@@ -9,7 +9,7 @@ from cogs import account, help, tips, tip_legacy, stats, rain, admin, useroption
 from config import Config
 from discord.ext.commands import Bot
 from db.models.transaction import Transaction
-from db.tortoise_config import init_db
+from db.tortoise_config import DBConfig
 from db.redis import RedisDB
 from server import GrahamServer
 from util.discord.channel import ChannelUtil
@@ -78,7 +78,7 @@ if __name__ == "__main__":
 	try:
 		# Initialize database first
 		logger.info("Initializing database")
-		loop.run_until_complete(init_db())
+		loop.run_until_complete(DBConfig().init_db())
 		tasks = [
 			client.start(config.bot_token),
 			# Create two queue consumers for transactions
