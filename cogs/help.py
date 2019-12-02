@@ -86,10 +86,14 @@ class HelpCog(commands.Cog):
         ctx.god = msg.author.id in config.Config.instance().get_admin_ids()
         if not ctx.god:
             ctx.admin = False
-            author: discord.Member = msg.author
-            for role in author.roles:
-                if role.id in config.Config.instance().get_admin_roles():
-                    ctx.admin = True
+            for g in self.bot.guilds:
+                member = g.get_member(msg.author.id)
+                if member is not None:
+                    for role in member.roles:
+                        if role.id in config.Config.instance().get_admin_roles():
+                            ctx.admin = True
+                            break
+                if ctx.admin:
                     break
         else:
             ctx.admin = True

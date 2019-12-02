@@ -175,13 +175,14 @@ class StatsCog(commands.Cog):
         # Get biggest tip to adjust the padding
         biggest_num = 0
         for stats in ballers:
-            length = len(str(stats.total_tipped_amount))
+            length = len(f"{NumberUtil.format_float(stats.total_tipped_amount)} {Env.currency_symbol()}")
             if length > biggest_num:
                 biggest_num = length
         for rank, stats in enumerate(ballers, start=1):
-            adj_rank = str(rank) if rank < 10 else f" {rank}"
+            adj_rank = str(rank) if rank >= 10 else f" {rank}"
             user_name = stats.user.name
-            response_msg += f"{adj_rank}. {NumberUtil.format_float(stats.total_tipped_amount).rjust(biggest_num)} {Env.currency_symbol()} - by {user_name}\n" 
+            amount_str = f"{NumberUtil.format_float(stats.total_tipped_amount)} {Env.currency_symbol()}"
+            response_msg += f"{adj_rank}. {amount_str.ljust(biggest_num)} - by {user_name}\n" 
         response_msg += "```"
 
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())

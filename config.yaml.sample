@@ -43,6 +43,12 @@ restrictions:
 giveaway:
   # Minimum amount required to start a giveaway
   minimum: 1000
+  # Minimum amount to auto-start a giveaway (defaults to minimum)
+  minimum_auto_start: 1000
+  # Default auto started giveaway fee
+  auto_fee: 10
+  # Default auto started giveaway duration (in muted)
+  auto_duration: 30
   # Max entry fee %
   # E.g. if set to 10, and minimum is 1000 , max fee would be 100
   max_fee: 5

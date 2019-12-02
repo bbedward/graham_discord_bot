@@ -45,7 +45,7 @@ async def on_ready():
 
 	# Process any transactions in our DB that are outstanding
 	logger.info(f"Re-queueing any unprocessed transactions")
-	unprocessed_txs = await Transaction.filter(block_hash=None).all().prefetch_related('sending_user', 'receiving_user')
+	unprocessed_txs = await Transaction.filter(block_hash=None, destination__not_isnull=True).all().prefetch_related('sending_user', 'receiving_user')
 	for tx in unprocessed_txs:
 		await TransactionQueue.instance(bot=client).put(tx)
 	logger.info(f"Re-queued {len(unprocessed_txs)} transactions")

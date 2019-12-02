@@ -150,7 +150,7 @@ class AccountCog(commands.Cog):
         pending_receive_str = f"{str(Env.raw_to_amount(pending_raw + pending_receive_db))} {Env.currency_symbol()}"
         pending_send_str = f"{str(Env.raw_to_amount(pending_send_db))} {Env.currency_symbol()}"
         rjust_size = max(len(pending_send_str), len(pending_receive_str))
-        embed.description += f"```{pending_receive_str.rjust(rjust_size)} (Pending Receipt)\n{pending_send_str.rjust(rjust_size)} (Pending Send)```\n"
+        embed.description += f"```{pending_receive_str.ljust(rjust_size)} (Pending Receipt)\n{pending_send_str.ljust(rjust_size)} (Pending Send)```\n"
         embed.set_footer(text="Pending balances are in queue and will become available after processing.")
         return embed          
 
