@@ -30,7 +30,7 @@ REGISTER_INFO = CommandInfo(
 BALANCE_INFO = CommandInfo(
     triggers = ["balance", "bal", "$"],
     overview = "Shows your account balance",
-    details = f"Displays the balance of your tipbot account (in {Env.currency_symbol()})." +
+    details = f"Displays the balance of your bot account (in {Env.currency_symbol()})." +
                 f"\n - Available Balance represents the amount of {Env.currency_symbol()} that you have available to tip or withdraw." +
                 f"\n - Pending Balance represents the amount of {Env.currency_symbol()} that has been sent or received, but not processed by the bot yet."
 )

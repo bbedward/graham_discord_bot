@@ -115,6 +115,8 @@ class RainCog(commands.Cog):
         user = ctx.user
         send_amount = ctx.send_amount
 
+        anon = 'anon' in msg.content
+
         # Get active users
         active_users = await self.get_active(ctx, excluding=msg.author.id)
 
@@ -148,13 +150,22 @@ class RainCog(commands.Cog):
             )
             tx_list.append(tx)
             if not await user.is_muted_by(u.id):
-                task_list.append(
-                    Messages.send_basic_dm(
-                        member=msg.guild.get_member(u.id),
-                        message=f"You were tipped **{individual_send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
-                        skip_dnd=True
+                if not anon:
+                    task_list.append(
+                        Messages.send_basic_dm(
+                            member=msg.guild.get_member(u.id),
+                            message=f"You were tipped **{individual_send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
+                            skip_dnd=True
+                        )
                     )
-                )
+                else:
+                    task_list.append(
+                        Messages.send_basic_dm(
+                            member=msg.guild.get_member(u.id),
+                            message=f"You were tipped **{individual_send_amount} {Env.currency_symbol()}** anonymously!",
+                            skip_dnd=True
+                        )
+                    )
         # Send DMs in the background
         asyncio.ensure_future(Utils.run_task_list(task_list))
         # Add reactions

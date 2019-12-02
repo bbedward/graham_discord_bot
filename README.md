@@ -162,7 +162,7 @@ Add the following
 
 ```
 [Unit]
-Description=Graham TipBot
+Description=Graham Bot
 After=network.target
 
 [Service]

@@ -7,3 +7,4 @@ class Constants(object):
     # TODO - set to 1 for testing
     RAIN_MIN_ACTIVE_COUNT = 1 # Amount of people who have to be active for rain to work
     RAIN_MSG_REQUIREMENT = 1 # Amount of decent messages required to receive rain
+    REPRESENTATIVE='ban_1tipbotgges3ss8pso6xf76gsyqnb69uwcxcyhouym67z7ofefy1jz7kepoy' if Env.banano() else 'nano_3o7uzba8b9e1wqu5ziwpruteyrs3scyqr761x7ke6w1xctohxfh5du75qgaj'

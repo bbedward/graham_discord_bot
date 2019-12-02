@@ -25,9 +25,9 @@ class Config(object):
                     cls.yaml = yaml.load(in_yaml, Loader=yaml.FullLoader)
             except FileNotFoundError:
                 cls.yaml = None
-            parser = argparse.ArgumentParser(description=f"Graham NANO/BANANO TipBot v{__version__}")
+            parser = argparse.ArgumentParser(description=f"Graham {'BANANO' if Env.banano() else 'Nano'} Discord Bot v{__version__}")
             parser.add_argument('-p', '--prefix', type=str, help='Command prefix for bot commands', default='!')
-            parser.add_argument('-l', '--log-file', type=str, help='Log file location', default='/tmp/graham_tipbot.log')
+            parser.add_argument('-l', '--log-file', type=str, help='Log file location', default='/tmp/graham_bot.log')
             parser.add_argument('-s', '--status', type=str, help="The bot's 'playing status'", default=None, required=False)
             parser.add_argument('-u', '--node-url', type=str, help='URL of the node', default='[::1]')
             parser.add_argument('-np', '--node-port', type=int, help='Port of the node', default=7072 if Env.banano() else 7076)
@@ -136,6 +136,13 @@ class Config(object):
             return self.yaml['giveaway']['auto_duration']
         return default
 
+    def get_giveaway_no_delete_channels(self) -> List[int]:
+        default = []
+        if not self.has_yaml():
+            return default
+        elif 'giveaway' in self.yaml and 'no_delete_channels' in self.yaml['giveaway']:
+            return self.yaml['giveaway']['no_delete_channels']
+        return default
 
     def get_giveaway_auto_fee(self) -> float:
         default = 10 if Env.banano() else 0.0025

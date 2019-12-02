@@ -1,6 +1,3 @@
-#TODO - allow giveaway spam in specific channels
-#TODO - add ticket status
-
 from aioredis_lock import RedisLock, LockTimeoutError
 from discord.ext import commands
 from discord.ext.commands import Bot, Context
@@ -46,6 +43,11 @@ TICKET_INFO = CommandInfo(
     details = "Enter the currently active giveaway, if there is one." +
                 f"\nFor giveaways without a fee, simply use `{config.Config.instance().command_prefix} ticket`"
                 f"\nFor giveaways with a fee, simply use `{config.Config.instance().command_prefix} ticket <fee>`"
+)
+TICKETSTATUS_INFO = CommandInfo(
+    triggers = ["ticketstatus", "ts"],
+    overview = "Check entry status",
+    details = "See if you are entered into the current giveaway, if there is one"
 )
 GIVEAWAYSTATS_INFO = CommandInfo(
     triggers = ["giveawaystats", "gs"],
@@ -370,7 +372,7 @@ class GiveawayCog(commands.Cog):
                 spam = int(spam)
                 if spam >= 3:
                     await Messages.send_error_dm(msg.author, "You're temporarily banned from entering giveaways")
-                    await msg.delete()
+                    await Messages.delete_message_if_ok(msg)
                     return
             else:
                 spam = 0
@@ -382,26 +384,29 @@ class GiveawayCog(commands.Cog):
 
         if gw is None:
             await Messages.send_error_dm(msg.author, "There aren't any active giveaways to enter.")
-            try:
-                await msg.delete()
-            except Exception:
-                pass
+            await Messages.delete_message_if_ok(msg)
             # Block ticket spam
             await RedisDB.instance().set(f"ticketspam:{msg.guild.id}:{msg.author.id}", str(spam + 1), expires=3600)
             return
 
         # There is an active giveaway, enter em if not already entered.
-        is_entered = await Transaction.filter(giveaway__id=gw.id, sending_user__id=user.id).first() is not None
-        if is_entered:
+        active_tx = await Transaction.filter(giveaway__id=gw.id, sending_user__id=user.id).first()
+        if active_tx is not None and int(gw.entry_fee) == 0:
             await Messages.send_error_dm(msg.author, "You've already entered this giveaway.")
-            try:
-                await msg.delete()
-            except Exception:
-                pass
+            await Messages.delete_message_if_ok(msg)
+            return
+        elif active_tx is None:
+            paid_already = 0
+        else:
+            paid_already = int(active_tx.amount)
+    
+        if paid_already >= int(gw.entry_fee):
+            await Messages.send_error_dm(msg.author, "You've already entered this giveaway.")
+            await Messages.delete_message_if_ok(msg)
             return
 
         # Enter em
-        fee_raw = int(gw.entry_fee)
+        fee_raw = int(gw.entry_fee) - paid_already
         fee = Env.raw_to_amount(fee_raw)
         # Check balance if fee is > 0
         if fee > 0:
@@ -409,20 +414,17 @@ class GiveawayCog(commands.Cog):
                 amount = RegexUtil.find_float(msg.content)
                 if amount < fee:
                     await Messages.send_error_dm(msg.author, f"This giveaway has a fee of {fee} {Env.currency_symbol()}. The amount you specified isn't enough to cover the entry fee")
-                    await msg.delete()
+                    await Messages.delete_message_if_ok(msg)
                     return
             except AmountMissingException:
                 await Messages.send_error_dm(msg.author, f"This giveaway has a fee, you need to specify the amount to enter. `{config.Config.instance().command_prefix}ticket {fee}`")
-                await msg.delete()
+                await Messages.delete_message_if_ok(msg)
                 return
             available_balance = Env.raw_to_amount(await user.get_available_balance())
             if fee > available_balance:
                 await Messages.add_x_reaction(ctx.message)
                 await Messages.send_error_dm(msg.author, f"Your balance isn't high enough to complete this tip. You have **{available_balance} {Env.currency_symbol()}**, but this entry would cost you **{fee} {Env.currency_symbol()}**")
-                try:
-                    await msg.delete()
-                except Exception:
-                    pass
+                await Messages.delete_message_if_ok(msg)
                 await RedisDB.instance().set(f"ticketspam:{msg.guild.id}:{msg.author.id}", str(spam + 1), expires=3600)
                 return
         await Transaction.create_transaction_giveaway(
@@ -431,7 +433,7 @@ class GiveawayCog(commands.Cog):
             gw
         )
         await Messages.send_success_dm(msg.author, f"You've successfully been entered into giveaway #{gw.id}")
-        await msg.delete()
+        await Messages.delete_message_if_ok(msg)
         return
 
     @commands.command(aliases=GIVEAWAYSTATS_INFO.triggers)
@@ -474,10 +476,7 @@ class GiveawayCog(commands.Cog):
                     await Messages.send_error_dm(msg.author, "There are no active giveaways")
                 else:
                     await Messages.send_error_public(msg.channel, "There are no active giveaays")
-                try:
-                    await msg.delete()
-                except Exception:
-                    pass
+                await Messages.delete_message_if_ok(msg)
                 return
             else:
                 gw = pending_gw
@@ -523,11 +522,13 @@ class GiveawayCog(commands.Cog):
         try:
             if as_dm:
                 await msg.author.send(embed=embed)
+                if msg.channel.id in config.Config.instance().get_giveaway_no_delete_channels():
+                    await msg.add_reaction('\u2709')
             else:
                 await msg.channel.send(embed=embed)
         except Exception:
             pass
-        await msg.delete()
+        await Messages.delete_message_if_ok(msg)
 
     @commands.command(aliases=WINNERS_INFO.triggers)
     async def winners_cmd(self, ctx: Context):
@@ -591,6 +592,7 @@ class GiveawayCog(commands.Cog):
             await msg.channel.send(f"<@{msg.author.id}>", embed=embed)    
         else:
             await msg.author.send(embed=embed)
+            await msg.add_reaction('\u2709')
 
     @commands.command(aliases=TIPGIVEAWAY_INFO.triggers)
     async def tipgiveaway_cmd(self, ctx: Context):
@@ -612,10 +614,7 @@ class GiveawayCog(commands.Cog):
                 await Messages.add_x_reaction(msg)
                 await Messages.send_error_dm(msg.author, "You can't view donate to the giveaway in this channel")
                 await RedisDB.instance().set(f"ticketspam:{msg.guild.id}:{msg.author.id}", str(spam + 1), expires=3600)
-                try:
-                    await msg.delete()
-                except Exception:
-                    pass
+                await Messages.delete_message_if_ok(msg)
                 return
 
         # Get their tip amount
@@ -623,17 +622,11 @@ class GiveawayCog(commands.Cog):
             tip_amount = RegexUtil.find_float(msg.content)
             if tip_amount < Constants.TIP_MINIMUM:
                 await Messages.send_error_dm(msg.author, f"Minimum tip amount if {Constants.TIP_MINIMUM}")
-                try:
-                    await msg.delete()
-                except Exception:
-                    pass
+                await Messages.delete_message_if_ok(msg)
                 return
         except AmountMissingException:
             await Messages.send_usage_dm(msg.author, TIPGIVEAWAY_INFO)
-            try:
-                await msg.delete()
-            except Exception:
-                pass
+            await Messages.delete_message_if_ok(msg)
             return
 
         # Get active giveaway
@@ -672,10 +665,7 @@ class GiveawayCog(commands.Cog):
                 gw = await Giveaway.get_pending_bot_giveaway(server_id=msg.guild.id)
                 if gw is None:
                     await Messages.send_error_dm(msg.author, "I was unable to process your donation, try again alter!")
-                    try:
-                        await msg.delete()
-                    except Exception:
-                        pass
+                    await Messages.delete_message_if_ok(msg)
                     return
 
         # Check balance
@@ -691,10 +681,7 @@ class GiveawayCog(commands.Cog):
             await Messages.add_x_reaction(msg)
             await Messages.send_error_dm(msg.author, "Your balance isn't high enough to complete this tip.")
             await RedisDB.instance().set(f"ticketspam:{msg.guild.id}:{msg.author.id}", str(spam + 1), expires=3600)
-            try:
-                await msg.delete()
-            except Exception:
-                pass
+            await Messages.delete_message_if_ok(msg)
             return
 
         # See if they already contributed
@@ -749,9 +736,76 @@ class GiveawayCog(commands.Cog):
                     asyncio.create_task(self.start_giveaway_timer(gw))                    
         else:
             if not already_entered and Env.raw_to_amount(int(user_tx.amount)) >= config.Config.instance().get_giveaway_auto_fee():
-                await Messages.send_success_dm(msg.author, f"With your generous donation of {Env.raw_to_amount(int(user_tx.amount))} {Env.currency_symbol()} I have entered you into giveaway #{gw.id}!")
+                await Messages.send_success_dm(msg.author, f"With your generous donation of {tip_amount} {Env.currency_symbol()} I have entered you into giveaway #{gw.id}!")
             else:
-                await Messages.send_success_dm(msg.author, f"Your generous donation of {Env.raw_to_amount(int(user_tx.amount))} {Env.currency_symbol()} will help support giveaway #{gw.id}!")
+                await Messages.send_success_dm(msg.author, f"Your generous donation of {tip_amount} {Env.currency_symbol()} will help support giveaway #{gw.id}!")
 
-        await msg.delete()
+        if msg.channel.id in config.Config.instance().get_giveaway_no_delete_channels():
+            await Messages.add_tip_reaction(msg, tip_amount)
+
+        await Messages.delete_message_if_ok(msg)
         return
+
+    @commands.command(aliases=TICKETSTATUS_INFO.triggers)
+    async def ticketstatus_cmd(self, ctx: Context):
+        if ctx.error:
+            return
+
+        msg = ctx.message
+        user = ctx.user
+        author = msg.author
+        content = msg.content
+
+        # See if they've been spamming
+        redis_key = f"ticketspam:{msg.guild.id}:{msg.author.id}"
+        if not ctx.god:
+            spam = await RedisDB.instance().get(redis_key)
+            if spam is not None:
+                spam = int(spam)
+                if spam >= 3:
+                    await Messages.send_error_dm(msg.author, "You're temporarily banned from entering giveaways")
+                    await Messages.delete_message(msg)
+                    return
+            else:
+                spam = 0
+        else:
+            spam = 0
+
+        # Get active giveaway
+        gw = await Giveaway.get_active_giveaway(server_id=msg.guild.id)
+
+        if gw is None:
+            await Messages.send_error_dm(msg.author, "There aren't any active giveaways.")
+            await Messages.delete_message_(msg)
+            # Block ticket spam
+            await RedisDB.instance().set(f"ticketspam:{msg.guild.id}:{msg.author.id}", str(spam + 1), expires=3600)
+            return
+
+        # There is an active giveaway, enter em if not already entered.
+        active_tx = await Transaction.filter(giveaway__id=gw.id, sending_user__id=user.id).first()
+        response = None
+        if active_tx is None:
+            if int(gw.entryfee) > 0:
+                fee_converted = Env.raw_to_amount(int(gw.entry_fee))
+                response = f"There is a fee of **{fee_converted} {Env.currency_symbol()}**!\n"
+                response+= f"Use `{config.Config.instance().command_prefix}ticket {fee_converted}` to pay the fee and enter"
+            else:
+                response = f"This giveaway is free to enter\n"
+                response+= f"Use `{config.Config.instance().command_prefix}ticket` to enter."
+        else:
+            needed = int(gw.entry_fee) - int(active_tx.amount)
+            if needed <= 0:
+                response = f"You're already entered into this giveaway"
+            else:
+                fee_converted = Env.raw_to_amount(int(gw.entry_fee))
+                paid_converted = Env.raw_to_amount(int(active_tx.amount))
+                response = f"There is a fee of **{fee_converted} {Env.currency_symbol()}**! You've donated **{paid_converted} {Env.currency_symbol()}** but that's not enough to enter!\n"
+                response+= f"Use `{config.Config.instance().command_prefix}ticket {NumberUtil.format_float(fee_converted - paid_converted)}` to pay the fee and enter"
+
+        # Build response
+        embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
+        embed.set_author(name=f"Giveaway #{gw.id} is active!", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
+        embed.description = response
+
+        await msg.author.send(embed=embed)
+        await Messages.delete_message_if_ok(msg)

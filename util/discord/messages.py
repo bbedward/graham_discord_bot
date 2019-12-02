@@ -134,3 +134,18 @@ class Messages():
     async def add_timer_reaction(msg: discord.Message):
         await msg.add_reaction('\U000023F2') # Timer Clock
         return
+
+    @staticmethod
+    async def delete_message_if_ok(msg: discord.Message):
+        if msg.channel.id not in config.Config.instance().get_giveaway_no_delete_channels():
+            try:
+                await msg.delete()
+            except Exception:
+                pass
+
+    @staticmethod
+    async def delete_message(msg: discord.Message):
+        try:
+            await msg.delete()
+        except Exception:
+            pass

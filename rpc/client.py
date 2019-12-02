@@ -92,3 +92,26 @@ class RPCClient(object):
         if 'block' in respjson:
             return respjson['block']
         return None
+
+    async def account_info(self, account: str) -> dict:
+        info_action = {
+            'action': 'account_info',
+            'account': account,
+            'representative': True
+        }
+        respjson = await self.make_request(info_action)
+        if 'error' not in respjson:
+            return respjson
+        return None
+
+    async def account_representative_set(self, account: str, rep: str) -> str:
+        rep_action = {
+            'action': 'account_representative_set',
+            'account': account,
+            'representative': rep,
+            'wallet': Config.instance().wallet,
+        }
+        respjson = await self.make_request(rep)
+        if 'block' in respjson:
+            return respjson['block']
+        return None

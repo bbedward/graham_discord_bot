@@ -68,6 +68,10 @@ giveaway:
     - 540860429719830538
     - 572250989654966293
     - 559649394262147082
+  # Some giveaway commands are deleted to prevent them from clogging up the chat
+  # Put channels here where you dont want them to be deleted.
+  no_delete_channels:
+    - 524557798416187392
   # Restrict giveaway participation to specific role(s)
   roles:
     - 431171347427622913

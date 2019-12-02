@@ -1,4 +1,4 @@
-from cogs import tips, account, stats, rain, admin, useroptions, favorites
+from cogs import tips, account, stats, rain, admin, useroptions, favorites, giveaway
 from discord.ext import commands
 from discord.ext.commands import Bot, Context
 from util.env import Env
@@ -31,13 +31,25 @@ COMMANDS = {
             favorites.TIPFAVORITES_INFO
         ]
     },
+    'GIVEAWAY': {
+        'header': 'Giveaway Commands',
+        'info': 'How to create and participate in giveaways',
+        'cmd_list': [
+            giveaway.START_GIVEAWAY_INFO,
+            giveaway.TICKET_INFO,
+            giveaway.TICKETSTATUS_INFO,
+            giveaway.TIPGIVEAWAY_INFO,
+            giveaway.GIVEAWAYSTATS_INFO
+        ]
+    },
     'STATS': {
         'header': 'Statistics Commands',
         'info': 'The different statistics related to tips within the bot.',
         'cmd_list': [
             stats.TIPSTATS_INFO,
             stats.TOPTIPS_INFO,
-            stats.LEADERBOARD_INFO
+            stats.LEADERBOARD_INFO,
+            giveaway.WINNERS_INFO
         ]
     },
     'USER_OPTIONS': {
