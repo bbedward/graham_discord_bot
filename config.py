@@ -1,5 +1,9 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import argparse
 import pathlib
+import os
 import yaml
 from typing import List, Tuple
 from util.env import Env
@@ -25,10 +29,8 @@ class Config(object):
             parser.add_argument('-p', '--prefix', type=str, help='Command prefix for bot commands', default='!')
             parser.add_argument('-l', '--log-file', type=str, help='Log file location', default='/tmp/graham_tipbot.log')
             parser.add_argument('-s', '--status', type=str, help="The bot's 'playing status'", default=None, required=False)
-            parser.add_argument('-t', '--token', type=str, help='Discord bot token', required=True)
             parser.add_argument('-u', '--node-url', type=str, help='URL of the node', default='[::1]')
             parser.add_argument('-np', '--node-port', type=int, help='Port of the node', default=7072 if Env.banano() else 7076)
-            parser.add_argument('-w', '--wallet', type=str, help='ID of the wallet to use on the node/wallet server', required=True)
             parser.add_argument('--debug', action='store_true', help='Runs in debug mode if specified', default=False)
             options = parser.parse_args()
 
@@ -40,8 +42,15 @@ class Config(object):
             cls.log_file = options.log_file
             cls.debug = options.debug
             cls.playing_status = f"{cls.command_prefix}help for help" if options.status is None else options.status
-            cls.bot_token = options.token
-            cls.wallet = options.wallet
+
+            cls.bot_token = os.getenv('BOT_TOKEN')
+            if cls.bot_token is None:
+                print("BOT_TOKEN must be set in your environment")
+                exit(1)
+            cls.wallet = os.getenv('WALLET_ID')
+            if cls.wallet is  None:
+                print("WALLET_ID must be specified in your environment")
+                exit(1)
 
             cls.node_url = options.node_url
             cls.node_port = options.node_port
