@@ -47,6 +47,11 @@ class RedisDB(object):
 
     async def delete(self, key: str):
         """Redis DELETE"""
+        key = f"{Env.currency_name().lower()}{key}"
+        await self._delete(key)
+
+    async def _delete(self, key: str):
+        """Redis DELETE"""
         redis = await self.get_redis()
         await redis.delete(key)
 
@@ -65,7 +70,7 @@ class RedisDB(object):
     async def resume(self):
         """Resume tipbot activity"""
         key = f"{Env.currency_name().lower()}:botpaused"
-        await self.delete(key)
+        await self._delete(key)
 
     async def is_paused(self) -> bool:
         """Return True if the bot is paused or not"""

@@ -1,6 +1,7 @@
 from discord.ext import commands
 from discord.ext.commands import Bot, Context
 from models.command import CommandInfo
+from tortoise.functions import Sum
 from util.env import Env
 from util.discord.channel import ChannelUtil
 from util.discord.messages import Messages
@@ -26,8 +27,14 @@ TOPTIPS_INFO = CommandInfo(
 )
 LEADERBOARD_INFO = CommandInfo(
     triggers = ["ballers", "leaderboard"],
-    overview = "Show a list of the top 15 tippers.",
-    details = f"This will display a list of the top 15 tippers on the current server. This command can't be used in DM"
+    overview = "Show a list of the top 15 tippers this year.",
+    details = f"This will display a list of the top 15 tippers on the current server. This command can't be used in DM\n" +
+                f"These stats are reset once a year - for all time stats use `{config.Config.instance().command_prefix}legacyboard`"
+)
+LEGACYBOARD_INFO = CommandInfo(
+    triggers = ["ballers", "leaderboard"],
+    overview = "Show a list of the top 15 tippers all time.",
+    details = f"This will display a list of the top 15 tippers of all time on the current server. This command can't be used in DM"
 )
 
 class StatsCog(commands.Cog):
@@ -188,6 +195,48 @@ class StatsCog(commands.Cog):
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name=f"Here are the top {len(ballers)} tippers \U0001F44F", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
         embed.description = response_msg
+        embed.set_footer(text=f"Use `{config.Config.instance().command_prefix} legacyboard` for all-time stats")
 
         await RedisDB.instance().set(f"ballerspam{msg.channel.id}", "as", expires=300)
-        await msg.channel.send(f"<@{msg.author.id}>", embed=embed)    
+        await msg.channel.send(f"<@{msg.author.id}>", embed=embed)
+
+    @commands.command(aliases=LEGACYBOARD_INFO.triggers)
+    async def legacyboard_cmd(self, ctx: Context):
+        if ctx.error:
+            await Messages.add_x_reaction(ctx.message)
+            return
+
+        msg = ctx.message
+
+        if not ctx.god and await RedisDB.instance().exists(f"ballerspam{msg.channel.id}"):
+            await Messages.add_timer_reaction(msg)
+            await Messages.send_error_dm(msg.author, "Why don't you wait awhile before checking the ballers list again")
+            return
+
+        # Get list
+        ballers = await Stats.filter(server_id=msg.guild.id, banned=False).annotate(tip_sum=Sum('total_tipped_amount' + 'legacy_total_tipped_amount')) .order_by('-tip_sum').prefetch_related('user').limit(15).all()
+
+        if len(ballers) == 0:
+            await msg.channel.send(f"<@{msg.author.id}> There are no stats for this server yet, send some tips!")
+            return
+
+        response_msg = "```"
+        # Get biggest tip to adjust the padding
+        biggest_num = 0
+        for stats in ballers:
+            length = len(f"{NumberUtil.format_float(stats.total_tipped_amount)} {Env.currency_symbol()}")
+            if length > biggest_num:
+                biggest_num = length
+        for rank, stats in enumerate(ballers, start=1):
+            adj_rank = str(rank) if rank >= 10 else f" {rank}"
+            user_name = stats.user.name
+            amount_str = f"{NumberUtil.format_float(stats.total_tipped_amount)} {Env.currency_symbol()}"
+            response_msg += f"{adj_rank}. {amount_str.ljust(biggest_num)} - by {user_name}\n" 
+        response_msg += "```"
+
+        embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
+        embed.set_author(name=f"Here are the top {len(ballers)} tippers of all time\U0001F44F", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
+        embed.description = response_msg
+
+        await RedisDB.instance().set(f"ballerspam{msg.channel.id}", "as", expires=300)
+        await msg.channel.send(f"<@{msg.author.id}>", embed=embed)

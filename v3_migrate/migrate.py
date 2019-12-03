@@ -82,14 +82,14 @@ async def do_migrate():
                 address = u.wallet_address
             )
             await account.save(using_db=conn)
-            # Check stats banned
-            if u.stats_ban:
-                stats = Stats(
-                    user=user,
-                    server_id=415935345075421194,
-                    banned=True
-                )
-                await stats.save(using_db=conn)
+            # Do stats
+            stats = Stats(
+                user=user,
+                server_id=415935345075421194,
+                banned=u.stats_ban,
+                legacy_total_tipped_amount=float(u.tipped_amount)
+            )
+            await stats.save(using_db=conn)
 
 if __name__ == "__main__":
     print("migration started")
