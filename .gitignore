@@ -112,8 +112,15 @@ settings.py
 nohup.out
 *.log*
 backups/
+*.db
 *.db-wal
 *.db-shm
 
 # Virtualenv
 venv/
+
+# Test
+run_bot.sh
+
+# Configuration
+config.yaml
