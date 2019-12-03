@@ -1,6 +1,8 @@
 
 # Graham - Discord Bot for BANANO and NANO
 
+[![GitHub release (latest)](https://img.shields.io/github/v/release/appditto/graham_discord_bot)](https://github.com/appditto/graham_discord_bot/releases) [![License](https://img.shields.io/github/license/appditto/graham_discord_bot)](https://github.com/appditto/graham_discord_bot/blob/master/LICENSE) [![Pipeline](https://gitlab.com/appditto/graham_discord_bot/badges/master/pipeline.svg)](https://gitlab.com/appditto/graham_discord_bot/pipelines)
+
 Graham is the most advanced, highest performing discord bot for any cryptocurrency ever. It is built for the [BANANO](https://banano.cc) and [NANO](https://nano.org) cryptocurrencies.  
 
 The features of this bot include on-chain tipping, rains, favorites, wide-variety of statistics, giveaways, a suite of administration commands, and more.

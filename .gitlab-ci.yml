@@ -2,7 +2,7 @@ before_script:
   # Clean up
   - rm -rf venv
   # Install requirements
-  - python3 -m pip install virtualenv
+  - python3 -m pip install --user virtualenv
   - python3 -m virtualenv venv
   - source venv/bin/activate
   - pip install -U -r requirements.txt
