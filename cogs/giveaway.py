@@ -208,7 +208,7 @@ class GiveawayCog(commands.Cog):
         for ch in config.Config.instance().get_giveaway_announce_channels():
             if ch == giveaway.started_in_channel:
                 continue
-            dch = self.bot.get_channel(giveaway.started_in_channel)
+            dch = self.bot.get_channel(ch)
             if dch is not None:
                 announce_channels.append(dch)
 
