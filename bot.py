@@ -72,7 +72,7 @@ if __name__ == "__main__":
 	client.add_cog(giveaway.GiveawayCog(client))
 	if not Env.banano():
 		# Add a command to warn users that tip unit has changed
-		client.add_cog(tip_legacy.TipLegacy(client))
+		client.add_cog(tip_legacy.TipLegacyCog(client))
 	# Start bot
 	loop = asyncio.get_event_loop()
 	try:
