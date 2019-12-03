@@ -1,0 +1,21 @@
+before_script:
+  # Clean up
+  - rm -rf venv
+  # Install requirements
+  - python3.7 -m pip install virtualenv
+  - python3.7 -m virtualenv venv
+  - source venv/bin/activate
+  - pip install -U -r requirements.txt
+
+stages:
+  - test
+
+tests:
+  stage: test
+  only:
+    - master
+  tags:
+    - appditto_mac
+  script: 
+    - python -m unittest test/*.py
+  interruptible: true

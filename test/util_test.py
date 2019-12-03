@@ -4,6 +4,8 @@ import os
 from util.conversions import BananoConversions, NanoConversions
 from util.number import NumberUtil
 from util.regex import RegexUtil, AmountAmbiguousException, AmountMissingException, AddressAmbiguousException, AddressMissingException
+from util.util import Utils
+from util.validators import Validators
 
 def async_test(coro):
     def wrapper(*args, **kwargs):
@@ -83,3 +85,75 @@ class TestRegexUtil(unittest.TestCase):
         self.assertEqual(RegexUtil.find_address_matches('sdasdxrb_3jb1fp4diu79wggp7e171jdpxp95auji4moste6gmc55pptwerfjqu48oksesdasd xrb_3jb1fp4diu79wggp7e171jdpxp95auji4moste6gmc55pptwerfjqu48okse sxrb_3jb1fp4diu79wggp7e171jdpxp95auji4moste6gmc55pptwerfjqu48okse'), ['xrb_3jb1fp4diu79wggp7e171jdpxp95auji4moste6gmc55pptwerfjqu48okse', 'xrb_3jb1fp4diu79wggp7e171jdpxp95auji4moste6gmc55pptwerfjqu48okse', 'xrb_3jb1fp4diu79wggp7e171jdpxp95auji4moste6gmc55pptwerfjqu48okse'])
         with self.assertRaises(AddressMissingException):
             RegexUtil.find_address_matches('sdadsd')
+
+class TestGenericUtil(unittest.TestCase):
+    def setUp(self):
+        self.a = 0
+        self.b = 0
+        self.c = 0
+
+    def test_emoji_strip(self):
+        self.assertEqual(Utils.emoji_strip("字漢字Hello😊myfriend\u2709") ,"字漢字Hellomyfriend") 
+
+    @async_test
+    async def test_run_task_list(self):
+        async def test_task(value: int):
+            if value == 1:
+                self.a = value
+            elif value == 2:
+                self.b = value
+            elif value == 3:
+                self.c = value
+        tasks = [
+            test_task(1),
+            test_task(2),
+            test_task(3)
+        ]
+        await Utils.run_task_list(tasks)
+        self.assertEqual(self.a, 1)
+        self.assertEqual(self.b, 2)
+        self.assertEqual(self.c, 3)
+
+    def test_random_float(self):
+        rand1 = Utils.random_float()
+        rand2 = Utils.random_float()
+        self.assertNotEqual(rand1, rand2)
+        self.assertLess(rand1, 100)
+        self.assertLess(rand2, 100)
+        self.assertGreaterEqual(rand1, 0)
+        self.assertGreaterEqual(rand2, 0)
+
+class TestValidators(unittest.TestCase):
+    def test_too_many_decimalse(self):
+        os.environ['BANANO'] = '1'
+        self.assertTrue(Validators.too_many_decimals(1.234))
+        self.assertFalse(Validators.too_many_decimals(1.23))
+        self.assertFalse(Validators.too_many_decimals(1.2))
+        del os.environ['BANANO']
+        self.assertTrue(Validators.too_many_decimals(1.2345678))
+        self.assertFalse(Validators.too_many_decimals(1.233456))
+        self.assertFalse(Validators.too_many_decimals(1.2))
+
+    def test_valid_address(self):
+        # Null should always be false
+        self.assertFalse(Validators.is_valid_address(None))
+        os.environ['BANANO'] = '1'
+        # Valid
+        self.assertTrue(Validators.is_valid_address('ban_1bananobh5rat99qfgt1ptpieie5swmoth87thi74qgbfrij7dcgjiij94xr'))
+        # Bad checksum
+        self.assertFalse(Validators.is_valid_address('ban_1bananobh5rat99qfgt1ptpieie5swmoth87thi74qgbfrij7dcgjiij94xa'))
+        # Bad length
+        self.assertFalse(Validators.is_valid_address('ban_1bananobh5rat99qfgt1ptpieie5swmoth87thi74qgbfrij7dcgjiij94x'))
+        del os.environ['BANANO']
+        # Valid
+        self.assertTrue(Validators.is_valid_address('nano_1bananobh5rat99qfgt1ptpieie5swmoth87thi74qgbfrij7dcgjiij94xr'))
+        # Bad checksum
+        self.assertFalse(Validators.is_valid_address('nano_1bananobh5rat99qfgt1ptpieie5swmoth87thi74qgbfrij7dcgjiij94xa'))
+        # Bad length
+        self.assertFalse(Validators.is_valid_address('nano_1bananobh5rat99qfgt1ptpieie5swmoth87thi74qgbfrij7dcgjiij94x'))
+        # Valid
+        self.assertTrue(Validators.is_valid_address('xrb_1bananobh5rat99qfgt1ptpieie5swmoth87thi74qgbfrij7dcgjiij94xr'))
+        # Bad checksum
+        self.assertFalse(Validators.is_valid_address('xrb_1bananobh5rat99qfgt1ptpieie5swmoth87thi74qgbfrij7dcgjiij94xa'))
+        # Bad length
+        self.assertFalse(Validators.is_valid_address('xrb_1bananobh5rat99qfgt1ptpieie5swmoth87thi74qgbfrij7dcgjiij94x'))
