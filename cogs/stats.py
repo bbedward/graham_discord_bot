@@ -195,7 +195,7 @@ class StatsCog(commands.Cog):
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name=f"Here are the top {len(ballers)} tippers \U0001F44F", icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
         embed.description = response_msg
-        embed.set_footer(text=f"Use `{config.Config.instance().command_prefix} legacyboard` for all-time stats")
+        embed.set_footer(text=f"Use {config.Config.instance().command_prefix} legacyboard for all-time stats")
 
         await RedisDB.instance().set(f"ballerspam{msg.channel.id}", "as", expires=300)
         await msg.channel.send(f"<@{msg.author.id}>", embed=embed)
@@ -224,13 +224,13 @@ class StatsCog(commands.Cog):
         # Get biggest tip to adjust the padding
         biggest_num = 0
         for stats in ballers:
-            length = len(f"{NumberUtil.format_float(stats.total_tipped_amount)} {Env.currency_symbol()}")
+            length = len(f"{NumberUtil.format_float(stats.tip_sum)} {Env.currency_symbol()}")
             if length > biggest_num:
                 biggest_num = length
         for rank, stats in enumerate(ballers, start=1):
             adj_rank = str(rank) if rank >= 10 else f" {rank}"
             user_name = stats.user.name
-            amount_str = f"{NumberUtil.format_float(stats.total_tipped_amount)} {Env.currency_symbol()}"
+            amount_str = f"{NumberUtil.format_float(stats.tip_sum)} {Env.currency_symbol()}"
             response_msg += f"{adj_rank}. {amount_str.ljust(biggest_num)} - by {user_name}\n" 
         response_msg += "```"
 
