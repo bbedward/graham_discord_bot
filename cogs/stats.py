@@ -112,7 +112,7 @@ class StatsCog(commands.Cog):
         top_tip = await Stats.filter(
             server_id=msg.guild.id,
             banned=False
-        ).order_by('top_tip').prefetch_related('user').limit(1).first()
+        ).order_by('-top_tip').prefetch_related('user').limit(1).first()
         if top_tip is None:
             await RedisDB.instance().set(f"toptipsspam{msg.channel.id}", "as", expires=300)
             await msg.channel.send("There are no stats for this server yet. Send some tips first!")
@@ -127,7 +127,7 @@ class StatsCog(commands.Cog):
             server_id=msg.guild.id,
             top_tip_month_at__gte=first_day_of_month,
             banned=False
-        ).order_by('top_tip_month').prefetch_related('user').limit(1).first()
+        ).order_by('-top_tip_month').prefetch_related('user').limit(1).first()
         # Get datetime object representing 24 hours ago
         past_24h = now - datetime.timedelta(hours=24)
         # Find top tip of the month
@@ -135,7 +135,7 @@ class StatsCog(commands.Cog):
             server_id=msg.guild.id,
             top_tip_day_at__gte=past_24h,
             banned=False
-        ).order_by('top_tip_day').prefetch_related('user').limit(1).first()
+        ).order_by('-top_tip_day').prefetch_related('user').limit(1).first()
 
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name='Biggest Tips', icon_url="https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/Graham_Nano_Tip_Bot/raw/master/assets/nano_logo.png")
@@ -165,7 +165,7 @@ class StatsCog(commands.Cog):
             return
 
         # Get list
-        ballers = await Stats.filter(server_id=msg.guild.id, banned=False).order_by('total_tipped_amount').prefetch_related('user').limit(15).all()
+        ballers = await Stats.filter(server_id=msg.guild.id, banned=False).order_by('-total_tipped_amount').prefetch_related('user').limit(15).all()
 
         if len(ballers) == 0:
             await msg.channel.send(f"<@{msg.author.id}> There are no stats for this server yet, send some tips!")
