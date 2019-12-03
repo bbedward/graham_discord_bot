@@ -214,7 +214,10 @@ class StatsCog(commands.Cog):
             return
 
         # Get list
-        ballers = await Stats.filter(server_id=msg.guild.id, banned=False).annotate(tip_sum=Sum('total_tipped_amount' + 'legacy_total_tipped_amount')) .order_by('-tip_sum').prefetch_related('user').limit(15).all()
+        # TODO - can't sum multiple columns
+        # https://github.com/tortoise/tortoise-orm/issues/257
+        #ballers = await Stats.filter(server_id=msg.guild.id, banned=False).annotate(tip_sum=Sum('total_tipped_amount' + 'legacy_total_tipped_amount')) .order_by('-tip_sum').prefetch_related('user').limit(15).all()
+        ballers = await Stats.filter(server_id=msg.guild.id, banned=False).order_by('-legacy_total_tipped_amount').prefetch_related('user').limit(15).all()
 
         if len(ballers) == 0:
             await msg.channel.send(f"<@{msg.author.id}> There are no stats for this server yet, send some tips!")
@@ -224,13 +227,14 @@ class StatsCog(commands.Cog):
         # Get biggest tip to adjust the padding
         biggest_num = 0
         for stats in ballers:
-            length = len(f"{NumberUtil.format_float(stats.tip_sum)} {Env.currency_symbol()}")
+            # TODO change to stats.tip_sum
+            length = len(f"{NumberUtil.format_float(stats.legacy_total_tipped_amount)} {Env.currency_symbol()}")
             if length > biggest_num:
                 biggest_num = length
         for rank, stats in enumerate(ballers, start=1):
             adj_rank = str(rank) if rank >= 10 else f" {rank}"
             user_name = stats.user.name
-            amount_str = f"{NumberUtil.format_float(stats.tip_sum)} {Env.currency_symbol()}"
+            amount_str = f"{NumberUtil.format_float(stats.legacy_total_tipped_amount)} {Env.currency_symbol()}"
             response_msg += f"{adj_rank}. {amount_str.ljust(biggest_num)} - by {user_name}\n" 
         response_msg += "```"
 
