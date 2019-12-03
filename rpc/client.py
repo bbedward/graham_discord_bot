@@ -1,5 +1,5 @@
 import aiohttp
-import json
+import rapidjson as json
 import socket
 from config import Config
 from typing import List
@@ -19,7 +19,7 @@ class RPCClient(object):
             cls.wallet_id = Config.instance().wallet
             cls.ipv6 = '::' in cls.node_url
             cls.connector = aiohttp.TCPConnector(family=socket.AF_INET6 if cls.ipv6 else socket.AF_INET,resolver=aiohttp.AsyncResolver())
-            cls.session = aiohttp.ClientSession(connector=cls.connector)
+            cls.session = aiohttp.ClientSession(connector=cls.connector, json_serialize=json.dumps)
         return cls._instance
 
 

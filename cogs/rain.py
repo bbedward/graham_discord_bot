@@ -9,7 +9,7 @@ from util.env import Env
 import asyncio
 import config
 import datetime
-import json
+import rapidjson as json
 import logging
 from util.regex import AmountAmbiguousException, AmountMissingException, RegexUtil
 from util.validators import Validators

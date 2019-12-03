@@ -10,7 +10,7 @@ from util.regex import RegexUtil, AddressMissingException, AddressAmbiguousExcep
 import config
 import datetime
 import logging
-import json
+import rapidjson as json
 
 class GrahamServer(object):
     """An AIOHTTP server that listens for callbacks and provides various APIs"""
@@ -44,7 +44,8 @@ class GrahamServer(object):
         accounts = await Account.filter(address__in=addresses).prefetch_related('user').all()
         if accounts is None:
             return web.json_response(
-                data={'error': 'user(s) not found'}
+                data={'error': 'user(s) not found'},
+                dumps=json.dumps
             )
         resp = []
         for account in accounts:
@@ -57,7 +58,8 @@ class GrahamServer(object):
                 }
             )
         return web.json_response(
-            data=resp
+            data=resp,
+            dumps=json.dumps
         )
 
     async def wfu(self, request: web.Request):
@@ -75,7 +77,8 @@ class GrahamServer(object):
         users = await User.filter(id__in=user_ids).prefetch_related('account').all()
         if users is None:
             return web.json_response(
-                data={'error': 'user(s) not found'}
+                data={'error': 'user(s) not found'},
+                dumps=json.dumps
             )
         resp = []
         for user in users:
@@ -88,14 +91,16 @@ class GrahamServer(object):
                 }
             )
         return web.json_response(
-            data=resp
+            data=resp,
+            dumps=json.dumps
         )
 
     async def users(self, request: web.Request):
         cached = await RedisDB.instance().get("apiuserscache")
         if cached is not None:
             return web.json_response(
-                data=json.loads(cached)
+                data=json.loads(cached),
+                dumps=json.dumps
             )
         # Get all of not cached
         users = await User.all().prefetch_related('account')
@@ -111,7 +116,8 @@ class GrahamServer(object):
             )
         await RedisDB.instance().set("apiuserscache", json.dumps(resp), expires=1800)
         return web.json_response(
-            data=resp
+            data=resp,
+            dumps=json.dumps
         )
 
     async def callback(self, request: web.Request):
