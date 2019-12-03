@@ -49,6 +49,7 @@ COMMANDS = {
             stats.TIPSTATS_INFO,
             stats.TOPTIPS_INFO,
             stats.LEADERBOARD_INFO,
+            stats.LEGACYBOARD_INFO,
             giveaway.WINNERS_INFO
         ]
     },
