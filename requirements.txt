@@ -10,3 +10,6 @@ emoji==0.5.4
 pyyaml==5.1.2
 aioredis-lock==0.0.3
 python-dotenv==0.10.3
+#For migrating from v3
+# peewee
+# psycopg2

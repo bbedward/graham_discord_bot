@@ -1,11 +1,11 @@
 # Unsupported script to migrate data from graham v3 to v4
 from peewee import *
-from playhouse.pool  import PooledPostgresqlExtDatabase
+from playhouse.pool import PooledPostgresqlExtDatabase
 from playhouse.shortcuts import model_to_dict
 from tortoise.transactions import in_transaction
 
 from db.tortoise_config import DBConfig
-from db.models.user import User
+import db.models.user as usr
 from db.models.stats import Stats
 from db.models.account import Account
 
@@ -17,6 +17,10 @@ OLD_DB = os.getenv('OLD_DB')
 OLD_DB_USER = os.getenv('OLD_DB_USER')
 OLD_DB_PW = os.getenv('OLD_DB_PW')
 
+
+print(OLD_DB)
+print(OLD_DB_USER)
+print(OLD_DB_PW)
 # Old DB
 db = PooledPostgresqlExtDatabase(OLD_DB, user=OLD_DB_USER, password=OLD_DB_PW, host='localhost', port=5432, max_connections=16)
 
@@ -58,12 +62,13 @@ class FrozenUser(BaseModel):
 ### migration
 
 async def do_migrate():
+    await DBConfig().init_db()
     for u in User.select():
         print(f"Adding user {u.user_id}")
         frozen = FrozenUser.select().where(FrozenUser.user_id == int(u.user_id)).count() > 0
         banned = BannedUser.select().where(BannedUser.user_id == u.user_id).count() > 0
         async with in_transaction() as conn:
-            user = User(
+            user = usr.User(
                 id = int(u.user_id),
                 name = u.user_name.replace("`", ""),
                 created_at = u.created,
