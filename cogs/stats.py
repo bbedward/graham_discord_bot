@@ -32,7 +32,7 @@ LEADERBOARD_INFO = CommandInfo(
                 f"These stats are reset once a year - for all time stats use `{config.Config.instance().command_prefix}legacyboard`"
 )
 LEGACYBOARD_INFO = CommandInfo(
-    triggers = ["ballers", "leaderboard"],
+    triggers = ["legacyboard", "oldballs"],
     overview = "Show a list of the top 15 tippers all time.",
     details = f"This will display a list of the top 15 tippers of all time on the current server. This command can't be used in DM"
 )
