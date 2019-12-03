@@ -27,7 +27,7 @@ class Stats(Model):
     giveaway_amount = fields.DecimalField(max_digits=20, decimal_places=Env.precision_digits(), default=0)
     created_at = fields.DatetimeField(auto_now_add=True)
     modified_at = fields.DatetimeField(auto_now=True)
-    stats_reset_at = fields.DatetimeField(auto_now=True)
+    stats_reset_at = fields.DatetimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ('user', 'server_id')
