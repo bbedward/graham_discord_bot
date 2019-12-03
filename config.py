@@ -181,7 +181,7 @@ class Config(object):
         if not self.has_yaml():
             return default
         elif 'giveaway' in self.yaml and 'announce_channels' in self.yaml['giveaway']:
-            return int(self.yaml['giveaway']['announce_channels'])
+            return self.yaml['giveaway']['announce_channels']
         return default
 
     def get_giveaway_roles(self) -> List[int]:
