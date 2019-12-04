@@ -1,5 +1,5 @@
 discord.py==1.2.5
-tortoise-orm==0.15.3
+tortoise-orm==0.15.4
 aiosqlite==0.10.0
 asyncpg==0.20.0
 bitstring==3.1.6
