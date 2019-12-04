@@ -41,7 +41,7 @@ class RainCog(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         # Update active
-        if not ChannelUtil.is_private(message.channel):
+        if not ChannelUtil.is_private(message.channel) and len(message.content) > 0 and message.content[0] not in ['`', '\'', '.', '?', '!', "\"", "+", ";", ":", ","]:
             await self.update_activity_stats(message)
 
     async def cog_before_invoke(self, ctx: Context):
@@ -186,6 +186,39 @@ class RainCog(commands.Cog):
         await stats.update_tip_stats(amount_needed)
         # DM creator
         await Messages.send_success_dm(msg.author, f"You rained **{amount_needed} {Env.currency_symbol()}** to **{len(tx_list)} users**, they received **{individual_send_amount} {Env.currency_symbol()}** each.", header="Make it Rain")
+        # Make the rainer auto-rain eligible
+        await self.auto_rain_eligible(msg)
+
+    @staticmethod
+    async def auto_rain_eligible(msg: discord.Message):
+        # Ignore if user doesnt have rain role
+        has_rain_role = False
+        rain_roles = config.Config.instance().get_rain_roles()
+        if len(rain_roles) > 0:
+            for role in msg.author.roles:
+                if role.id in rain_roles:
+                    has_rain_role = True
+                    break
+            if not has_rain_role:
+                return
+
+        # Get user OBJ from redis if it exists, else create one
+        user_key = f"activity:{msg.guild.id}:{msg.author.id}"
+        active_stats = await RedisDB.instance().get(user_key)
+        if active_stats is None:
+            # Create stats and save
+            active_stats = {
+                'user_id': msg.author.id,
+                'last_msg': datetime.datetime.utcnow().strftime('%m/%d/%Y %H:%M:%S'),
+                'msg_count': Constants.RAIN_MSG_REQUIREMENT
+            }
+            await RedisDB.instance().set(user_key, json.dumps(active_stats), expires=1800)
+            return
+        else:
+            active_stats = json.loads(active_stats)
+            if active_stats['msg_count'] < Constants.RAIN_MSG_REQUIREMENT:
+                active_stats['msg_count'] = Constants.RAIN_MSG_REQUIREMENT
+            await RedisDB.instance().set(user_key, json.dumps(active_stats), expires=1800)
 
     @staticmethod
     async def update_activity_stats(msg: discord.Message):
