@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 # Unsupported script to migrate data from graham v3 to v4
 from peewee import *
 from playhouse.pool import PooledPostgresqlExtDatabase
@@ -12,11 +15,11 @@ from db.models.account import Account
 import asyncio
 import os
 import datetime
+from util.number import NumberUtil
 
 OLD_DB = os.getenv('OLD_DB')
 OLD_DB_USER = os.getenv('OLD_DB_USER')
 OLD_DB_PW = os.getenv('OLD_DB_PW')
-
 
 print(OLD_DB)
 print(OLD_DB_USER)
@@ -87,7 +90,8 @@ async def do_migrate():
                 user=user,
                 server_id=415935345075421194,
                 banned=u.stats_ban,
-                legacy_total_tipped_amount=float(u.tipped_amount)
+                legacy_total_tipped_amount=NumberUtil.truncate_digits(float(u.tipped_amount)),
+                total_tips=u.tip_count
             )
             await stats.save(using_db=conn)
 
