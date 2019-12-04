@@ -77,31 +77,37 @@ class RainCog(commands.Cog):
         try:
             ctx.send_amount = RegexUtil.find_send_amounts(msg.content)
             if Validators.too_many_decimals(ctx.send_amount):
+                await Messages.add_x_reaction(msg)
                 await Messages.send_error_dm(msg.author, f"You are only allowed to use {Env.precision_digits()} digits after the decimal.")
                 ctx.error = True
                 return
             elif ctx.send_amount < config.Config.instance().get_rain_minimum():
                 ctx.error = True
+                await Messages.add_x_reaction(msg)
                 await Messages.send_usage_dm(msg.author, RAIN_INFO)
                 return
             # See if user exists in DB
             user = await User.get_user(msg.author)
             if user is None:
+                await Messages.add_x_reaction(msg)
                 await Messages.send_error_dm(msg.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
                 ctx.error = True
                 return
             elif user.frozen:
                 ctx.error = True
+                await Messages.add_x_reaction(msg)
                 await Messages.send_error_dm(msg.author, f"Your account is frozen. Contact an admin if you need further assistance.")
                 return
             # Update name, if applicable
             await user.update_name(msg.author.name)
             ctx.user = user
         except AmountMissingException:
+            await Messages.add_x_reaction(msg)
             await Messages.send_usage_dm(msg.author, RAIN_INFO)
             ctx.error = True
             return
         except AmountAmbiguousException:
+            await Messages.add_x_reaction(msg)
             await Messages.send_error_dm(msg.author, "You can only specify 1 amount to send")
             ctx.error = True
             return
