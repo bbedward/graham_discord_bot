@@ -14,7 +14,6 @@ class DBConfig(object):
         self.postgres_port = os.getenv('POSTGRES_PORT', 5432)
         if self.postgres_db is not None and self.postgres_user is not None and self.postgres_password is not None:
             self.use_postgres = True
-            self.p
         elif self.postgres_db is not None or self.postgres_user is not None or self.postgres_password is not None:
             raise Exception("ERROR: Postgres is not properly configured. POSTGRES_DB, POSTGRES_USER, and POSTGRES_PASSWORD environment variables are all required.")
 
