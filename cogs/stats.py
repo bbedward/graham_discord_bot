@@ -214,9 +214,6 @@ class StatsCog(commands.Cog):
             return
 
         # Get list
-        # TODO - can't sum multiple columns
-        # https://github.com/tortoise/tortoise-orm/issues/257
-        #ballers = await Stats.filter(server_id=msg.guild.id, banned=False).annotate(tip_sum=Sum('total_tipped_amount' + 'legacy_total_tipped_amount')) .order_by('-tip_sum').prefetch_related('user').limit(15).all()
         ballers = await Stats.filter(server_id=msg.guild.id, banned=False).order_by('-legacy_total_tipped_amount').prefetch_related('user').limit(15).all()
 
         if len(ballers) == 0:
