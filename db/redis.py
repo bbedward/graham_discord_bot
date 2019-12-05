@@ -43,7 +43,7 @@ class RedisDB(object):
         # Add a prefix to allow our bot to be friendly with other bots within the same redis DB
         key = f"{Env.currency_name().lower()}{key}"
         redis = await self.get_redis()
-        await redis.get(key)
+        return await redis.get(key)
 
     async def delete(self, key: str):
         """Redis DELETE"""
