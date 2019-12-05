@@ -45,12 +45,9 @@ class StatsCog(commands.Cog):
 
     async def cog_before_invoke(self, ctx: Context):
         ctx.error = False
-        # Blocks is ok anywhere
-        if ctx.command.name == 'blocks_cmd':
-            return
         # Only allow tip commands in public channels
         msg = ctx.message
-        if ChannelUtil.is_private(msg.channel):
+        if ChannelUtil.is_private(msg.channel) and ctx.command.name != 'blocks_cmd':
             await Messages.send_error_dm(msg.author, "You can only view statistics in a server, not via DM.")
             ctx.error = True
             return
@@ -63,6 +60,8 @@ class StatsCog(commands.Cog):
                 if role.id in config.Config.instance().get_admin_roles():
                     ctx.admin = True
                     break
+            if ctx.command.name == 'blocks_cmd':
+                return
 
         # Can't spam stats commands
         if msg.channel.id in config.Config.instance().get_no_spam_channels():

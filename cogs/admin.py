@@ -565,7 +565,7 @@ class AdminCog(commands.Cog):
                 await u.save(using_db=conn, update_fields=['total_tipped_amount', 'legacy_total_tipped_amount'])
                 decrease_tip_count += 1
 
-        await msg.author.send(f"Decreased stats of {len(decrease_tip_count)} by {amount} {Env.currency_name()}")
+        await msg.author.send(f"Decreased stats of {decrease_tip_count} by {amount} {Env.currency_name()}")
         await msg.add_reaction("\u2796")
 
     @commands.command(aliases=INCREASETIPS_INFO.triggers)
@@ -609,10 +609,10 @@ class AdminCog(commands.Cog):
         increase_tip_count = 0
         for u in await Stats.filter(user_id__in=increasetip_ids, server_id=msg.guild.id).all():
             async with in_transaction() as conn:
-                u.total_tipped_amount = float(u.total_tipped_amount) - amount
-                u.legacy_total_tipped_amount = float(u.legacy_total_tipped_amount) - amount
+                u.total_tipped_amount = float(u.total_tipped_amount) + amount
+                u.legacy_total_tipped_amount = float(u.legacy_total_tipped_amount) + amount
                 await u.save(using_db=conn, update_fields=['total_tipped_amount', 'legacy_total_tipped_amount'])
                 increase_tip_count += 1
 
-        await msg.author.send(f"Increased stats of {len(increase_tip_count)} by {amount} {Env.currency_name()}")
+        await msg.author.send(f"Increased stats of {increase_tip_count} by {amount} {Env.currency_name()}")
         await msg.add_reaction("\u2795")
