@@ -264,12 +264,12 @@ class RainCog(commands.Cog):
         delta_s = (datetime.datetime.utcnow() - last_msg_dt).total_seconds()
         if 90 > delta_s:
             return
-        elif 1200 > delta_s:
+        elif delta_s > 1200:
             # Deduct a point
             if active_stats['msg_count'] > 1:
                 active_stats['msg_count'] -= 1
-                active_stats['last_msg'] = datetime.datetime.utcnow().strftime('%m/%d/%Y %H:%M:%S')
-                await RedisDB.instance().set(user_key, json.dumps(active_stats), expires=1800)
+            active_stats['last_msg'] = datetime.datetime.utcnow().strftime('%m/%d/%Y %H:%M:%S')
+            await RedisDB.instance().set(user_key, json.dumps(active_stats), expires=1800)
         else:
             # add a point
             if active_stats['msg_count'] <= Constants.RAIN_MSG_REQUIREMENT * 2:
