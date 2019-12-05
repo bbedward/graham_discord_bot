@@ -267,7 +267,7 @@ class StatsCog(commands.Cog):
 
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name=f"Here's how many blocks I have", icon_url="https://github.com/bbedward/graham_discord_bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/graham_discord_bot/raw/master/assets/nano_logo.png")
-        embed.description = f"```Count: {count}\nUnchecked: {unchecked}```"
+        embed.description = f"```Count: {count:,}\nUnchecked: {unchecked:,}```"
 
         await RedisDB.instance().set(f"blocksspam{msg.channel.id if not is_private else msg.author.id}", "as", expires=120)
         if is_private:
