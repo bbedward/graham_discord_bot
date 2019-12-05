@@ -169,7 +169,8 @@ class TipsCog(commands.Cog):
             await TransactionQueue.instance().put(tx)
         # Update stats
         stats: Stats = await user.get_stats(server_id=msg.guild.id)
-        await stats.update_tip_stats(send_amount * len(tx_list))
+        if msg.channel.id in config.Config.instance().get_no_stats_channels():
+            await stats.update_tip_stats(send_amount * len(tx_list))
 
     @commands.command(aliases=TIPSPLIT_INFO.triggers)
     async def tipsplit_cmd(self, ctx: Context):
@@ -237,7 +238,8 @@ class TipsCog(commands.Cog):
             await TransactionQueue.instance().put(tx)
         # Update stats
         stats: Stats = await user.get_stats(server_id=msg.guild.id)
-        await stats.update_tip_stats(amount_needed)
+        if msg.channel.id in config.Config.instance().get_no_stats_channels():
+            await stats.update_tip_stats(amount_needed)
 
     @commands.command(aliases=TIPRANDOM_INFO.triggers)
     async def tiprandom_cmd(self, ctx: Context):
@@ -300,7 +302,8 @@ class TipsCog(commands.Cog):
         await RedisDB.instance().set(f"tiprandomspam{msg.guild.id}{msg.author.id}", "as", expires=60)
         # Update stats
         stats: Stats = await user.get_stats(server_id=msg.guild.id)
-        await stats.update_tip_stats(send_amount)
+        if msg.channel.id in config.Config.instance().get_no_stats_channels():
+            await stats.update_tip_stats(send_amount)
 
     @commands.command(aliases=TIPAUTHOR_INFO.triggers)
     async def tipauthor_cmd(self, ctx: Context):
@@ -337,4 +340,5 @@ class TipsCog(commands.Cog):
         await TransactionQueue.instance().put(tx)
         # Update stats
         stats: Stats = await user.get_stats(server_id=msg.guild.id)
-        await stats.update_tip_stats(send_amount)
+        if msg.channel.id in config.Config.instance().get_no_stats_channels():
+            await stats.update_tip_stats(send_amount)

@@ -39,6 +39,9 @@ restrictions:
   # Roles that can receive rain
   rain_roles:
   - 589916036745396235
+  # Stats won't count in this channel
+  no_stats_channels:
+  - 416306340848336896
 
 giveaway:
   # Minimum amount required to start a giveaway

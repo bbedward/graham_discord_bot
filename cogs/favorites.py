@@ -316,4 +316,5 @@ class FavoriteCog(commands.Cog):
         await RedisDB.instance().set(f"tipfavoritesspam{msg.author.id}", "as", expires=300)
         # Update stats
         stats: Stats = await user.get_stats(server_id=msg.guild.id)
-        await stats.update_tip_stats(amount_needed)
+        if msg.channel.id in config.Config.instance().get_no_stats_channels():
+            await stats.update_tip_stats(amount_needed)

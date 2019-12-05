@@ -191,3 +191,11 @@ class Config(object):
         elif 'giveaway' in self.yaml and 'roles' in self.yaml['giveaway']:
             return self.yaml['giveaway']['roles']
         return default
+
+    def get_no_stats_channels(self) -> List[int]:
+        default = []
+        if not self.has_yaml():
+            return default
+        elif 'restrictions' in self.yaml and 'no_stats_channels' in self.yaml['restrictions']:
+            return self.yaml['restrictions']['no_stats_channels']
+        return default
