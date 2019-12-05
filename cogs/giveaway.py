@@ -406,7 +406,7 @@ class GiveawayCog(commands.Cog):
         else:
             paid_already = int(active_tx.amount)
     
-        if paid_already >= int(gw.entry_fee):
+        if paid_already >= int(gw.entry_fee) and int(gw.entry_fee) > 0:
             await Messages.send_error_dm(msg.author, "You've already entered this giveaway.")
             await Messages.delete_message_if_ok(msg)
             return
