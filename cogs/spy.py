@@ -59,7 +59,10 @@ class SpyCog(commands.Cog):
         for u in user_list:
             response = f"Last known name: {u.name}```{u.id}```"
             response += f"```{u.account.address}```"
-            response += f"https://creeper.banano.cc/explorer/account/{u.account.address}\n"
+            if Env.banano():
+                response += f"https://creeper.banano.cc/explorer/account/{u.account.address}\n"
+            else:
+                response += f"https://nanocrawler.cc/explorer/account/{u.account.address}\n"
 
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name="WFU Result", icon_url="https://github.com/bbedward/graham_discord_bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/graham_discord_bot/raw/master/assets/nano_logo.png")
@@ -87,7 +90,10 @@ class SpyCog(commands.Cog):
         for acct in address_list:
             response = f"Last known name: {acct.user.name}```{acct.user.id}```"
             response += f"```{acct.address}```"
-            response += f"https://creeper.banano.cc/explorer/account/{acct.address}\n"
+            if Env.banano():
+                response += f"https://creeper.banano.cc/explorer/account/{acct.address}\n"
+            else:
+                response += f"https://nanocrawler.cc/explorer/account/{acct.address}\n"
 
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name="UFW Result", icon_url="https://github.com/bbedward/graham_discord_bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/graham_discord_bot/raw/master/assets/nano_logo.png")
