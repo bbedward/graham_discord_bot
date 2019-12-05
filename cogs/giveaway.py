@@ -603,12 +603,13 @@ class GiveawayCog(commands.Cog):
     async def tipgiveaway_cmd(self, ctx: Context):
         if ctx.error:
             return
-        # Check roles
-        if not await self.role_check(msg):
-            return
 
         msg = ctx.message
         user = ctx.user
+
+        # Check roles
+        if not await self.role_check(msg):
+            return
 
         # Punish them for trying to do this command in a no spam channel
         if msg.channel.id in config.Config.instance().get_no_spam_channels():
