@@ -297,6 +297,9 @@ class RainCog(commands.Cog):
             elif u['msg_count'] >= Constants.RAIN_MSG_REQUIREMENT:
                 users_filtered.append(u['user_id'])
 
+        if len(users_filtered) < 1:
+            return []
+
         # Get only users in our database
         return await User.filter(id__in=users_filtered, frozen=False, tip_banned=False).prefetch_related('account').all()
 
