@@ -38,7 +38,7 @@ restrictions:
   rain_minimum: 1000
   # Roles that can receive rain
   rain_roles:
-  - 589916036745396235
+  - 431171347427622913
   # Stats won't count in this channel
   no_stats_channels:
   - 416306340848336896
