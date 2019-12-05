@@ -258,7 +258,6 @@ class RainCog(commands.Cog):
             return
         else:
             active_stats = json.loads(active_stats)
-            active_stats['last_msg'] = datetime.datetime.utcnow().strftime('%m/%d/%Y %H:%M:%S')
 
         # Ignore em if they've messaged too recently
         last_msg_dt = datetime.datetime.strptime(active_stats['last_msg'], '%m/%d/%Y %H:%M:%S')
@@ -269,14 +268,17 @@ class RainCog(commands.Cog):
             # Deduct a point
             if active_stats['msg_count'] > 1:
                 active_stats['msg_count'] -= 1
+                active_stats['last_msg'] = datetime.datetime.utcnow().strftime('%m/%d/%Y %H:%M:%S')
                 await RedisDB.instance().set(user_key, json.dumps(active_stats), expires=1800)
         else:
             # add a point
             if active_stats['msg_count'] <= Constants.RAIN_MSG_REQUIREMENT * 2:
                 active_stats['msg_count'] += 1
+                active_stats['last_msg'] = datetime.datetime.utcnow().strftime('%m/%d/%Y %H:%M:%S')
                 await RedisDB.instance().set(user_key, json.dumps(active_stats), expires=1800)
             else:
                 # Reset key expiry
+                active_stats['last_msg'] = datetime.datetime.utcnow().strftime('%m/%d/%Y %H:%M:%S')
                 await RedisDB.instance().set(user_key, json.dumps(active_stats), expires=1800)
 
     @staticmethod
