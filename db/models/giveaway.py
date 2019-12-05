@@ -23,8 +23,20 @@ class Giveaway(Model):
 
     @staticmethod
     async def get_active_giveaway(server_id: int) -> 'Giveaway':
-        """Returns the current active giveaway, if there is one."""
+        """Returns the current active giveaway for the server, if there is one."""
         giveaway = await Giveaway.filter(server_id=server_id, end_at__not_isnull=True, winning_user=None).prefetch_related('started_by').order_by('-end_at').first()
+        return giveaway
+
+    @staticmethod
+    async def get_active_giveaway_by_id(id: int) -> 'Giveaway':
+        """Returns the active giveaway by id, if there is one."""
+        giveaway = await Giveaway.filter(id=id, end_at__not_isnull=True, winning_user=None).prefetch_related('started_by').order_by('-end_at').first()
+        return giveaway
+
+    @staticmethod
+    async def get_active_giveaways(server_ids: List[int]) -> List['Giveaway']:
+        """Returns the current active giveaway, if there is one."""
+        giveaway = await Giveaway.filter(server_id__in=server_ids, end_at__not_isnull=True, winning_user=None).prefetch_related('started_by').order_by('-end_at').first()
         return giveaway
 
     @staticmethod
