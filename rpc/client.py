@@ -123,5 +123,5 @@ class RPCClient(object):
         }
         respjson = await self.make_request(count_action)
         if 'count' in respjson and 'unchecked' in respjson:
-            return respjson['count'], respjson['unchecked']
+            return int(respjson['count']), int(respjson['unchecked'])
         return None, None
