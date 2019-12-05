@@ -197,7 +197,7 @@ class GiveawayCog(commands.Cog):
                 else:
                     tx.destination = winner_account
                     tx.receiving_user = winner
-                    await tx.save(using_db=conn, update_fields=['receiving_user', 'destination'])
+                    await tx.save(using_db=conn, update_fields=['receiving_user_id', 'destination'])
         # Queue transactions
         for tx in txs:
             await TransactionQueue.instance().put(tx)
