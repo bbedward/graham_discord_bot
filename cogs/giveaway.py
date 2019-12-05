@@ -60,7 +60,7 @@ WINNERS_INFO = CommandInfo(
     details = "View the 10 most recent giveaways winners as well as the amount they've won."
 )
 TIPGIVEAWAY_INFO = CommandInfo(
-    triggers = ["donate", "d"] if Env.banano() else ["ntipgiveaway", "ntg"],
+    triggers = ["donate", "do"] if Env.banano() else ["ntipgiveaway", "ntg"],
     overview = "Donate to giveaway",
     details = "Donate to the currently active giveaway to increase the pot, or donate to towards starting a giveaway automatically." +
                 f"\nExample: `{config.Config.instance().command_prefix}{'donate' if Env.banano() else 'ntipgiveaway'} 1` - Donate 1 {Env.currency_symbol()} to the current or next giveaway"
