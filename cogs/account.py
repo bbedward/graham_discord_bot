@@ -229,6 +229,12 @@ class AccountCog(commands.Cog):
         send_amount: float = ctx.send_amount
         destination: str = ctx.destination
 
+        available_balance = Env.raw_to_amount(await user.get_available_balance())
+        if send_amount > available_balance:
+            await Messages.add_x_reaction(msg)
+            await Messages.send_error_dm(msg.author, f"Your balance isn't high enough to complete this transaction. You have **{available_balance} {Env.currency_symbol()}**, but this would cost you **{send_amount} {Env.currency_symbol()}**")
+            return
+
         # Create transaction
         tx = await Transaction.create_transaction_external(
             sending_user=user,
