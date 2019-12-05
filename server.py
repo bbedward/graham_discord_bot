@@ -22,7 +22,7 @@ class GrahamServer(object):
             web.get('/wfu/{user}', self.wfu),
             web.get('/users', self.users)
         ])
-        self.logger = log.server_logger()
+        self.logger = log.server_logger
         self.host = host
         self.port = port
         self.min_amount = 10 if Env.banano() else 0.1
