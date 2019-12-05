@@ -872,7 +872,7 @@ class GiveawayCog(commands.Cog):
             await Messages.delete_message(msg)
             return
         # Get active giveaways (private channel)
-        gws = await Giveaway.get_active_giveaway(server_ids=[g.id for g in guilds])
+        gws = await Giveaway.get_active_giveaways(server_ids=[g.id for g in guilds])
         if gws is None or len(gws) == 0:
             await Messages.send_error_dm(msg.author, "There aren't any active giveaways.")
             await Messages.delete_message(msg)
