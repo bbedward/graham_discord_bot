@@ -186,7 +186,7 @@ class RainCog(commands.Cog):
         if msg.channel.id not in config.Config.instance().get_no_stats_channels():
             await stats.update_tip_stats(amount_needed)
         # DM creator
-        await Messages.send_success_dm(msg.author, f"You rained **{amount_needed} {Env.currency_symbol()}** to **{len(tx_list)} users**, they received **{individual_send_amount} {Env.currency_symbol()}** each.", header="Make it Rain")
+        await Messages.send_success_dm(msg.author, f"You rained **{amount_needed} {Env.currency_symbol()}** to **{len(tx_list)} users**, they received **{NumberUtil.format_float(individual_send_amount)} {Env.currency_symbol()}** each.", header="Make it Rain")
         # Make the rainer auto-rain eligible
         await self.auto_rain_eligible(msg)
 
