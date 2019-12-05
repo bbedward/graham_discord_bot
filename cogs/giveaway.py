@@ -41,9 +41,9 @@ TICKET_INFO = CommandInfo(
     triggers = ["ticket", "enter", "e"],
     overview = "Enter the currently active giveaway",
     details = "Enter the currently active giveaway, if there is one." +
-                f"\nFor giveaways without a fee, simply use `{config.Config.instance().command_prefix} ticket`"
-                f"\nFor giveaways with a fee, simply use `{config.Config.instance().command_prefix} ticket <fee>`"
-                f"\n**In private channels, id is required** example: `{config.Config.instance().command_prefix} ticket <fee> id=3` for giveaway #3"
+                f"\nFor giveaways without a fee, simply use `{config.Config.instance().command_prefix}ticket`"
+                f"\nFor giveaways with a fee, simply use `{config.Config.instance().command_prefix}ticket <fee>`"
+                f"\n**In private channels, id is required** example: `{config.Config.instance().command_prefix}ticket <fee> id=3` for giveaway #3"
 )
 TICKETSTATUS_INFO = CommandInfo(
     triggers = ["ticketstatus", "ts"],

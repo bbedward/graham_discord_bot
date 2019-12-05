@@ -195,7 +195,7 @@ class StatsCog(commands.Cog):
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name=f"Here are the top {len(ballers)} tippers \U0001F44F", icon_url="https://github.com/bbedward/graham_discord_bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/graham_discord_bot/raw/master/assets/nano_logo.png")
         embed.description = response_msg
-        embed.set_footer(text=f"Use {config.Config.instance().command_prefix} legacyboard for all-time stats")
+        embed.set_footer(text=f"Use {config.Config.instance().command_prefix}legacyboard for all-time stats")
 
         await RedisDB.instance().set(f"ballerspam{msg.channel.id}", "as", expires=300)
         await msg.channel.send(f"<@{msg.author.id}>", embed=embed)
