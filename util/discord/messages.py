@@ -82,7 +82,7 @@ class Messages():
                 await msg.add_reaction('\U0001F98D') # W
             if rain:
                 try:
-                    await msg.add_reaction('\:bananorain:651970643025330208') # Banano rain
+                    await msg.add_reaction('\:bananorain:430826677543895050') # Banano rain
                 except Exception:
                     await msg.add_reaction('\U0001F4A6') # Sweat Drops
         else:
