@@ -183,7 +183,7 @@ class RainCog(commands.Cog):
         await RedisDB.instance().set(f"rainspam{msg.author.id}", "as", expires=300)
         # Update stats
         stats: Stats = await user.get_stats(server_id=msg.guild.id)
-        if msg.channel.id in config.Config.instance().get_no_stats_channels():
+        if msg.channel.id not in config.Config.instance().get_no_stats_channels():
             await stats.update_tip_stats(amount_needed)
         # DM creator
         await Messages.send_success_dm(msg.author, f"You rained **{amount_needed} {Env.currency_symbol()}** to **{len(tx_list)} users**, they received **{individual_send_amount} {Env.currency_symbol()}** each.", header="Make it Rain")
