@@ -266,7 +266,7 @@ class GiveawayCog(commands.Cog):
                 if not split:
                     continue
                 try:
-                    fee = int(split)
+                    fee = float(split)
                 except ValueError as e:
                     await Messages.add_x_reaction(msg)
                     await Messages.send_usage_dm(msg.author, START_GIVEAWAY_INFO)
