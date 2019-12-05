@@ -262,7 +262,7 @@ class RainCog(commands.Cog):
         last_msg_dt = datetime.datetime.strptime(active_stats['last_msg'], '%m/%d/%Y %H:%M:%S')
         if last_msg_dt <= datetime.datetime.utcnow() - datetime.timedelta(minutes=2):
             return
-        elif last_msg_dt > datetime.datetime.utcnow() - datetime.timedelta(minutes=15):
+        elif last_msg_dt < datetime.datetime.utcnow() - datetime.timedelta(minutes=15):
             # Deduct a point
             if active_stats['msg_count'] > 1:
                 active_stats['msg_count'] -= 1
