@@ -132,7 +132,7 @@ class RainCog(commands.Cog):
             return
 
         individual_send_amount = NumberUtil.truncate_digits(send_amount / len(active_users), max_digits=Env.precision_digits())
-        if individual_send_amount < 0.01:
+        if individual_send_amount < Constants.TIP_MINIMUM:
             await Messages.add_x_reaction(msg)
             await Messages.send_error_dm(msg.author, f"Amount is too small to divide across {len(active_users)} users")
             return
