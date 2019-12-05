@@ -603,6 +603,9 @@ class GiveawayCog(commands.Cog):
     async def tipgiveaway_cmd(self, ctx: Context):
         if ctx.error:
             return
+        # Check roles
+        if not await self.role_check(msg):
+            return
 
         msg = ctx.message
         user = ctx.user

@@ -189,5 +189,5 @@ class Config(object):
         if not self.has_yaml():
             return default
         elif 'giveaway' in self.yaml and 'roles' in self.yaml['giveaway']:
-            return int(self.yaml['giveaway']['roles'])
+            return self.yaml['giveaway']['roles']
         return default
