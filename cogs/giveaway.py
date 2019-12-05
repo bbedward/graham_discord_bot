@@ -754,7 +754,10 @@ class GiveawayCog(commands.Cog):
             await Messages.add_tip_reaction(msg, tip_amount)
 
         await Messages.delete_message_if_ok(msg)
-        return
+        # Update stats
+        stats: Stats = await user.get_stats(server_id=msg.guild.id)
+        if msg.channel.id not in config.Config.instance().get_no_stats_channels():
+            await stats.update_tip_stats(tip_amount)
 
     @commands.command(aliases=TICKETSTATUS_INFO.triggers)
     async def ticketstatus_cmd(self, ctx: Context):
