@@ -1,4 +1,4 @@
-from aiohttp import web, log
+from aiohttp import web
 from discord.ext.commands import Bot
 from db.models.account import Account
 from db.models.user import User
@@ -9,6 +9,7 @@ from util.regex import RegexUtil, AddressMissingException, AddressAmbiguousExcep
 
 import config
 import datetime
+import logging
 import rapidjson as json
 
 class GrahamServer(object):
@@ -22,7 +23,7 @@ class GrahamServer(object):
             web.get('/wfu/{user}', self.wfu),
             web.get('/users', self.users)
         ])
-        self.logger = log.server_logger
+        self.logger = logging.getLogger()
         self.host = host
         self.port = port
         self.min_amount = 10 if Env.banano() else 0.1
