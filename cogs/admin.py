@@ -11,6 +11,8 @@ import logging
 from util.discord.messages import Messages
 from util.discord.paginator import Entry, Page, Paginator
 from util.discord.channel import ChannelUtil
+from util.env import Env
+from util.regex import RegexUtil, AmountMissingException
 
 ## Command documentation
 PAUSE_INFO = CommandInfo(
@@ -67,6 +69,16 @@ STATSBANNED_INFO = CommandInfo(
     triggers = ["statsbanned"],
     overview = "Get a list of stats banned users",
     details = "Lists all the users that have been stats banned."
+)
+DECREASETIPS_INFO = CommandInfo(
+    triggers = ["decreasetips"],
+    overview = "Decrease tip stat total",
+    details = f"`{config.Config.instance().command_prefix}decreasetips 1000 @bbedward` - Reduce users tip count by 1000 {Env.currency_name()}"
+)
+INCREASETIPS_INFO = CommandInfo(
+    triggers = ["increasetips"],
+    overview = "Increase tip stat total",
+    details = f"`{config.Config.instance().command_prefix}increasetips 1000 @bbedward` - Increase users tip count by 1000 {Env.currency_name()}"
 )
 
 class AdminCog(commands.Cog):
@@ -506,3 +518,101 @@ class AdminCog(commands.Cog):
         # Start pagination
         pages = Paginator(self.bot, message=msg, page_list=pages,as_dm=True)
         await pages.paginate(start_page=1)
+
+    @commands.command(aliases=DECREASETIPS_INFO.triggers)
+    async def decreasetips_cmd(self, ctx: Context):
+        if ctx.error:
+            return
+
+        msg = ctx.message
+
+        decreasetip_ids = []
+        # Get mentioned users
+        for m in msg.mentions:
+            decreasetip_ids.append(m.id)
+
+        # remove duplicates and avoid admins
+        decreasetip_ids = set(decreasetip_ids)
+        decreasetip_ids = [x for x in decreasetip_ids if x not in config.Config.instance().get_admin_ids()]
+        if msg.author.id not in config.Config.instance().get_admin_ids():
+            for d in decreasetip_ids:
+                memba = msg.guild.get_member(d)
+                if memba is not None:
+                    for r in memba.roles:
+                        if r.id in [config.Config.instance().get_admin_roles()]:
+                            d.remove(r.id)
+
+
+        if len(decreasetip_ids) < 1:
+            await Messages.add_x_reaction(msg)
+            await msg.author.send("Your message has no users to decreasetips for")
+            return
+
+        try:
+            amount = RegexUtil.find_float(msg.content)
+        except AmountMissingException:
+            await Messages.send_usage_dm(msg.author, DECREASETIPS_INFO)
+            return
+
+        # TODO - tortoise doesnt give us any feedback on update counts atm
+        # https://github.com/tortoise/tortoise-orm/issues/126
+        # TODO - we also don't have atomic updates :/
+        decrease_tip_count = 0
+        for u in await Stats.filter(user_id__in=decreasetip_ids, server_id=msg.guild.id).all():
+            async with in_transaction() as conn:
+                u.total_tipped_amount = u.total_tipped_amount - amount
+                u.legacy_total_tipped_amount = u.legacy_total_tipped_amount - amount
+                await u.save(using_db=conn, update_fields=['total_tipped_amount', 'legacy_total_tipped_amount'])
+                decrease_tip_count += 1
+
+        await msg.author.send(f"Decreased stats of {len(decrease_tip_count)} by {amount} {Env.currency_name()}")
+        await msg.add_reaction("\u2796")
+
+    @commands.command(aliases=INCREASETIPS_INFO.triggers)
+    async def increasetips_cmd(self, ctx: Context):
+        if ctx.error:
+            return
+
+        msg = ctx.message
+
+        increasetip_ids = []
+        # Get mentioned users
+        for m in msg.mentions:
+            increasetip_ids.append(m.id)
+
+        # remove duplicates and avoid admins
+        increasetip_ids = set(increasetip_ids)
+        increasetip_ids = [x for x in increasetip_ids if x not in config.Config.instance().get_admin_ids()]
+        if msg.author.id not in config.Config.instance().get_admin_ids():
+            for d in increasetip_ids:
+                memba = msg.guild.get_member(d)
+                if memba is not None:
+                    for r in memba.roles:
+                        if r.id in [config.Config.instance().get_admin_roles()]:
+                            d.remove(r.id)
+
+
+        if len(increasetip_ids) < 1:
+            await Messages.add_x_reaction(msg)
+            await msg.author.send("Your message has no users to increasetips for")
+            return
+
+        try:
+            amount = RegexUtil.find_float(msg.content)
+        except AmountMissingException:
+            await Messages.send_usage_dm(msg.author, INCREASETIPS_INFO)
+            return
+
+        # TODO - tortoise doesnt give us any feedback on update counts atm
+        # https://github.com/tortoise/tortoise-orm/issues/126
+        # TODO - we also don't have atomic updates :/
+        increase_tip_count = 0
+        for u in await Stats.filter(user_id__in=increasetip_ids, server_id=msg.guild.id).all():
+            async with in_transaction() as conn:
+                u.total_tipped_amount = u.total_tipped_amount - amount
+                u.legacy_total_tipped_amount = u.legacy_total_tipped_amount - amount
+                await u.save(using_db=conn, update_fields=['total_tipped_amount', 'legacy_total_tipped_amount'])
+                increase_tip_count += 1
+
+        await msg.author.send(f"Increased stats of {len(increase_tip_count)} by {amount} {Env.currency_name()}")
+        await msg.add_reaction("\u2795")

@@ -81,7 +81,9 @@ ADMIN_COMMANDS = {
             admin.TIPBANNED_INFO,
             admin.STATSBAN_INFO,
             admin.STATSUNBAN_INFO,
-            admin.STATSBANNED_INFO
+            admin.STATSBANNED_INFO,
+            admin.DECREASETIPS_INFO,
+            admin.INCREASETIPS_INFO
         ]
     }
 }

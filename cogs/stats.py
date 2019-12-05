@@ -1,17 +1,19 @@
+import datetime
+
+import discord
 from discord.ext import commands
 from discord.ext.commands import Bot, Context
-from models.command import CommandInfo
 from tortoise.functions import Sum
-from util.env import Env
-from util.discord.channel import ChannelUtil
-from util.discord.messages import Messages
-from db.models.user import User
-from db.models.stats import Stats
-from db.redis import RedisDB
 
 import config
-import discord
-import datetime
+from db.models.stats import Stats
+from db.models.user import User
+from db.redis import RedisDB
+from models.command import CommandInfo
+from rpc.client import RPCClient
+from util.discord.channel import ChannelUtil
+from util.discord.messages import Messages
+from util.env import Env
 from util.number import NumberUtil
 
 ## Command documentation
@@ -43,6 +45,9 @@ class StatsCog(commands.Cog):
 
     async def cog_before_invoke(self, ctx: Context):
         ctx.error = False
+        # Blocks is ok anywhere
+        if ctx.command.name == 'blocks_cmd':
+            return
         # Only allow tip commands in public channels
         msg = ctx.message
         if ChannelUtil.is_private(msg.channel):
@@ -241,3 +246,32 @@ class StatsCog(commands.Cog):
 
         await RedisDB.instance().set(f"ballerspam{msg.channel.id}", "as", expires=300)
         await msg.channel.send(f"<@{msg.author.id}>", embed=embed)
+
+    @commands.command(aliases=["blocks"])
+    async def blocks_cmd(self, ctx: Context):
+        if ctx.error:
+            await Messages.add_x_reaction(ctx.message)
+            return
+
+        msg = ctx.message
+        is_private = ChannelUtil.is_private(msg.channel)
+
+        if not ctx.god and await RedisDB.instance().exists(f"blocksspam{msg.channel.id if not is_private else msg.author.id}"):
+            await Messages.add_timer_reaction(msg)
+            await Messages.send_error_dm(msg.author, "Why don't you wait awhile before checking the block count again?")
+            return
+
+        count, unchecked = await RPCClient.instance().block_count()
+        if count is None or unchecked is None:
+            await Messages.send_error_dm(msg.author, "I couldn't retrieve the current block count")
+            return
+
+        embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
+        embed.set_author(name=f"Here's how many blocks I have", icon_url="https://github.com/bbedward/graham_discord_bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/graham_discord_bot/raw/master/assets/nano_logo.png")
+        embed.description = f"```Count: {count}\nUnchecked: {unchecked}```"
+
+        await RedisDB.instance().set(f"blocksspam{msg.channel.id if not is_private else msg.author.id}", "as", expires=120)
+        if is_private:
+            await msg.author.send(embed=embed)
+        else:
+            await msg.channel.send(f"<@{msg.author.id}>", embed=embed)
