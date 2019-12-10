@@ -19,6 +19,7 @@ class RedisDB(object):
     @classmethod
     async def close(cls):
         if hasattr(cls, 'redis') and cls.redis is not None:
+            cls.redis.close()
             await cls.redis.wait_closed()
         if cls._instance is not None:
             cls._instance = None
