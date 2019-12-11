@@ -29,8 +29,7 @@ class Config(object):
             parser.add_argument('-p', '--prefix', type=str, help='Command prefix for bot commands', default='!')
             parser.add_argument('-l', '--log-file', type=str, help='Log file location', default='/tmp/graham_bot.log')
             parser.add_argument('-s', '--status', type=str, help="The bot's 'playing status'", default=None, required=False)
-            parser.add_argument('-u', '--node-url', type=str, help='URL of the node', default='[::1]')
-            parser.add_argument('-np', '--node-port', type=int, help='Port of the node', default=7072 if Env.banano() else 7076)
+            parser.add_argument('-u', '--node-url', type=str, help='URL of the node, e.g.: http://[::1]:7072', default='http://[::1]:7072' if Env.banano() else 'http://[::1]:7076')
             parser.add_argument('--debug', action='store_true', help='Runs in debug mode if specified', default=False)
             options, unknown = parser.parse_known_args()
 
@@ -53,7 +52,6 @@ class Config(object):
                 exit(1)
 
             cls.node_url = options.node_url
-            cls.node_port = options.node_port
         return cls._instance
 
     def has_yaml(self) -> bool:

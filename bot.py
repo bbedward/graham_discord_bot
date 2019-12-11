@@ -12,6 +12,7 @@ from db.models.transaction import Transaction
 from db.tortoise_config import DBConfig
 from db.redis import RedisDB
 from server import GrahamServer
+from tortoise import Tortoise
 from util.discord.channel import ChannelUtil
 from util.env import Env
 from util.logger import setup_logger
@@ -103,7 +104,8 @@ if __name__ == "__main__":
 		tasks = [
 			client.logout(),
 			RPCClient.close(),
-			RedisDB.close()
+			RedisDB.close(),
+			Tortoise.close_connections()
 		]
 		loop.run_until_complete(asyncio.wait(tasks))
 		loop.close()
