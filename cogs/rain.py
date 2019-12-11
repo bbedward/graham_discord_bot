@@ -132,6 +132,7 @@ class RainCog(commands.Cog):
             return
 
         individual_send_amount = NumberUtil.truncate_digits(send_amount / len(active_users), max_digits=Env.precision_digits())
+        individual_send_amount_str = f"{individual_send_amount:.2f}" if Env.banano() else f"{individual_send_amount:.6f}"
         if individual_send_amount < Constants.TIP_MINIMUM:
             await Messages.add_x_reaction(msg)
             await Messages.send_error_dm(msg.author, f"Amount is too small to divide across {len(active_users)} users")
@@ -160,7 +161,7 @@ class RainCog(commands.Cog):
                     task_list.append(
                         Messages.send_basic_dm(
                             member=msg.guild.get_member(u.id),
-                            message=f"You were tipped **{individual_send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
+                            message=f"You were tipped **{individual_send_amount_str} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
                             skip_dnd=True
                         )
                     )
@@ -168,7 +169,7 @@ class RainCog(commands.Cog):
                     task_list.append(
                         Messages.send_basic_dm(
                             member=msg.guild.get_member(u.id),
-                            message=f"You were tipped **{individual_send_amount} {Env.currency_symbol()}** anonymously!",
+                            message=f"You were tipped **{individual_send_amount_str} {Env.currency_symbol()}** anonymously!",
                             skip_dnd=True
                         )
                     )
@@ -186,7 +187,7 @@ class RainCog(commands.Cog):
         if msg.channel.id not in config.Config.instance().get_no_stats_channels():
             await stats.update_tip_stats(amount_needed)
         # DM creator
-        await Messages.send_success_dm(msg.author, f"You rained **{amount_needed} {Env.currency_symbol()}** to **{len(tx_list)} users**, they received **{NumberUtil.truncate_digits(individual_send_amount, max_digits=Env.precision_digits())} {Env.currency_symbol()}** each.", header="Make it Rain")
+        await Messages.send_success_dm(msg.author, f"You rained **{amount_needed} {Env.currency_symbol()}** to **{len(tx_list)} users**, they received **{individual_send_amount_str} {Env.currency_symbol()}** each.", header="Make it Rain")
         # Make the rainer auto-rain eligible
         await self.auto_rain_eligible(msg)
 

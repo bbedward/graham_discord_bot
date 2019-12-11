@@ -5,7 +5,6 @@ from tortoise.transactions import in_transaction
 
 import db.models.giveaway as gway
 import db.models.user as usr
-from db.redis import RedisDB
 
 from rpc.client import RPCClient
 from util.env import Env
@@ -113,9 +112,6 @@ class Transaction(Model):
             amount=self.amount
         )
         if resp is not None:
-            # Cache the hash in redis to indicate this is an internal transaction
-            # We hope that this process is faster than NANO confirms blocks, because we use this to differentiate internal and external transactions from callback
-            await RedisDB.instance().set(f"hash:{resp}", "value", expires=60) # expire after 1 minute
             async with in_transaction() as conn:
                 self.block_hash = resp
                 await self.save(using_db=conn)

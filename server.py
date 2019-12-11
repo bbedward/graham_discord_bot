@@ -11,6 +11,7 @@ import config
 import datetime
 import logging
 import rapidjson as json
+from db.models.transaction import Transaction
 
 class GrahamServer(object):
     """An AIOHTTP server that listens for callbacks and provides various APIs"""
@@ -144,8 +145,8 @@ class GrahamServer(object):
                     if account is None:
                         return web.HTTPOk()
                     # See if this is an internal TX
-                    internal = await RedisDB.instance().exists(f"hash:{hash}")
-                    if internal:
+                    transaction = await Transaction.filter(block_hash=hash).prefetch_related('receiving_user').first()
+                    if transaction is not None and transaction.receiving_user is not None:
                         return web.HTTPOk()
                     self.logger.debug(f'Deposit received: {request_json["amount"]} for {account.user.id}')
                     amount_string = f"{Env.raw_to_amount(int(request_json['amount']))} {Env.currency_symbol()}"
