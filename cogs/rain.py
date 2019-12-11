@@ -139,7 +139,7 @@ class RainCog(commands.Cog):
             return
 
         # See how much they need to make this tip.
-        amount_needed = individual_send_amount * len(active_users)
+        amount_needed = NumberUtil.truncate_digits(individual_send_amount * len(active_users), max_digits=Env.precision_digits())
         available_balance = Env.raw_to_amount(await user.get_available_balance())
         if amount_needed > available_balance:
             await Messages.add_x_reaction(msg)
