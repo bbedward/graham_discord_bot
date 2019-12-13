@@ -67,6 +67,10 @@ class AccountCog(commands.Cog):
                     await Messages.send_error_dm(msg.author, f"You are only allowed to use {Env.precision_digits()} digits after the decimal.")
                     ctx.error = True
                     return
+                elif (ctx.send_amount < 0.01 and Env.banano()) or (ctx.send_amount < 0.000001 and not Env.banano()):
+                    await Messages.send_error_dm(msg.author, f"Amount too small")
+                    ctx.error = True
+                    return                    
             except AmountMissingException:
                 await Messages.send_usage_dm(msg.author, SEND_INFO)
                 ctx.error = True
@@ -254,6 +258,11 @@ class AccountCog(commands.Cog):
 
         user: User = ctx.user
         destination: str = ctx.destination
+
+        bal = await user.get_available_balance_dec()
+        if (bal < 0.01 and Env.banano()) or (bal < 0.000001 and not Env.banano()):
+            await Messages.send_error_dm(msg.author, "You balance is 0, so I can't make any withdraw")
+            return
 
         # Create transaction
         tx = await Transaction.create_transaction_external(

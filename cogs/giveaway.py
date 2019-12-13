@@ -385,7 +385,7 @@ class GiveawayCog(commands.Cog):
             if 'id=' not in msg.content:
                 await Messages.send_usage_dm(msg.author, TICKET_INFO)
                 await Messages.add_x_reaction(msg)
-                return
+                return            
 
             # Parse message
             split_content = msg.content.split(' ')
@@ -429,6 +429,21 @@ class GiveawayCog(commands.Cog):
             await Messages.delete_message_if_ok(msg)
             # Block ticket spam
             await RedisDB.instance().set(f"ticketspam:{msg.author.id}", str(spam + 1), expires=3600)
+            return
+
+        # Check roles
+        if is_private:
+            guild = self.bot.get_guild(gw.server_id)
+            if guild is None:
+                await Messages.send_error_dm(msg.author, "Something went wrong, ask my master for help")
+                return
+            member = guild.get_member(msg.author.id)
+            if member is None:
+                await "You're not a member of that server"
+                return
+            msg.author = member
+    
+        if not self.role_check(msg):
             return
 
         # There is an active giveaway, enter em if not already entered.
