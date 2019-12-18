@@ -29,11 +29,11 @@ class GrahamServer(object):
                     allow_headers="*",
                 )
         })
-        ufw_resource = cors.add(app.router.add_resource("/ufw/{wallet}"))
+        ufw_resource = cors.add(self.app.router.add_resource("/ufw/{wallet}"))
         cors.add(ufw_resource.add_route("GET", self.ufw)) 
-        wfu_resource = cors.add(app.router.add_resource("/wfu/{user}"))
+        wfu_resource = cors.add(self.app.router.add_resource("/wfu/{user}"))
         cors.add(wfu_resource.add_route("GET", self.wfu))
-        users_resource = cors.add(app.router.add_resource("/users"))
+        users_resource = cors.add(self.app.router.add_resource("/users"))
         cors.add(users_resource.add_route("GET", self.users))
         self.logger = logging.getLogger()
         self.host = host
