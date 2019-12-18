@@ -39,6 +39,12 @@ class TransactionQueue(object):
         else:
             await user.send(f"Withdraw processed: https://nanocrawler.cc/explorer/block/{hash}")
 
+    async def retry(self, tx: Transaction):
+        delay = tx.retries + 1 * 5
+        tx.retries += 1
+        await asyncio.sleep(delay)
+        await self.put(tx)
+
     async def queue_consumer(self):
         queue: asyncio.Queue = self.queue
         while True:
@@ -46,10 +52,9 @@ class TransactionQueue(object):
                 tx: Transaction = await queue.get()
                 res = await tx.send()
                 if res is None:
-                    tx.retries += 1
                     if tx.retries < 3:
                         # Retry this transaction by placing it on the end of the queue
-                        await self.put(tx)
+                        asyncio.ensure_future(self.retry(tx))
                 elif tx.receiving_user is None:
                     # Notify user their withdraw was processed
                     asyncio.ensure_future(self.notify_user(tx=tx, hash=res))
