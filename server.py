@@ -21,8 +21,8 @@ class GrahamServer(object):
         self.app = web.Application(middlewares=[web.normalize_path_middleware()])
         self.app.add_routes([
             web.post('/callback', self.callback),
-            web.get('/ufw', self.ufw),
-            web.get('/wfu', self.wfu),
+            web.get('/ufw/{wallet}', self.ufw),
+            web.get('/wfu/{user}', self.wfu),
             web.get('/users', self.users)
         ])
         cors = aiohttp_cors.setup(self.app, defaults={
