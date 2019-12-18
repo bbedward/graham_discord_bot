@@ -18,7 +18,7 @@ class GrahamServer(object):
     """An AIOHTTP server that listens for callbacks and provides various APIs"""
     def __init__(self, bot: Bot, host: str, port: int):
         self.bot = bot
-        self.app = web.Application()
+        self.app = web.Application(middlewares=[web.normalize_path_middleware()])
         self.app.add_routes([
             web.post('/callback', self.callback),
             web.get('/ufw', self.ufw),
