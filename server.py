@@ -22,18 +22,18 @@ class GrahamServer(object):
         self.app.add_routes([
             web.post('/callback', self.callback)
         ])
-        cors = aiohttp_cors.setup(app, defaults={
+        cors = aiohttp_cors.setup(self.app, defaults={
             "*": aiohttp_cors.ResourceOptions(
                     allow_credentials=True,
                     expose_headers="*",
                     allow_headers="*",
                 )
         })
-        ufw_resource = cors.add(app.router.add_resource("/ufw"))
+        ufw_resource = cors.add(self.app.router.add_resource("/ufw"))
         cors.add(ufw_resource.add_route("GET", self.ufw)) 
-        wfu_resource = cors.add(app.router.add_resource("/wfu"))
+        wfu_resource = cors.add(self.app.router.add_resource("/wfu"))
         cors.add(wfu_resource.add_route("GET", self.callback))
-        users_resource = cors.add(app.router.add_resource("/users"))
+        users_resource = cors.add(self.app.router.add_resource("/users"))
         cors.add(users_resource.add_route("GET", self.users))
         self.logger = logging.getLogger()
         self.host = host
