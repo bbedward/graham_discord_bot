@@ -7,6 +7,7 @@ from util.discord.messages import Messages
 from util.env import Env
 from util.regex import RegexUtil, AddressMissingException, AddressAmbiguousException
 
+import aiohttp_cors
 import config
 import datetime
 import logging
@@ -19,11 +20,21 @@ class GrahamServer(object):
         self.bot = bot
         self.app = web.Application()
         self.app.add_routes([
-            web.post('/callback', self.callback),
-            web.get('/ufw/{wallet}', self.ufw),
-            web.get('/wfu/{user}', self.wfu),
-            web.get('/users', self.users)
+            web.post('/callback', self.callback)
         ])
+        cors = aiohttp_cors.setup(app, defaults={
+            "*": aiohttp_cors.ResourceOptions(
+                    allow_credentials=True,
+                    expose_headers="*",
+                    allow_headers="*",
+                )
+        })
+        ufw_resource = cors.add(app.router.add_resource("/ufw"))
+        cors.add(ufw_resource.add_route("GET", self.ufw)) 
+        wfu_resource = cors.add(app.router.add_resource("/wfu"))
+        cors.add(wfu_resource.add_route("GET", self.callback))
+        users_resource = cors.add(app.router.add_resource("/users"))
+        cors.add(users_resource.add_route("GET", self.users))
         self.logger = logging.getLogger()
         self.host = host
         self.port = port
