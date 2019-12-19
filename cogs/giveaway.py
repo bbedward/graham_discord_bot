@@ -339,7 +339,7 @@ class GiveawayCog(commands.Cog):
                         server_id=msg.guild.id,
                         started_by=user,
                         amount=giveaway_amount,
-                        entry_fee=fee,
+                        entry_fee=Env.amount_to_raw(fee),
                         duration=duration,
                         started_in_channel=msg.channel.id,
                         conn=conn
@@ -720,7 +720,7 @@ class GiveawayCog(commands.Cog):
                         async with in_transaction() as conn:
                             gw = await Giveaway.start_giveaway_bot(
                                 server_id=msg.guild.id,
-                                entry_fee=config.Config.instance().get_giveaway_auto_fee(),
+                                entry_fee=Env.amount_to_raw(config.Config.instance().get_giveaway_auto_fee()),
                                 started_in_channel=msg.channel.id,
                                 conn=conn
                             )
@@ -751,7 +751,7 @@ class GiveawayCog(commands.Cog):
         already_entered = False
         async with in_transaction() as conn:
             if user_tx is not None:
-                if Env.raw_to_amount(int(user_tx.amount)) >= config.Config.instance().get_giveaway_auto_fee():
+                if int(user_tx.amount) >= int(gw.entry_fee):
                     already_entered=True
                 user_tx.amount = str(int(user_tx.amount) + Env.amount_to_raw(tip_amount))
                 await user_tx.save(update_fields=['amount'], using_db=conn)
@@ -764,7 +764,7 @@ class GiveawayCog(commands.Cog):
                 )
     
         if gw.end_at is None:
-            if not already_entered and Env.raw_to_amount(int(user_tx.amount)) >= config.Config.instance().get_giveaway_auto_fee():
+            if not already_entered and int(user_tx.amount) >= int(gw.entry_fee):
                 await Messages.send_success_dm(msg.author, f"With your generous donation of {Env.raw_to_amount(int(user_tx.amount))} {Env.currency_symbol()} I have reserved your spot for giveaway #{gw.id}!")
             else:
                 await Messages.send_success_dm(msg.author, f"Your generous donation of {Env.raw_to_amount(int(user_tx.amount))} {Env.currency_symbol()} will help support giveaway #{gw.id}!")
@@ -797,7 +797,7 @@ class GiveawayCog(commands.Cog):
                     # Start the timer
                     asyncio.create_task(self.start_giveaway_timer(gw))                    
         else:
-            if not already_entered and Env.raw_to_amount(int(user_tx.amount)) >= config.Config.instance().get_giveaway_auto_fee():
+            if not already_entered and int(user_tx.amount) >= int(gw.entry_fee):
                 await Messages.send_success_dm(msg.author, f"With your generous donation of {tip_amount} {Env.currency_symbol()} I have entered you into giveaway #{gw.id}!")
             else:
                 await Messages.send_success_dm(msg.author, f"Your generous donation of {tip_amount} {Env.currency_symbol()} will help support giveaway #{gw.id}!")
