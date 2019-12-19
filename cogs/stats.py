@@ -108,7 +108,7 @@ class StatsCog(commands.Cog):
         if stats is None or stats.total_tips == 0:
             response = f"<@{msg.author.id}> You haven't sent any tips in this server yet, tip some people and then check your stats later"
         else:
-            response = f"<@{msg.author.id}> You have sent **{stats.total_tips}** tips totaling **{NumberUtil.format_float(stats.total_tipped_amount+stats.legacy_total_tipped_amount)} {Env.currency_symbol()}**. Your biggest tip of all time is **{NumberUtil.format_float(stats.top_tip)} {Env.currency_symbol()}**"
+            response = f"<@{msg.author.id}> You have sent **{stats.total_tips}** tips totaling **{NumberUtil.format_float(stats.legacy_total_tipped_amount)} {Env.currency_symbol()}**. Your biggest tip of all time is **{NumberUtil.format_float(stats.top_tip)} {Env.currency_symbol()}**"
 
         await msg.channel.send(response)
         await RedisDB.instance().set(f"tipstatsspam{msg.author.id}{msg.guild.id}", "as", expires=300)

@@ -443,7 +443,7 @@ class GiveawayCog(commands.Cog):
                 return
             msg.author = member
     
-        if not self.role_check(msg):
+        if not await self.role_check(msg):
             return
 
         # There is an active giveaway, enter em if not already entered.
