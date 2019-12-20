@@ -339,7 +339,7 @@ class GiveawayCog(commands.Cog):
                         server_id=msg.guild.id,
                         started_by=user,
                         amount=giveaway_amount,
-                        entry_fee=Env.amount_to_raw(fee),
+                        entry_fee=fee,
                         duration=duration,
                         started_in_channel=msg.channel.id,
                         conn=conn
@@ -720,7 +720,7 @@ class GiveawayCog(commands.Cog):
                         async with in_transaction() as conn:
                             gw = await Giveaway.start_giveaway_bot(
                                 server_id=msg.guild.id,
-                                entry_fee=Env.amount_to_raw(config.Config.instance().get_giveaway_auto_fee()),
+                                entry_fee=config.Config.instance().get_giveaway_auto_fee(),
                                 started_in_channel=msg.channel.id,
                                 conn=conn
                             )
