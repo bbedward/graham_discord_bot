@@ -408,7 +408,6 @@ class AdminCog(commands.Cog):
 
         # remove duplicates and admins
         ban_ids = set(ban_ids)
-        ban_ids = [x for x in ban_ids if x not in config.Config.instance().get_admin_ids()]
         for f in ban_ids:
             memba = msg.guild.get_member(f)
             if memba is not None:
