@@ -182,7 +182,7 @@ class GiveawayCog(commands.Cog):
         txs = await Transaction.filter(giveaway=giveaway).prefetch_related('sending_user').all()
         users = []
         for tx in txs:
-            if tx.sending_user not in users and int(tx.amount) >= giveaway.entry_fee:
+            if tx.sending_user not in users and int(tx.amount) >= int(giveaway.entry_fee):
                 users.append(tx.sending_user)
         # Pick winner
         random.shuffle(users, Utils.random_float)
