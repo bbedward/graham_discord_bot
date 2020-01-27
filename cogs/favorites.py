@@ -104,6 +104,8 @@ class FavoriteCog(commands.Cog):
 
         to_add = []
         for u in msg.mentions:
+            if u.id == msg.author.id:
+                continue
             to_add.append(u)
         for u in msg.content.split():
             try:
