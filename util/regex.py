@@ -14,7 +14,7 @@ class RegexUtil():
         regex = r'(?:^|\s)(\d*\.?\d+)(?=$|\s)'
         matches = re.findall(regex, input_text, re.IGNORECASE)
         if len(matches) >= 1:
-            return float(matches[0].strip())
+            return abs(float(matches[0].strip()))
         raise AmountMissingException("amount_not_found")
 
     @staticmethod
