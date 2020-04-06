@@ -72,6 +72,7 @@ class GiveawayCog(commands.Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
         self.logger = logging.getLogger()
+        self.giveaway_ids = []
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -173,6 +174,10 @@ class GiveawayCog(commands.Cog):
         return embed
 
     async def start_giveaway_timer(self, giveaway: Giveaway):
+        # Ensure timer not already started
+        if giveaway.id in self.giveaway_ids:
+            return
+        self.giveaway_ids.append(giveaway.id)
         # Sleep for <giveaway duration> seconds
         delta = (giveaway.end_at - datetime.datetime.utcnow()).total_seconds()
         if delta > 0:
@@ -238,6 +243,11 @@ class GiveawayCog(commands.Cog):
         member = self.bot.get_user(winner.id)
         if member is not None:
             await Messages.send_success_dm(member, f"Congratulations! **You've won giveaway #{giveaway.id}**! I've sent you **{Env.raw_to_amount(tx_sum)} {Env.currency_symbol()}**")
+        # Cleanup
+        try:
+            self.giveaway_ids.remove(giveaway.id)
+        except ValueError:
+            pass
 
     @commands.command(aliases=START_GIVEAWAY_INFO.triggers)
     async def giveaway_cmd(self, ctx: Context):

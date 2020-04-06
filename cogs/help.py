@@ -144,7 +144,7 @@ class HelpCog(commands.Cog):
         entries = [Entry(f"{config.Config.instance().command_prefix}{tips.TIPAUTHOR_INFO.triggers[0]}", tips.TIPAUTHOR_INFO.details)]
         author=f"Graham v{__version__} for {Env.currency_name()}"
         heart = '\U0001F49B' if Env.banano() else '\U0001F499'
-        description = "This bot is completely free, open source, and MIT licnesed"
+        description = "This bot is completely free, open source, and MIT licensed"
         description+= f"\n\nMade with {heart} for the **BANANO** and **NANO** communities"
         description+= f"\nHangout with some awesome people at https://chat.banano.cc"
         description+= f"\nMy Discord: **@bbedward#9246**"

@@ -44,7 +44,7 @@ TIPRANDOM_INFO = CommandInfo(
         "\nThe recipient will be notified of your tip via private message and you'll be notified of who the random recipient was."
 )
 TIPAUTHOR_INFO = CommandInfo(
-    triggers = ["banauthor", "tipauthor"],
+    triggers = ["banauthor", "tipauthor"] if Env.banano() else ["tipauthor"],
     overview = "Donate to support my creator",
     details = f"Support the author of this bot (bbedward)"
 )
