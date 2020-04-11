@@ -40,7 +40,7 @@ TIPSPLIT_INFO = CommandInfo(
 TIPRANDOM_INFO = CommandInfo(
     triggers = ["banrandom", "br"] if Env.banano() else ["ntiprandom", "ntr"],
     overview = "Tip an active user at random.",
-    details = f"Tips the specified amount to an active user at random (**minimum tip is {Constants.TIP_MINIMUM} {Constants.TIP_UNIT}**)" +
+    details = f"Tips the specified amount to an active user at random (**minimum tip is {Constants.TIPRANDOM_MINIMUM} {Constants.TIP_UNIT}**)" +
         "\nThe recipient will be notified of your tip via private message and you'll be notified of who the random recipient was."
 )
 TIPAUTHOR_INFO = CommandInfo(
@@ -92,7 +92,9 @@ class TipsCog(commands.Cog):
         # See if amount meets tip_minimum requirement
         try:
             send_amount = RegexUtil.find_float(msg.content)
-            if send_amount < Constants.TIP_MINIMUM:
+            if ctx.command.name == 'tiprandom_cmd' and send_amount < Constants.TIPRANDOM_MINIMUM:
+                raise AmountMissingException(f"Tip random amount is too low, minimum is {Constants.TIPRANDOM_MINIMUM}")
+            elif ctx.command.name != 'tiprandom_cmd' and send_amount < Constants.TIP_MINIMUM:
                 raise AmountMissingException(f"Tip amount is too low, minimum is {Constants.TIP_MINIMUM}")
             elif Validators.too_many_decimals(send_amount):
                 await Messages.send_error_dm(ctx.message.author, f"You are only allowed to use {Env.precision_digits()} digits after the decimal.")
