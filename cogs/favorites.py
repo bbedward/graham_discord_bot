@@ -170,7 +170,7 @@ class FavoriteCog(commands.Cog):
                     for added in to_remove:
                         if added.id == u_id:
                             continue
-                discord_user = User.get_user_id(u_id)
+                discord_user = await User.get_user_id(u_id)
                 if discord_user is not None:
                     to_remove.append(discord_user)
             except Exception:
