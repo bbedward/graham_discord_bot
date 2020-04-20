@@ -50,6 +50,11 @@ class User(Model):
         """Get discord user from database, return None if they haven't registered"""
         return await cls.filter(id=user.id).prefetch_related('account').first()
 
+    @classmethod
+    async def get_user_id(cls, user: int) -> 'User':
+        """Get discord user from database, return None if they haven't registered"""
+        return await cls.filter(id=user).prefetch_related('account').first()
+
     async def update_name(self, name: str):
         """Update discord user name in database"""
         if name != self.name:

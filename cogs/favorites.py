@@ -170,7 +170,7 @@ class FavoriteCog(commands.Cog):
                     for added in to_remove:
                         if added.id == u_id:
                             continue
-                discord_user = self.bot.get_user(u_id)
+                discord_user = User.get_user_id(u_id)
                 if discord_user is not None:
                     to_remove.append(discord_user)
             except Exception:
@@ -184,10 +184,8 @@ class FavoriteCog(commands.Cog):
         removed_count = 0
         for u in to_remove:
             try:
-                target_user = await User.get_user(u)
-                if target_user is not None:
-                    await Favorite.delete_favorite(user, target_user)
-                    removed_count += 1
+                await Favorite.delete_favorite(user, u)
+                removed_count += 1
             except Exception:
                 pass
 
