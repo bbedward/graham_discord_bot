@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graham-bbet
+  namespace: graham-banano
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: graham-bbet
+  template:
+    metadata:
+      labels:
+        app: graham-bbet
+    spec:
+      containers:
+      - name: graham-bbet
+        image: replaceme
+        command: ["/bin/bash", "-c"]
+        args: ["cp /config/config.yaml .; python bot.py -p . -u http://pippin-banano.pippin:11338"]
+        env:
+          - name: BANANO
+            value: "1"
+          - name: REDIS_HOST
+            value: redis-0.redis
+          - name: REDIS_DB
+            value: "5"
+          - name: POSTGRES_HOST
+            value: postgres.postgres
+          - name: POSTGRES_DB
+            valueFrom:
+              secretKeyRef:
+                name: graham-bbet
+                key: postgres_db
+          - name: POSTGRES_USER
+            valueFrom:
+              secretKeyRef:
+                name: graham-bbet
+                key: postgres_user
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: graham-bbet
+                key: postgres_password
+          - name: BOT_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: graham-bbet
+                key: bot_token
+          - name: WALLET_ID
+            valueFrom:
+              secretKeyRef:
+                name: graham-bbet
+                key: wallet_id
+        volumeMounts:
+        - name: conf
+          mountPath: /config
+          readOnly: true
+      volumes:
+      - name: conf
+        configMap:
+          name: graham-bbet
+          defaultMode: 0755

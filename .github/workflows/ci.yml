@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run tests
+        run: |
+          python -m unittest test/*.py
+
+  build_and_publish:
+    name: Build and Publish Docker Image
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_RUN_ID: ${{ github.run_id }}    
+    steps:
+      - uses: nelonoel/branch-name@v1
+      - uses: actions/checkout@master   
+      - name: Login to registry
+        uses: actions-hub/docker/login@master
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USER }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and tag
+        if: success()
+        run: docker build -t bananocoin/graham:${BRANCH_NAME}-${{ env.GITHUB_RUN_ID }} .
+
+      - name: Push image   
+        if: success()
+        uses: actions-hub/docker@master
+        with:
+          args: push bananocoin/graham:${BRANCH_NAME}-${{ env.GITHUB_RUN_ID }}
+
+  deploy_bbet:
+    name: Deploy banano bet app
+    needs: build_and_publish
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_RUN_ID: ${{ github.run_id }}
+    steps:
+      - uses: nelonoel/branch-name@v1
+      - uses: actions/checkout@master   
+      - uses: imranismail/setup-kustomize@v1
+        with:
+          kustomize-version: "3.5.4"
+
+      - name: Set image
+        working-directory: ./kubernetes/bbet
+        run: |
+          kustomize edit set image replaceme=bananocoin/graham:${BRANCH_NAME}-${{ env.GITHUB_RUN_ID }}
+          kustomize build . > deployment-k.yaml
+
+      - name: Deploy image to k8s cluster
+        uses: bbedward/kubectl@master
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+        with:
+          args: apply -f ./kubernetes/bbet/deployment-k.yaml

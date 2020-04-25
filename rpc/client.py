@@ -16,8 +16,7 @@ class RPCClient(object):
             cls._instance = cls.__new__(cls)
             cls.wallet_id = Config.instance().wallet
             cls.node_url = Config.instance().node_url
-            cls.connector = aiohttp.TCPConnector(family=0 ,resolver=aiohttp.AsyncResolver())
-            cls.session = aiohttp.ClientSession(connector=cls.connector, json_serialize=json.dumps)
+            cls.session = aiohttp.ClientSession(json_serialize=json.dumps)
         return cls._instance
 
     @classmethod

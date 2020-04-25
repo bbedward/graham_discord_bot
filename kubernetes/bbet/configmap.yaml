@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: graham-bbet
+  namespace: graham-banano
+data:
+  config.yaml: |
+    admin:
+      # User IDs that can perform admin commands
+      admin_ids:
+      - 303599885800964097
+      - 403355446921920524
+      # Role IDs which can perform admin commands
+      admin_roles:
+      - 539020655920676866
+
+    restrictions:
+      # Minimum amount to rain
+      rain_minimum: 1000
+      # Roles that can receive rain
+      rain_roles:
+      - 470999658416570379
+
+    giveaway:
+      # Minimum amount required to start a giveaway
+      minimum: 1000
+      # Minimum amount to auto-start a giveaway (defaults to minimum)
+      minimum_auto_start: 1000
+      # Default auto started giveaway fee
+      auto_fee: 10
+      # Default auto started giveaway duration (in muted)
+      auto_duration: 30
+      # Max entry fee %
+      # E.g. if set to 10, and minimum is 1000 , max fee would be 100
+      max_fee: 5
+      # Minimum giveaway duration (minutes)
+      min_duration: 10
+      # Max giveaway duration (minutes)
+      max_duration: 60
+      # Additional channels to announce new giveaways in
+      # (It will always be announced in the channel it was started from)
+      announce_channels:
+        - 469304046541602828
+        - 471298302495948810
+        - 469983519897026571
+        - 470044553995616258
+        - 469983431263125534
+        - 469983652474912792
+        - 653060407954767872
+      # Some giveaway commands are deleted to prevent them from clogging up the chat
+      # Put channels here where you dont want them to be deleted.
+      no_delete_channels:
+        - 524557798416187392
+      # Restrict giveaway participation to specific role(s)
+      roles:
+        - 470999658416570379
+
+    server:
+      # The host/port of the bot's aiohttp server
+      # Used for callbacks and APIs
+      # Callback is at $host:$port/callback (e.g. 127.0.0.1:11337/callback)
+      host: 127.0.0.1
+      port: 11337
