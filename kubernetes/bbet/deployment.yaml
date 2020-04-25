@@ -16,6 +16,9 @@ spec:
       containers:
       - name: graham-bbet
         image: replaceme
+        ports:
+        - containerPort: 11337
+          name: api
         command: ["/bin/bash", "-c"]
         args: ["cp /config/config.yaml .; python bot.py -p . -u http://pippin-banano.pippin:11338"]
         env:
