@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: graham-banano
+data:
+  config.yaml: |
+    admin:
+      # User IDs that can perform admin commands
+      admin_ids:
+      - 398178392064655363
+      - 303599885800964097
+      # Role IDs which can perform admin commands
+      admin_roles:
+      - 589916036745396235
+      - 416789711034777600
+      - 431126363261370392
+      - 557648182872375318
+      - 430732639130091541
+    
+    restrictions:
+      # Channel IDs that the bot won't post publicly in
+      no_spam_channels:
+      - 418556004389879810
+      - 429723223874207744
+      - 510539180842024980
+      - 431388013256245258
+      - 416306464970506240
+      - 416306340848336896
+      - 585626036574748684
+      - 416306504124071938
+      - 629704329112059914
+      - 626058996578648065
+      - 566268199210057728
+      - 527913097881452575
+      - 558350314827153408
+      - 507949950295080982
+      - 449894883633922059
+      - 507938838769958922
+      - 430202473613885450
+      # Minimum amount to rain
+      rain_minimum: 0.1
+      # Roles that can receive rain
+      rain_roles:
+      - 431171347427622913
+      # Stats won't count in this channel
+      no_stats_channels:
+      - 416306340848336896
+      - 651945739496456218
+    
+    giveaway:
+      # Minimum amount required to start a giveaway
+      minimum: 0.25
+      # Minimum amount to auto-start a giveaway (defaults to minimum)
+      minimum_auto_start: 0.25
+      # Default auto started giveaway fee
+      auto_fee: 0.001
+      # Default auto started giveaway duration (in muted)
+      auto_duration: 30
+      # Max entry fee %
+      # E.g. if set to 10, and minimum is 1000 , max fee would be 100
+      max_fee: 5
+      # Minimum giveaway duration (minutes)
+      min_duration: 10
+      # Max giveaway duration (minutes)
+      max_duration: 60
+      # Additional channels to announce new giveaways in
+      # (It will always be announced in the channel it was started from)
+      announce_channels:
+        - 416344480820494356
+        - 431938659852353536
+        - 433102807239884800
+        - 436075697765875712
+        - 436840337252810753
+        - 436840559970091008
+        - 540860429719830538
+        - 572250989654966293
+        - 559649394262147082
+        - 654643491904815135
+        - 664210028634439720
+        - 562731022689763339
+        - 613473144589516820
+      # Some giveaway commands are deleted to prevent them from clogging up the chat
+      # Put channels here where you dont want them to be deleted.
+      no_delete_channels:
+        - 524557798416187392
+      # Restrict giveaway participation to specific role(s)
+      roles:
+        - 431171347427622913
+    
+    server:
+      # The host/port of the bot's aiohttp server
+      # Used for callbacks and APIs
+      # Callback is at $host:$port/callback (e.g. 127.0.0.1:11337/callback)
+      host: 0.0.0.0
+      port: 11337
+    
