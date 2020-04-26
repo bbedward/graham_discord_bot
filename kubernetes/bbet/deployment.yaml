@@ -4,7 +4,8 @@ metadata:
   name: graham-bbet
   namespace: graham-banano
 spec:
-  strategy: Recreate
+  strategy:
+    type: Recreate
   replicas: 1
   selector:
     matchLabels:
