@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: graham-nano
+  namespace: graham-nano
+spec:
+  type: ClusterIP
+  ports:
+  - port: 11337
+    targetPort: 11337
+    name: api
+  selector:
+    app: graham-nano
