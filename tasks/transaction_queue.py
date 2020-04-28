@@ -52,7 +52,7 @@ class TransactionQueue(object):
                 tx: Transaction = await queue.get()
                 res = await tx.send()
                 if res is None:
-                    if tx.retries < 3:
+                    if tx.retries < 20:
                         # Retry this transaction by placing it on the end of the queue
                         asyncio.ensure_future(self.retry(tx))
                 elif tx.receiving_user is None:
