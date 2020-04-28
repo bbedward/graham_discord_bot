@@ -75,3 +75,81 @@ jobs:
           KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
         with:
           args: apply -f ./kubernetes/bbet/deployment-k.yaml
+
+  deploy_nano:
+    name: Deploy nano discord bot
+    needs: build_and_publish
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_RUN_ID: ${{ github.run_id }}
+    steps:
+      - uses: nelonoel/branch-name@v1
+      - uses: actions/checkout@master   
+      - uses: imranismail/setup-kustomize@v1
+        with:
+          kustomize-version: "3.5.4"
+
+      - name: Set image
+        working-directory: ./kubernetes/nano
+        run: |
+          kustomize edit set image replaceme=bananocoin/graham:${BRANCH_NAME}-${{ env.GITHUB_RUN_ID }}
+          kustomize build . > deployment-k.yaml
+
+      - name: Deploy image to k8s cluster
+        uses: bbedward/kubectl@master
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+        with:
+          args: apply -f ./kubernetes/nano/deployment-k.yaml
+
+  deploy_graham_banano:
+    name: Deploy graham bot (banano)
+    needs: build_and_publish
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_RUN_ID: ${{ github.run_id }}
+    steps:
+      - uses: nelonoel/branch-name@v1
+      - uses: actions/checkout@master   
+      - uses: imranismail/setup-kustomize@v1
+        with:
+          kustomize-version: "3.5.4"
+
+      - name: Set image
+        working-directory: ./kubernetes/graham_banano
+        run: |
+          kustomize edit set image replaceme=bananocoin/graham:${BRANCH_NAME}-${{ env.GITHUB_RUN_ID }}
+          kustomize build . > deployment-k.yaml
+
+      - name: Deploy image to k8s cluster
+        uses: bbedward/kubectl@master
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+        with:
+          args: apply -f ./kubernetes/graham_banano/deployment-k.yaml
+
+  deploy_bananobot:
+    name: Deploy BananoBot++
+    needs: build_and_publish
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_RUN_ID: ${{ github.run_id }}
+    steps:
+      - uses: nelonoel/branch-name@v1
+      - uses: actions/checkout@master   
+      - uses: imranismail/setup-kustomize@v1
+        with:
+          kustomize-version: "3.5.4"
+
+      - name: Set image
+        working-directory: ./kubernetes/bananobot
+        run: |
+          kustomize edit set image replaceme=bananocoin/graham:${BRANCH_NAME}-${{ env.GITHUB_RUN_ID }}
+          kustomize build . > deployment-k.yaml
+
+      - name: Deploy image to k8s cluster
+        uses: bbedward/kubectl@master
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+        with:
+          args: apply -f ./kubernetes/bananobot/deployment-k.yaml
