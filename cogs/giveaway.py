@@ -745,6 +745,7 @@ class GiveawayCog(commands.Cog):
         available_balance = Env.raw_to_amount(await user.get_available_balance())
         if tip_amount > available_balance:
             if not ctx.god:
+                redis_key = f"ticketspam:{msg.author.id}"
                 spam = await RedisDB.instance().get(redis_key)
                 if spam is not None:
                     spam = int(spam)
