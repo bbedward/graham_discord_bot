@@ -544,7 +544,7 @@ class GiveawayCog(commands.Cog):
                 if as_dm:
                     await Messages.send_error_dm(msg.author, "There are no active giveaways")
                 else:
-                    await Messages.send_error_public(msg.channel, "There are no active giveaays")
+                    await Messages.send_error_public(msg.channel, "There are no active giveaways")
                 await Messages.delete_message_if_ok(msg)
                 return
             else:
