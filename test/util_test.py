@@ -18,9 +18,14 @@ class TestConversions(unittest.TestCase):
         self.assertEqual(BananoConversions.raw_to_banano(101000000000000000000000000000), 1.01)
         self.assertEqual(BananoConversions.banano_to_raw(1.01), 101000000000000000000000000000)
         self.assertEqual(BananoConversions.banano_to_raw(19.06), 1906000000000000000000000000000)
+        self.assertEqual(BananoConversions.banano_to_raw(0.25), 25000000000000000000000000000)
+        self.assertEqual(BananoConversions.banano_to_raw(0.2), 20000000000000000000000000000)
         self.assertEqual(BananoConversions.banano_to_raw(19.089999), 1908000000000000000000000000000)
         self.assertEqual(NanoConversions.raw_to_nano(123456789000000000000000000000000), 123.456789)
         self.assertEqual(NanoConversions.nano_to_raw(123.456789), 123456789000000000000000000000000)
+        self.assertEqual(NanoConversions.nano_to_raw(0.25), 250000000000000000000000000000)
+        self.assertEqual(NanoConversions.nano_to_raw(0.2), 200000000000000000000000000000)
+        self.assertEqual(NanoConversions.nano_to_raw(0.123456), 123456000000000000000000000000)
 
 class TestNumberUtil(unittest.TestCase):
     def test_truncate_digits(self):
