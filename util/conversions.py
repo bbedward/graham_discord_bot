@@ -1,3 +1,5 @@
+import decimal
+
 class BananoConversions():
     # 1 BANANO = 10e29 RAW
     @staticmethod
@@ -6,8 +8,12 @@ class BananoConversions():
 
     @staticmethod
     def banano_to_raw(ban_amt: float) -> int:
-        expanded = ban_amt * 100
-        return int(expanded) * (10 ** 27)
+        asStr = str(ban_amt).split(".")
+        banAmount = int(asStr[0])
+        if len(asStr[1]) > 2:
+            asStr[1] = asStr[1][:2]
+        banoshiAmount = int(asStr[1])
+        return (banAmount * (10**29)) + (banoshiAmount * (10 ** 27))
 
 
 class NanoConversions():
@@ -18,5 +24,9 @@ class NanoConversions():
 
     @staticmethod
     def nano_to_raw(mnano_amt: float) -> int:
-        expanded = mnano_amt * 1000000
-        return int(expanded) * (10 ** 24)
+        asStr = str(mnano_amt).split(".")
+        nanoAmount = int(asStr[0])
+        if len(asStr[1]) > 6:
+            asStr[1] = asStr[1][:6]
+        nanoshiAmount = int(asStr[1])
+        return (nanoAmount * (10**30)) + (nanoshiAmount * (10 ** 24))
