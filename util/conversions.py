@@ -8,6 +8,7 @@ class BananoConversions():
 
     @staticmethod
     def banano_to_raw(ban_amt: float) -> int:
+        ban_amt = float(ban_amt)
         asStr = str(ban_amt).split(".")
         banAmount = int(asStr[0])
         if len(asStr[1]) > 2:
@@ -25,6 +26,7 @@ class NanoConversions():
 
     @staticmethod
     def nano_to_raw(mnano_amt: float) -> int:
+        mnano_amt = float(mnano_amt)
         asStr = str(mnano_amt).split(".")
         nanoAmount = int(asStr[0])
         if len(asStr[1]) > 6:
