@@ -28,6 +28,7 @@ class TransactionQueue(object):
                 self.queue.get_nowait()
                 self.queue.task_done()
             except asyncio.QueueEmpty:
+                pass
             except ValueError:
                 pass
 

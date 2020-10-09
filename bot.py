@@ -37,11 +37,14 @@ client.remove_command('help')
 # Periodic re-queue tranasctions
 async def reQueueTransactions(client):
 	while True:
+		logger.info(f"Re-queue task started")
 		await asyncio.sleep(600)
+		logger.info(f"Re-queue task running")
 		TransactionQueue.instance(bot=client).clear()
 		unprocessed_txs = await Transaction.filter(block_hash=None, destination__not_isnull=True).all().prefetch_related('sending_user', 'receiving_user')
 		for tx in unprocessed_txs:
 			await TransactionQueue.instance(bot=client).put(tx)
+		logger.info(f"Re-queued {len(unprocessed_txs)} transactions")
 
 ### Bot events
 
