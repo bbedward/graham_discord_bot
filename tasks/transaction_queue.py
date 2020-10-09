@@ -22,6 +22,15 @@ class TransactionQueue(object):
             cls.bot = bot
         return cls._instance
 
+    def clear(self):
+        for _ in range(self.queue.qsize()):
+            try:
+                self.queue.get_nowait()
+                self.queue.task_done()
+            except asyncio.QueueEmpty:
+            except ValueError:
+                pass
+
     async def put(self, tx: Transaction):
         queue: asyncio.Queue = self.queue
         await queue.put(tx)

@@ -34,6 +34,15 @@ logger = logging.getLogger()
 client = Bot(command_prefix=config.command_prefix)
 client.remove_command('help')
 
+# Periodic re-queue tranasctions
+async def reQueueTransactions(client):
+	while True:
+		await asyncio.sleep(600)
+		TransactionQueue.instance(bot=client).clear()
+		unprocessed_txs = await Transaction.filter(block_hash=None, destination__not_isnull=True).all().prefetch_related('sending_user', 'receiving_user')
+		for tx in unprocessed_txs:
+			await TransactionQueue.instance(bot=client).put(tx)
+
 ### Bot events
 
 @client.event
@@ -84,7 +93,8 @@ if __name__ == "__main__":
 			client.start(config.bot_token),
 			# Create two queue consumers for transactions
 			TransactionQueue.instance(bot=client).queue_consumer(),
-			TransactionQueue.instance(bot=client).queue_consumer()
+			TransactionQueue.instance(bot=client).queue_consumer(),
+			reQueueTransactions(client)
 		]
 		# Setup optional server if configured
 		server_host, server_port = Config.instance().get_server_info()
