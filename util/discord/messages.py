@@ -57,7 +57,7 @@ class Messages():
 
     @staticmethod
     async def send_basic_dm(member: discord.Member, message: str, skip_dnd=False) -> discord.Message:
-        if skip_dnd and member.status == discord.Status.dnd:
+        if skip_dnd and member is not None and member.status == discord.Status.dnd:
             return None
         try:
             return await member.send(message)
