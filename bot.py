@@ -20,9 +20,10 @@ from version import __version__
 
 import asyncio
 import discord
-intents = discord.Intents.default()
-intents.members = True
-intents.presences = True
+# TODO - inevitably will need to be re-enabled
+#intents = discord.Intents.default()
+#intents.members = True
+#intents.presences = True
 import logging
 from rpc.client import RPCClient
 from tasks.transaction_queue import TransactionQueue
@@ -34,7 +35,8 @@ config = Config.instance()
 setup_logger(config.log_file, log_level=logging.DEBUG if config.debug else logging.INFO)
 logger = logging.getLogger()
 
-client = Bot(command_prefix=config.command_prefix, intents=intents)
+# TODO - re-enable for discord.py 1.5.0
+client = Bot(command_prefix=config.command_prefix)#, intents=intents)
 client.remove_command('help')
 
 # Periodic re-queue tranasctions
