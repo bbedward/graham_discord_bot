@@ -86,8 +86,14 @@ class GrahamServer(object):
 
         # Get only users in our database
         ret = await User.filter(id__in=users_filtered, frozen=False, tip_banned=False).prefetch_related('account').all()
+        ret_json = []
+        for u in ret:
+            ret_json.append({
+                "id":u.id,
+                "address":await u.get_address()
+            })
         return web.json_response(
-            data=ret,
+            data=ret_json,
             dumps=json.dumps
         )
 
