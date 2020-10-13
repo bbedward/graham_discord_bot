@@ -3,6 +3,7 @@ from discord.ext.commands import Bot
 from db.models.account import Account
 from db.models.user import User
 from db.redis import RedisDB
+from models.constants import Constants
 from util.discord.messages import Messages
 from util.env import Env
 from util.regex import RegexUtil, AddressMissingException, AddressAmbiguousException
@@ -35,6 +36,8 @@ class GrahamServer(object):
         cors.add(wfu_resource.add_route("GET", self.wfu))
         users_resource = cors.add(self.app.router.add_resource("/users"))
         cors.add(users_resource.add_route("GET", self.users))
+        active_resource = cors.add(self.app.router.add_resource("/active/{server_id}"))
+        cors.add(active_resource.add_route("GET", self.get_active))
         self.logger = logging.getLogger()
         self.host = host
         self.port = port
@@ -43,6 +46,49 @@ class GrahamServer(object):
     def format_js_iso(self, date: datetime.datetime) -> str:
         """Format a datetime object into a user-friendly representation"""
         return datetime.datetime.strftime(date, '%Y-%m-%dT%H:%M:%S.{0}Z').format(int(round(date.microsecond / 1000.0)))
+
+    async def get_active(self, request: web.Request) -> List[User]:
+        """Return a list of active users"""
+        redis = await RedisDB.instance().get_redis()
+
+        if 'server_id' not in request.match_info:
+            return web.HTTPBadRequest(reason='server_id is required')
+        try:
+            server_id = int(request.match_info['server_id'])
+        except ValueError:
+            return web.HTTPBadRequest(reason='server_id must be an integer')
+
+        # Get all activity stats from DB
+        users_list = []
+        async for key in redis.iscan(match=f"*activity:{server_id}*"):
+            u = await redis.get(key)
+            if u is not None:
+                users_list.append(json.loads(u))
+
+        if len(users_list) == 0:
+            return web.json_response(
+                data=[],
+                dumps=json.dumps
+            )
+
+        # Get IDs that meet requirements
+        users_filtered = []
+        for u in users_list:
+            if u['msg_count'] >= Constants.RAIN_MSG_REQUIREMENT:
+                users_filtered.append(u['user_id'])
+
+        if len(users_filtered) < 1:
+            return web.json_response(
+                data=[],
+                dumps=json.dumps
+            )
+
+        # Get only users in our database
+        ret = await User.filter(id__in=users_filtered, frozen=False, tip_banned=False).prefetch_related('account').all()
+        return web.json_response(
+            data=ret,
+            dumps=json.dumps
+        )
 
     async def ufw(self, request: web.Request):
         """Return user info for specified wallet addresses
