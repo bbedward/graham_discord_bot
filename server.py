@@ -13,6 +13,7 @@ import config
 import datetime
 import logging
 import rapidjson as json
+from typing import List
 from db.models.transaction import Transaction
 
 class GrahamServer(object):
