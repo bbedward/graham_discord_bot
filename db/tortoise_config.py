@@ -22,15 +22,13 @@ class DBConfig(object):
             self.logger.info(f"Using PostgreSQL Database {self.postgres_db}")
             await Tortoise.init(
                 db_url=f'postgres://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}',
-                modules=self.modules,
-                use_tz=True
+                modules=self.modules
             )
         else:
             self.logger.info(f"Using SQLite database dev.db")
             await Tortoise.init(
                 db_url='sqlite://dev.db',
-                modules=self.modules,
-                use_tz=True
+                modules=self.modules
             )
         # Create tables
         await Tortoise.generate_schemas(safe=True)
