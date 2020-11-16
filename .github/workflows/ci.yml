@@ -32,8 +32,18 @@ jobs:
     env:
       GITHUB_RUN_ID: ${{ github.run_id }}    
     steps:
-      - uses: nelonoel/branch-name@v1
       - uses: actions/checkout@master   
+
+      - name: Get branch name (merge)
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | tr / -)" >> $GITHUB_ENV
+
+      - name: Get branch name (pull request)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
+
       - name: Login to registry
         uses: actions-hub/docker/login@master
         env:
@@ -42,13 +52,13 @@ jobs:
 
       - name: Build and tag
         if: success()
-        run: docker build -t bananocoin/graham:${BRANCH_NAME}-${{ env.GITHUB_RUN_ID }} .
+        run: docker build -t bananocoin/graham:${{ env.BRANCH_NAME }}-${{ env.GITHUB_RUN_ID }} .
 
       - name: Push image   
         if: success()
         uses: actions-hub/docker@master
         with:
-          args: push bananocoin/graham:${BRANCH_NAME}-${{ env.GITHUB_RUN_ID }}
+          args: push bananocoin/graham:${{ env.BRANCH_NAME }}-${{ env.GITHUB_RUN_ID }}
 
   deploy_bbet:
     name: Deploy banano bet app
@@ -57,16 +67,25 @@ jobs:
     env:
       GITHUB_RUN_ID: ${{ github.run_id }}
     steps:
-      - uses: nelonoel/branch-name@v1
       - uses: actions/checkout@master   
       - uses: imranismail/setup-kustomize@v1
         with:
           kustomize-version: "3.5.4"
 
+      - name: Get branch name (merge)
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | tr / -)" >> $GITHUB_ENV
+
+      - name: Get branch name (pull request)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
+
       - name: Set image
         working-directory: ./kubernetes/bbet
         run: |
-          kustomize edit set image replaceme=bananocoin/graham:${BRANCH_NAME}-${{ env.GITHUB_RUN_ID }}
+          kustomize edit set image replaceme=bananocoin/graham:${{ env.BRANCH_NAME }}-${{ env.GITHUB_RUN_ID }}
           kustomize build . > deployment-k.yaml
 
       - name: Deploy image to k8s cluster
@@ -83,16 +102,25 @@ jobs:
     env:
       GITHUB_RUN_ID: ${{ github.run_id }}
     steps:
-      - uses: nelonoel/branch-name@v1
       - uses: actions/checkout@master   
       - uses: imranismail/setup-kustomize@v1
         with:
           kustomize-version: "3.5.4"
 
+      - name: Get branch name (merge)
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | tr / -)" >> $GITHUB_ENV
+
+      - name: Get branch name (pull request)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
+
       - name: Set image
         working-directory: ./kubernetes/nano
         run: |
-          kustomize edit set image replaceme=bananocoin/graham:${BRANCH_NAME}-${{ env.GITHUB_RUN_ID }}
+          kustomize edit set image replaceme=bananocoin/graham:${{ env.BRANCH_NAME }}-${{ env.GITHUB_RUN_ID }}
           kustomize build . > deployment-k.yaml
 
       - name: Deploy image to k8s cluster
@@ -109,16 +137,25 @@ jobs:
     env:
       GITHUB_RUN_ID: ${{ github.run_id }}
     steps:
-      - uses: nelonoel/branch-name@v1
       - uses: actions/checkout@master   
       - uses: imranismail/setup-kustomize@v1
         with:
           kustomize-version: "3.5.4"
 
+      - name: Get branch name (merge)
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | tr / -)" >> $GITHUB_ENV
+
+      - name: Get branch name (pull request)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
+
       - name: Set image
         working-directory: ./kubernetes/graham_banano
         run: |
-          kustomize edit set image replaceme=bananocoin/graham:${BRANCH_NAME}-${{ env.GITHUB_RUN_ID }}
+          kustomize edit set image replaceme=bananocoin/graham:${{ env.BRANCH_NAME }}-${{ env.GITHUB_RUN_ID }}
           kustomize build . > deployment-k.yaml
 
       - name: Deploy image to k8s cluster
@@ -135,16 +172,25 @@ jobs:
     env:
       GITHUB_RUN_ID: ${{ github.run_id }}
     steps:
-      - uses: nelonoel/branch-name@v1
       - uses: actions/checkout@master   
       - uses: imranismail/setup-kustomize@v1
         with:
           kustomize-version: "3.5.4"
 
+      - name: Get branch name (merge)
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | tr / -)" >> $GITHUB_ENV
+
+      - name: Get branch name (pull request)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
+
       - name: Set image
         working-directory: ./kubernetes/bananobot
         run: |
-          kustomize edit set image replaceme=bananocoin/graham:${BRANCH_NAME}-${{ env.GITHUB_RUN_ID }}
+          kustomize edit set image replaceme=bananocoin/graham:${{ env.BRANCH_NAME }}-${{ env.GITHUB_RUN_ID }}
           kustomize build . > deployment-k.yaml
 
       - name: Deploy image to k8s cluster
