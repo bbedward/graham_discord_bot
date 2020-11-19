@@ -361,6 +361,9 @@ class GiveawayCog(commands.Cog):
                         giveaway=gw,
                         conn=conn
                     )
+                    # Update stats
+                    stats: Stats = await user.get_stats(server_id=msg.guild.id)
+                    await stats.update_tip_stats(giveaway_amount)
                 # Announce giveaway
                 embed = self.format_giveaway_announcement(gw)
                 await msg.channel.send(embed=embed)
