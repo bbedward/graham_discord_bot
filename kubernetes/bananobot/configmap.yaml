@@ -81,7 +81,6 @@ data:
         - 613473144589516820
         - 772495776139575306
         - 772489489095589898
-        - 664210028634439720
       # Some giveaway commands are deleted to prevent them from clogging up the chat
       # Put channels here where you dont want them to be deleted.
       no_delete_channels:
