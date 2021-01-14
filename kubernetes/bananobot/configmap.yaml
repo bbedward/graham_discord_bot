@@ -17,6 +17,7 @@ data:
       - 431126363261370392
       - 557648182872375318
       - 430732639130091541
+      - 655495981323911218
     
     restrictions:
       # Channel IDs that the bot won't post publicly in
