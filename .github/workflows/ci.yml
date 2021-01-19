@@ -70,7 +70,7 @@ jobs:
       - uses: actions/checkout@master   
       - uses: imranismail/setup-kustomize@v1
         with:
-          kustomize-version: "3.5.4"
+          kustomize-version: "3.x"
 
       - name: Get branch name (merge)
         if: github.event_name != 'pull_request'
@@ -105,7 +105,7 @@ jobs:
       - uses: actions/checkout@master   
       - uses: imranismail/setup-kustomize@v1
         with:
-          kustomize-version: "3.5.4"
+          kustomize-version: "3.x"
 
       - name: Get branch name (merge)
         if: github.event_name != 'pull_request'
@@ -140,7 +140,7 @@ jobs:
       - uses: actions/checkout@master   
       - uses: imranismail/setup-kustomize@v1
         with:
-          kustomize-version: "3.5.4"
+          kustomize-version: "3.x"
 
       - name: Get branch name (merge)
         if: github.event_name != 'pull_request'
@@ -175,7 +175,7 @@ jobs:
       - uses: actions/checkout@master   
       - uses: imranismail/setup-kustomize@v1
         with:
-          kustomize-version: "3.5.4"
+          kustomize-version: "3.x"
 
       - name: Get branch name (merge)
         if: github.event_name != 'pull_request'
