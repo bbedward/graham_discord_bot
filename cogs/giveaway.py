@@ -366,7 +366,10 @@ class GiveawayCog(commands.Cog):
                     await stats.update_tip_stats(giveaway_amount)
                 # Announce giveaway
                 embed = self.format_giveaway_announcement(gw)
-                await msg.channel.send(embed=embed)
+                try:
+                    await msg.channel.send(embed=embed)
+                except Exception:
+                    pass
                 for ch in config.Config.instance().get_giveaway_announce_channels():
                     if ch != msg.channel.id:
                         channel = msg.guild.get_channel(ch)
