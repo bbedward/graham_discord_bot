@@ -1,4 +1,4 @@
-discord.py>1.6
+discord.py>=1.6
 tortoise-orm>=0.16.9,<0.16.18
 aiosqlite>=0.10.0
 asyncpg>=0.20.0
