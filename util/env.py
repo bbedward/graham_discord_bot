@@ -41,7 +41,7 @@ class Env():
     @classmethod
     def format_float(cls, in_number: float) -> str:
         """Format a float with un-necessary chars removed. E.g: 1.0000 == 1"""
-        if not cls.banano()
+        if not cls.banano():
             in_number = cls.truncate_digits(in_number, 6)
             as_str = f"{in_number:.6f}".rstrip('0')
         else:
