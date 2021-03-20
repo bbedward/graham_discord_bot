@@ -55,6 +55,8 @@ class Env():
     @classmethod
     def commafy(cls, in_num_str) -> str:
         """Add comma to a number strings"""
+        if "." not in in_num_str:
+            return in_num_str
         e = list(in_num_str.split(".")[0])
         for i in range(len(e))[::-3][1:]:
             e.insert(i+1,",")
