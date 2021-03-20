@@ -22,7 +22,6 @@ from util.discord.channel import ChannelUtil
 from db.redis import RedisDB
 from tasks.transaction_queue import TransactionQueue
 from util.validators import Validators
-from util.number import NumberUtil
 from util.util import Utils
 from models.constants import Constants
 
@@ -573,7 +572,7 @@ class GiveawayCog(commands.Cog):
         embed.set_author(name=f"Giveaway #{gw.id}", icon_url="https://github.com/bbedward/graham_discord_bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/graham_discord_bot/raw/master/assets/nano_logo.png")
         fee = Env.raw_to_amount(int(gw.entry_fee))
         if pending_gw is None:
-            embed.description = f"There are **{entries} entries** to win **{NumberUtil.truncate_digits(amount, max_digits=Env.precision_digits())} {Env.currency_symbol()}**\n"
+            embed.description = f"There are **{entries} entries** to win **{Env.truncate_digits(amount, max_digits=Env.precision_digits())} {Env.currency_symbol()}**\n"
             if fee > 0:
                 embed.description+= f"\nThis giveaway has an entry fee of **{fee} {Env.currency_name()}**"
                 embed.description+= f"\n`{config.Config.instance().command_prefix}ticket {fee}` - To enter this giveaway"
@@ -592,7 +591,7 @@ class GiveawayCog(commands.Cog):
         else:
             embed.description = f"This giveaway hasn't started yet\n"
             embed.description += f"\nSo far **{donors}** people have donated to this giveaway and **{entries}** people are eligible to win"
-            embed.description += f"\n**{NumberUtil.truncate_digits(config.Config.instance().get_giveaway_auto_minimum() - amount, max_digits=Env.precision_digits())} {Env.currency_symbol()}** more needs to be donated to start this giveaway."
+            embed.description += f"\n**{Env.truncate_digits(config.Config.instance().get_giveaway_auto_minimum() - amount, max_digits=Env.precision_digits())} {Env.currency_symbol()}** more needs to be donated to start this giveaway."
 
         try:
             if as_dm:
@@ -649,13 +648,13 @@ class GiveawayCog(commands.Cog):
         biggest_num = 0
         for winner in winners:
             winning_amount = Env.raw_to_amount(int(winner.final_amount))
-            length = len(f"{NumberUtil.format_float(winning_amount)} {Env.currency_symbol()}")
+            length = len(f"{Env.format_float(winning_amount)} {Env.currency_symbol()}")
             if length > biggest_num:
                 biggest_num = length
         for rank, winner in enumerate(winners, start=1):
             adj_rank = str(rank) if rank >= 10 else f" {rank}"
             user_name = winner.winning_user.name
-            amount_str = f"{NumberUtil.format_float(Env.raw_to_amount(int(winner.final_amount)))} {Env.currency_symbol()}".ljust(biggest_num)
+            amount_str = f"{Env.format_float(Env.raw_to_amount(int(winner.final_amount)))} {Env.currency_symbol()}".ljust(biggest_num)
             response_msg += f"{adj_rank}. {amount_str} - won by {user_name}\n" 
         response_msg += "```"
 
@@ -893,7 +892,7 @@ class GiveawayCog(commands.Cog):
                     fee_converted = Env.raw_to_amount(int(gw.entry_fee))
                     paid_converted = Env.raw_to_amount(int(active_tx.amount))
                     response = f"There is a fee of **{fee_converted} {Env.currency_symbol()}**! You've donated **{paid_converted} {Env.currency_symbol()}** but that's not enough to enter!\n"
-                    response+= f"Use `{config.Config.instance().command_prefix}ticket {NumberUtil.format_float(fee_converted - paid_converted)}` to pay the fee and enter"
+                    response+= f"Use `{config.Config.instance().command_prefix}ticket {Env.format_float(fee_converted - paid_converted)}` to pay the fee and enter"
 
             # Build response
             embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
@@ -933,7 +932,7 @@ class GiveawayCog(commands.Cog):
                     fee_converted = Env.raw_to_amount(int(gw.entry_fee))
                     paid_converted = Env.raw_to_amount(int(active_tx.amount))
                     response+= f"There is a fee of **{fee_converted} {Env.currency_symbol()}**! You've donated **{paid_converted} {Env.currency_symbol()}** but that's not enough to enter!\n"
-                    response+= f"Use `{config.Config.instance().command_prefix}ticket {NumberUtil.format_float(fee_converted - paid_converted)} id={gw.id}` to pay the fee and enter\n"
+                    response+= f"Use `{config.Config.instance().command_prefix}ticket {Env.format_float(fee_converted - paid_converted)} id={gw.id}` to pay the fee and enter\n"
 
         # Build response
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())

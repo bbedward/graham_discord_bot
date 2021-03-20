@@ -3,7 +3,6 @@ from tortoise.models import Model
 from tortoise.transactions import in_transaction
 from tortoise import fields
 from util.env import Env
-from util.number import NumberUtil
 
 import asyncio
 import datetime
@@ -40,9 +39,9 @@ class Stats(Model):
             await Stats.all().update(total_tipped_amount=0, stats_reset_at=datetime.datetime.utcnow())
 
         # Update total tipped amount and count
-        amount = NumberUtil.truncate_digits(amount, max_digits=Env.precision_digits())
-        self.total_tipped_amount = NumberUtil.truncate_digits(float(self.total_tipped_amount) + amount, max_digits=Env.precision_digits())
-        self.legacy_total_tipped_amount = NumberUtil.truncate_digits(float(self.legacy_total_tipped_amount) + amount, max_digits=Env.precision_digits())
+        amount = Env.truncate_digits(amount, max_digits=Env.precision_digits())
+        self.total_tipped_amount = Env.truncate_digits(float(self.total_tipped_amount) + amount, max_digits=Env.precision_digits())
+        self.legacy_total_tipped_amount = Env.truncate_digits(float(self.legacy_total_tipped_amount) + amount, max_digits=Env.precision_digits())
         self.total_tips += 1
         # Update all time tip if necessary
         top_tip_updated = False
@@ -67,10 +66,10 @@ class Stats(Model):
         rain_updated = False
         giveaway_updated = False
         if rain:
-            self.rain_amount = NumberUtil.truncate_digits(float(self.rain_amount) + amount, max_digits=Env.precision_digits())
+            self.rain_amount = Env.truncate_digits(float(self.rain_amount) + amount, max_digits=Env.precision_digits())
             rain_updated = True
         elif giveaway:
-            self.giveaway_amount = NumberUtil.truncate_digits(float(self.giveaway_amount) + amount, max_digits=Env.precision_digits())
+            self.giveaway_amount = Env.truncate_digits(float(self.giveaway_amount) + amount, max_digits=Env.precision_digits())
             giveaway_updated = True
 
         async with in_transaction() as conn:

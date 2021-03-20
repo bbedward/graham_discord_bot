@@ -13,7 +13,6 @@ from util.discord.paginator import Entry, Page, Paginator
 from util.regex import RegexUtil, AmountAmbiguousException, AmountMissingException
 from util.validators import Validators
 from models.constants import Constants
-from util.number import NumberUtil
 from db.models.transaction import Transaction
 from util.util import Utils
 import asyncio
@@ -268,7 +267,7 @@ class FavoriteCog(commands.Cog):
             await Messages.send_error_dm(msg.author, "You don't have any favorites, add some first.")
             return
 
-        individual_send_amount = NumberUtil.truncate_digits(send_amount / len(favorites), max_digits=Env.precision_digits())
+        individual_send_amount = Env.truncate_digits(send_amount / len(favorites), max_digits=Env.precision_digits())
         if individual_send_amount < Constants.TIP_MINIMUM:
             await Messages.add_x_reaction(msg)
             await Messages.send_error_dm(msg.author, f"Tip amount too small, each user needs to receive at least {Constants.TIP_MINIMUM}. With your tip they'd only be getting {individual_send_amount}")

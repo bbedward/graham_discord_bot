@@ -2,7 +2,7 @@ import asyncio
 import unittest
 import os
 from util.conversions import BananoConversions, NanoConversions
-from util.number import NumberUtil
+from util.env import Env
 from util.regex import RegexUtil, AmountAmbiguousException, AmountMissingException, AddressAmbiguousException, AddressMissingException
 from util.util import Utils
 from util.validators import Validators
@@ -29,17 +29,17 @@ class TestConversions(unittest.TestCase):
         self.assertEqual(NanoConversions.nano_to_raw(0.2), 200000000000000000000000000000)
         self.assertEqual(NanoConversions.nano_to_raw(0.123456), 123456000000000000000000000000)
 
-class TestNumberUtil(unittest.TestCase):
+class TestEnv(unittest.TestCase):
     def test_truncate_digits(self):
-        self.assertEqual(NumberUtil.truncate_digits(1.239, max_digits=2), 1.23)
-        self.assertEqual(NumberUtil.truncate_digits(1.2, max_digits=2), 1.2)
-        self.assertEqual(NumberUtil.truncate_digits(0.9999999999999, max_digits=6), 0.999999)
+        self.assertEqual(Env.truncate_digits(1.239, max_digits=2), 1.23)
+        self.assertEqual(Env.truncate_digits(1.2, max_digits=2), 1.2)
+        self.assertEqual(Env.truncate_digits(0.9999999999999, max_digits=6), 0.999999)
 
     def test_format_float(self):
-        self.assertEqual(NumberUtil.format_float(9.90000), "9.9")
-        self.assertEqual(NumberUtil.format_float(9.0), "9")
-        self.assertEqual(NumberUtil.format_float(9), "9")
-        self.assertEqual(NumberUtil.format_float(9.9000010), "9.900001")
+        self.assertEqual(Env.format_float(9.90000), "9.9")
+        self.assertEqual(Env.format_float(9.0), "9")
+        self.assertEqual(Env.format_float(9), "9")
+        self.assertEqual(Env.format_float(9.9000010), "9.900001")
 
 class TestRegexUtil(unittest.TestCase):
     def test_find_float(self):

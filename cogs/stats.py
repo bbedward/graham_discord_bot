@@ -14,7 +14,6 @@ from rpc.client import RPCClient
 from util.discord.channel import ChannelUtil
 from util.discord.messages import Messages
 from util.env import Env
-from util.number import NumberUtil
 
 ## Command documentation
 TIPSTATS_INFO = CommandInfo(
@@ -108,7 +107,7 @@ class StatsCog(commands.Cog):
         if stats is None or stats.total_tips == 0:
             response = f"<@{msg.author.id}> You haven't sent any tips in this server yet, tip some people and then check your stats later"
         else:
-            response = f"<@{msg.author.id}> You have sent **{stats.total_tips}** tips totaling **{NumberUtil.format_float(stats.legacy_total_tipped_amount)} {Env.currency_symbol()}**. Your biggest tip of all time is **{NumberUtil.format_float(stats.top_tip)} {Env.currency_symbol()}**"
+            response = f"<@{msg.author.id}> You have sent **{stats.total_tips}** tips totaling **{Env.format_float(stats.legacy_total_tipped_amount)} {Env.currency_symbol()}**. Your biggest tip of all time is **{Env.format_float(stats.top_tip)} {Env.currency_symbol()}**"
 
         await msg.channel.send(response)
         await RedisDB.instance().set(f"tipstatsspam{msg.author.id}{msg.guild.id}", "as", expires=300)
@@ -157,10 +156,10 @@ class StatsCog(commands.Cog):
         embed.set_author(name='Biggest Tips', icon_url="https://github.com/bbedward/graham_discord_bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/graham_discord_bot/raw/master/assets/nano_logo.png")
         new_line = '\n' # Can't use this directly inside f-expression, so store it in a variable
         if top_tip_day is not None:
-            embed.description = f"**Last 24 Hours**\n```{NumberUtil.format_float(top_tip_day.top_tip_day)} {Env.currency_symbol()} - by {top_tip_day.user.name}```"
+            embed.description = f"**Last 24 Hours**\n```{Env.format_float(top_tip_day.top_tip_day)} {Env.currency_symbol()} - by {top_tip_day.user.name}```"
         if top_tip_month is not None:
-            embed.description += f"{new_line if top_tip_day is not None else ''}**In {now.strftime('%B')}**\n```{NumberUtil.format_float(top_tip_month.top_tip_month)} {Env.currency_symbol()} - by {top_tip_month.user.name}```"
-        embed.description += f"{new_line if top_tip_day is not None or top_tip_month is not None else ''}**All Time**\n```{NumberUtil.format_float(top_tip.top_tip)} {Env.currency_symbol()} - by {top_tip.user.name}```"
+            embed.description += f"{new_line if top_tip_day is not None else ''}**In {now.strftime('%B')}**\n```{Env.format_float(top_tip_month.top_tip_month)} {Env.currency_symbol()} - by {top_tip_month.user.name}```"
+        embed.description += f"{new_line if top_tip_day is not None or top_tip_month is not None else ''}**All Time**\n```{Env.format_float(top_tip.top_tip)} {Env.currency_symbol()} - by {top_tip.user.name}```"
 
         # No spam
         await RedisDB.instance().set(f"toptipsspam{msg.channel.id}", "as", expires=300)
@@ -191,13 +190,13 @@ class StatsCog(commands.Cog):
         # Get biggest tip to adjust the padding
         biggest_num = 0
         for stats in ballers:
-            length = len(f"{NumberUtil.format_float(stats.total_tipped_amount)} {Env.currency_symbol()}")
+            length = len(f"{Env.format_float(stats.total_tipped_amount)} {Env.currency_symbol()}")
             if length > biggest_num:
                 biggest_num = length
         for rank, stats in enumerate(ballers, start=1):
             adj_rank = str(rank) if rank >= 10 else f" {rank}"
             user_name = stats.user.name
-            amount_str = f"{NumberUtil.format_float(stats.total_tipped_amount)} {Env.currency_symbol()}"
+            amount_str = f"{Env.format_float(stats.total_tipped_amount)} {Env.currency_symbol()}"
             response_msg += f"{adj_rank}. {amount_str.ljust(biggest_num)} - by {user_name}\n" 
         response_msg += "```"
 
@@ -234,13 +233,13 @@ class StatsCog(commands.Cog):
         biggest_num = 0
         for stats in ballers:
             # TODO change to stats.tip_sum
-            length = len(f"{NumberUtil.format_float(stats.legacy_total_tipped_amount)} {Env.currency_symbol()}")
+            length = len(f"{Env.format_float(stats.legacy_total_tipped_amount)} {Env.currency_symbol()}")
             if length > biggest_num:
                 biggest_num = length
         for rank, stats in enumerate(ballers, start=1):
             adj_rank = str(rank) if rank >= 10 else f" {rank}"
             user_name = stats.user.name
-            amount_str = f"{NumberUtil.format_float(stats.legacy_total_tipped_amount)} {Env.currency_symbol()}"
+            amount_str = f"{Env.format_float(stats.legacy_total_tipped_amount)} {Env.currency_symbol()}"
             response_msg += f"{adj_rank}. {amount_str.ljust(biggest_num)} - by {user_name}\n" 
         response_msg += "```"
 

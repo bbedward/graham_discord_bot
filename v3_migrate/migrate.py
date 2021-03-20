@@ -15,7 +15,6 @@ from db.models.account import Account
 import asyncio
 import os
 import datetime
-from util.number import NumberUtil
 from util.env import Env
 
 OLD_DB = os.getenv('OLD_DB')
@@ -91,7 +90,7 @@ async def do_migrate():
                 user=user,
                 server_id=415935345075421194,
                 banned=u.stats_ban,
-                legacy_total_tipped_amount=NumberUtil.truncate_digits(float(u.tipped_amount), max_digits=Env.precision_digits()),
+                legacy_total_tipped_amount=Env.truncate_digits(float(u.tipped_amount), max_digits=Env.precision_digits()),
                 total_tips=u.tip_count
             )
             await stats.save(using_db=conn)
