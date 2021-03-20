@@ -149,9 +149,9 @@ class AccountCog(commands.Cog):
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name="Balance", icon_url="https://github.com/bbedward/graham_discord_bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/graham_discord_bot/raw/master/assets/nano_logo.png")
         embed.description = "**Available:**\n"
-        embed.description += f"```{Env.format_float(Env.raw_to_amount(balance_raw - pending_send_db))} {Env.currency_symbol()}\n"
-        pending_receive_str = f"+ {Env.format_float(Env.raw_to_amount(pending_raw + pending_receive_db))} {Env.currency_symbol()}"
-        pending_send_str = f"- {Env.format_float(Env.raw_to_amount(pending_send_db))} {Env.currency_symbol()}"
+        embed.description += f"```{Env.commafy(Env.format_float(Env.raw_to_amount(balance_raw - pending_send_db)))} {Env.currency_symbol()}\n"
+        pending_receive_str = f"+ {Env.commafy(Env.format_float(Env.raw_to_amount(pending_raw + pending_receive_db)))} {Env.currency_symbol()}"
+        pending_send_str = f"- {Env.commafy(Env.format_float(Env.raw_to_amount(pending_send_db)))} {Env.currency_symbol()}"
         rjust_size = max(len(pending_send_str), len(pending_receive_str))
         embed.description += f"{pending_receive_str.ljust(rjust_size)} (Pending Receipt)\n{pending_send_str.ljust(rjust_size)} (Pending Send)```\n"
         embed.set_footer(text="Pending balances are in queue and will become available after processing.")

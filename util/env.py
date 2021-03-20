@@ -51,3 +51,11 @@ class Env():
         if as_str[len(as_str) - 1] == '.':
             as_str = as_str.replace('.', '')
         return as_str
+
+    @classmethod
+    def commafy(cls, in_num_str) -> str:
+        """Add comma to a number strings"""
+        e = list(in_num_str.split(".")[0])
+        for i in range(len(e))[::-3][1:]:
+            e.insert(i+1,",")
+        return "".join(e)+"."+in_num_str.split(".")[1]
