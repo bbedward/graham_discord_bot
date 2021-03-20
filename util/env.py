@@ -33,7 +33,7 @@ class Env():
         return 'ban_1bboss18y784j9rbwgt95uwqamjpsi9oips5syohsjk37rn5ud7ndbjq61ft' if Env.banano() else 'nano_1bboss18y784j9rbwgt95uwqamjpsi9oips5syohsjk37rn5ud7ndbjq61ft'
 
     @classmethod
-    def truncate_digits(in_number: float, max_digits: int) -> float:
+    def truncate_digits(cls, in_number: float, max_digits: int) -> float:
         """Restrict maximum decimal digits by removing them"""
         working_num = int(in_number * (10 ** max_digits))
         return working_num / (10 ** max_digits)
