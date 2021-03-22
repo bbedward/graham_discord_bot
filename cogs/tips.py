@@ -193,7 +193,7 @@ class TipsCog(commands.Cog):
             await Messages.send_error_dm(msg.author, f"No users you mentioned are eligible to receive tips.")
             return
 
-        individual_send_amount = EnvberUtil.truncate_digits(send_amount / len(users_to_tip), max_digits=Env.precision_digits())
+        individual_send_amount = Env.truncate_digits(send_amount / len(users_to_tip), max_digits=Env.precision_digits())
         if individual_send_amount < Constants.TIP_MINIMUM:
             await Messages.add_x_reaction(msg)
             await Messages.send_error_dm(msg.author, f"Tip amount too small, each user needs to receive at least {Constants.TIP_MINIMUM}. With your tip they'd only be getting {individual_send_amount}")

@@ -130,7 +130,7 @@ class RainCog(commands.Cog):
             await Messages.send_error_dm(msg.author, f"Not enough users are active to rain - I need at least {Constants.RAIN_MIN_ACTIVE_COUNT} but there's only {len(active_users)} active bros")
             return
 
-        individual_send_amount = EnvberUtil.truncate_digits(send_amount / len(active_users), max_digits=Env.precision_digits())
+        individual_send_amount = Env.truncate_digits(send_amount / len(active_users), max_digits=Env.precision_digits())
         individual_send_amount_str = f"{individual_send_amount:.2f}" if Env.banano() else f"{individual_send_amount:.6f}"
         if individual_send_amount < Constants.TIP_MINIMUM:
             await Messages.add_x_reaction(msg)
@@ -138,7 +138,7 @@ class RainCog(commands.Cog):
             return
 
         # See how much they need to make this tip.
-        amount_needed = EnvberUtil.truncate_digits(individual_send_amount * len(active_users), max_digits=Env.precision_digits())
+        amount_needed = Env.truncate_digits(individual_send_amount * len(active_users), max_digits=Env.precision_digits())
         available_balance = Env.raw_to_amount(await user.get_available_balance())
         if amount_needed > available_balance:
             await Messages.add_x_reaction(msg)
