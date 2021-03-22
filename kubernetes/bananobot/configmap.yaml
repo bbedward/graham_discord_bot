@@ -40,7 +40,7 @@ data:
       - 507938838769958922
       - 430202473613885450
       # Minimum amount to rain
-      rain_minimum: 1000
+      rain_minimum: 800
       # Roles that can receive rain
       rain_roles:
       - 431171347427622913
@@ -50,9 +50,9 @@ data:
     
     giveaway:
       # Minimum amount required to start a giveaway
-      minimum: 1000
+      minimum: 750
       # Minimum amount to auto-start a giveaway (defaults to minimum)
-      minimum_auto_start: 1000
+      minimum_auto_start: 750
       # Default auto started giveaway fee
       auto_fee: 10
       # Default auto started giveaway duration (in muted)
