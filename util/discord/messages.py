@@ -131,6 +131,13 @@ class Messages():
         return
 
     @staticmethod
+    async def add_burn_reaction(msg: discord.Message):
+        await msg.add_reaction('\:tick:425880814266351626')
+        await msg.add_reaction('\U0001F525')
+        await msg.add_reaction('\:BanElmoFire:769726940969435177')
+        return
+
+    @staticmethod
     async def add_timer_reaction(msg: discord.Message):
         await msg.add_reaction('\U000023F2') # Timer Clock
         return

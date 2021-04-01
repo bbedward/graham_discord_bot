@@ -93,8 +93,10 @@ class TipsCog(commands.Cog):
             send_amount = RegexUtil.find_float(msg.content)
             if ctx.command.name == 'tiprandom_cmd' and send_amount < Constants.TIPRANDOM_MINIMUM:
                 raise AmountMissingException(f"Tip random amount is too low, minimum is {Constants.TIPRANDOM_MINIMUM}")
-            elif ctx.command.name != 'tiprandom_cmd' and send_amount < Constants.TIP_MINIMUM:
+            elif ctx.command.name != 'tiprandom_cmd' and ctx.command.name != 'burn' and send_amount < Constants.TIP_MINIMUM:
                 raise AmountMissingException(f"Tip amount is too low, minimum is {Constants.TIP_MINIMUM}")
+            elif ctx.command.name == 'burn' and send_amount < 1.0:
+                raise AmountMissingException(f"Come on, burn at least 1 BAN")
             elif Validators.too_many_decimals(send_amount):
                 await Messages.send_error_dm(ctx.message.author, f"You are only allowed to use {Env.precision_digits()} digits after the decimal.")
                 ctx.error = True
@@ -107,8 +109,36 @@ class TipsCog(commands.Cog):
                 await Messages.send_usage_dm(msg.author, TIPSPLIT_INFO)
             elif ctx.command.name == 'tiprandom_cmd':
                 await Messages.send_usage_dm(msg.author, TIPRANDOM_INFO)
+            elif ctx.command.name == 'burn':
+                await Messages.send_basic_dm(msg.author, 'Come on, burn at least 1 ya cheap skate')
             return
         ctx.send_amount = send_amount
+
+    @commands.command()
+    async def burn(self, ctx: Context):
+        if not Env.banano():
+            return
+        msg = ctx.message
+        user = ctx.user
+        send_amount = ctx.send_amount
+
+        # See how much they need to make this tip.
+        available_balance = Env.raw_to_amount(await user.get_available_balance())
+        if send_amount > available_balance:
+            await Messages.add_x_reaction(ctx.message)
+            await Messages.send_error_dm(msg.author, f"Your balance isn't high enough to complete this burn. You have **{available_balance} {Env.currency_symbol()}**, but you need **{send_amount} {Env.currency_symbol()}**")
+            return
+
+        # Make the transactions in the database
+        tx = await Transaction.create_transaction_external(
+            sending_user=user,
+            amount=send_amount,
+            destination='ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w'
+        )
+        # Add reactions
+        await Messages.add_burn_reaction(msg)
+        # Queue the actual sends
+        await TransactionQueue.instance().put(tx)
 
     @commands.command(aliases=TIP_INFO.triggers)
     async def tip_cmd(self, ctx: Context):
