@@ -116,8 +116,7 @@ class TipsCog(commands.Cog):
 
     @commands.command()
     async def burn(self, ctx: Context):
-        if not Env.banano():
-            return
+        return
         msg = ctx.message
         user = ctx.user
         send_amount = ctx.send_amount
