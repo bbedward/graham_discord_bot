@@ -1,36 +1,32 @@
 import decimal
 
+NANO_DECIMALS = decimal.Decimal(10) ** -6
+BANANO_DECIMALS = decimal.Decimal(10) ** -2
+
 class BananoConversions():
     # 1 BANANO = 10e29 RAW
     @staticmethod
     def raw_to_banano(raw_amt: int) -> float:
-        return raw_amt / (10 ** 29)
+        decimal_amt = decimal.Decimal(raw_amt) / (10 ** 29)
+        decimal_amt = decimal_amt.quantize(BANANO_DECIMALS, decimal.ROUND_DOWN)
+        return float(decimal_amt)
 
     @staticmethod
     def banano_to_raw(ban_amt: float) -> int:
-        ban_amt = float(ban_amt)
-        asStr = str(ban_amt).split(".")
-        banAmount = int(asStr[0])
-        if len(asStr[1]) > 2:
-            asStr[1] = asStr[1][:2]
-        asStr[1] = asStr[1].ljust(2, '0')
-        banoshiAmount = int(asStr[1])
-        return (banAmount * (10**29)) + (banoshiAmount * (10 ** 27))
-
+        decimal_amt = decimal.Decimal(str(ban_amt))
+        decimal_amt = decimal_amt.quantize(BANANO_DECIMALS, decimal.ROUND_DOWN)
+        return int(decimal_amt * (10 ** 29))
 
 class NanoConversions():
     # 1 NANO = 10e30 RAW
     @staticmethod
     def raw_to_nano(raw_amt: int) -> float:
-        return raw_amt / (10 ** 30)
+        decimal_amt = decimal.Decimal(raw_amt) / (10 ** 30)
+        decimal_amt = decimal_amt.quantize(NANO_DECIMALS, decimal.ROUND_DOWN)
+        return float(decimal_amt)
 
     @staticmethod
     def nano_to_raw(mnano_amt: float) -> int:
-        mnano_amt = float(mnano_amt)
-        asStr = str(mnano_amt).split(".")
-        nanoAmount = int(asStr[0])
-        if len(asStr[1]) > 6:
-            asStr[1] = asStr[1][:6]
-        asStr[1] = asStr[1].ljust(6, '0')
-        nanoshiAmount = int(asStr[1])
-        return (nanoAmount * (10**30)) + (nanoshiAmount * (10 ** 24))
+        decimal_amt = decimal.Decimal(str(mnano_amt))
+        decimal_amt = decimal_amt.quantize(NANO_DECIMALS, decimal.ROUND_DOWN)
+        return int(decimal_amt * (10 ** 30))

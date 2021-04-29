@@ -40,7 +40,7 @@ data:
       - 507938838769958922
       - 430202473613885450
       # Minimum amount to rain
-      rain_minimum: 800
+      rain_minimum: 420
       # Roles that can receive rain
       rain_roles:
       - 431171347427622913
