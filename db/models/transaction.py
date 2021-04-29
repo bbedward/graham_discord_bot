@@ -69,13 +69,14 @@ class Transaction(Model):
     async def create_transaction_external(
                                 sending_user: usr.User,
                                 amount: float,
-                                destination: str) -> 'Transaction':
+                                destination: str,
+                                raw_amt: str = None) -> 'Transaction':
         # Create transaction
         tx = None
         async with in_transaction() as conn:
             tx = Transaction(
                 sending_user = sending_user,
-                amount = str(Env.amount_to_raw(amount)),
+                amount = raw_amt if raw_amt else str(Env.amount_to_raw(amount)),
                 destination = destination,
                 receiving_user = None
             )
