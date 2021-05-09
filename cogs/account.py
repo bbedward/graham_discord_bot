@@ -267,6 +267,7 @@ class AccountCog(commands.Cog):
         # Create transaction
         tx = await Transaction.create_transaction_external(
             sending_user=user,
+            amount=None,
             raw_amt=str(await user.get_available_balance()),
             destination=destination
         )
