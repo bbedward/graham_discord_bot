@@ -10,6 +10,7 @@ data:
       admin_ids:
       - 398178392064655363
       - 303599885800964097
+      - 517484768791756822
       # Role IDs which can perform admin commands
       admin_roles:
       - 589916036745396235
