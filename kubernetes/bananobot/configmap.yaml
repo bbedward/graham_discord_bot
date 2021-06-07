@@ -51,9 +51,9 @@ data:
     
     giveaway:
       # Minimum amount required to start a giveaway
-      minimum: 750
+      minimum: 420
       # Minimum amount to auto-start a giveaway (defaults to minimum)
-      minimum_auto_start: 750
+      minimum_auto_start: 420
       # Default auto started giveaway fee
       auto_fee: 10
       # Default auto started giveaway duration (in muted)
