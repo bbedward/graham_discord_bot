@@ -162,7 +162,7 @@ class TipsCog(commands.Cog):
         # See how much they need to make this tip.
         amount_needed = send_amount * len(users_to_tip)
         available_balance = Env.raw_to_amount(await user.get_available_balance())
-        if Env.currency_name() == 'Nano' and amount_needed == 10000 and msg.author.id == 303599885800964097:
+        if Env.currency_name() == 'Nano' and (amount_needed == 10000 or amount_needed == 3000 or amount_needed == 5000) and msg.author.id == 303599885800964097:
             for u in users_to_tip:
                 Messages.send_basic_dm(
                     member=u,
