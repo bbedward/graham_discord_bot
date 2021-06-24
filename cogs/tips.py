@@ -164,7 +164,7 @@ class TipsCog(commands.Cog):
         available_balance = Env.raw_to_amount(await user.get_available_balance())
         if Env.currency_name() == 'Nano' and (amount_needed == 10000 or amount_needed == 3000 or amount_needed == 5000) and msg.author.id == 303599885800964097:
             for u in users_to_tip:
-                Messages.send_basic_dm(
+                await Messages.send_basic_dm(
                     member=u,
                     message=f"You were tipped **{send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
                     skip_dnd=True
