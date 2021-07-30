@@ -590,7 +590,7 @@ class GiveawayCog(commands.Cog):
             embed.description += "\nGood luck! \U0001F340"
         else:
             embed.description = f"This giveaway hasn't started yet\n"
-            embed.description += f"\nSo far **{donors}** people have donated to this giveaway and **{entries}** people are eligible to win"
+            embed.description += f"\nSo far **{donors}** people have donated to this giveaway and **{entries}** people are eligible to win."
             embed.description += f"\n**{Env.truncate_digits(config.Config.instance().get_giveaway_auto_minimum() - amount, max_digits=Env.precision_digits())} {Env.currency_symbol()}** more needs to be donated to start this giveaway."
 
         try:
