@@ -40,7 +40,7 @@ class RainCog(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         # Update active
-        if not ChannelUtil.is_private(message.channel) and len(message.content) > 0 and message.content[0] not in ['`', '\'', '.', '?', '!', "\"", "+", ";", ":", ","]:
+        if not ChannelUtil.is_private(message.channel) and len(message.content) > 0 and message.content[0] not in ['`', '\'', '.', '?', '!', "\"", "+", ";", ":", ",", "-"]:
             await self.update_activity_stats(message)
 
     async def cog_before_invoke(self, ctx: Context):
