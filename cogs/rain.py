@@ -132,7 +132,7 @@ class RainCog(commands.Cog):
                 u.member = await msg.guild.get_member(u.id)
                 for role in u.member.roles:
                     if role.name.lower() in ['banano jail', 'muzzled']:
-                        to_remove.aoppend(u)
+                        to_remove.append(u)
             except Exception:
                 to_remove.append(u)
 
