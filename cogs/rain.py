@@ -128,13 +128,13 @@ class RainCog(commands.Cog):
         # Remove users with bad roles from eligibility
         to_remove = []
         for u in active_users:
-            try:
-                u.member = await msg.guild.get_member(u.id)
-                for role in u.member.roles:
-                    if role.name.lower() in ['banano jail', 'muzzled']:
-                        to_remove.append(u)
-            except Exception:
-                to_remove.append(u)
+            #try:
+            u.member = await msg.guild.get_member(u.id)
+            for role in u.member.roles:
+                if role.name.lower() in ['banano jail', 'muzzled']:
+                    to_remove.append(u)
+            #except Exception:
+            #    to_remove.append(u)
 
         for u in to_remove:
             active_users.remove(u)
