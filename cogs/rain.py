@@ -128,13 +128,13 @@ class RainCog(commands.Cog):
         # Remove users with bad roles from eligibility
         to_remove = []
         for u in active_users:
-            #try:
-            u.member = await msg.guild.get_member(u.id)
-            for role in u.member.roles:
-                if role.name.lower() in ['banano jail', 'muzzled']:
-                    to_remove.append(u)
-            #except Exception:
-            #    to_remove.append(u)
+            try:
+                u.member = msg.guild.get_member(u.id)
+                for role in u.member.roles:
+                    if role.name.lower() in ['banano jail', 'muzzled']:
+                        to_remove.append(u)
+            except Exception:
+                to_remove.append(u)
 
         for u in to_remove:
             active_users.remove(u)
@@ -173,7 +173,7 @@ class RainCog(commands.Cog):
                 if not anon:
                     task_list.append(
                         Messages.send_basic_dm(
-                            member=msg.guild.get_member(u.id),
+                            member=u.member,
                             message=f"You were tipped **{individual_send_amount_str} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
                             skip_dnd=True
                         )
@@ -181,7 +181,7 @@ class RainCog(commands.Cog):
                 else:
                     task_list.append(
                         Messages.send_basic_dm(
-                            member=msg.guild.get_member(u.id),
+                            member=u.member,
                             message=f"You were tipped **{individual_send_amount_str} {Env.currency_symbol()}** anonymously!",
                             skip_dnd=True
                         )
