@@ -125,6 +125,20 @@ class RainCog(commands.Cog):
         # Get active users
         active_users = await self.get_active(ctx, excluding=msg.author.id)
 
+        # Remove users with bad roles from eligibility
+        to_remove = []
+        for u in active_users:
+            try:
+                u.member = await msg.guild.get_member(u.id)
+                for role in u.member.roles:
+                    if role.name.lower() in ['banano jail', 'muzzled']:
+                        to_remove.aoppend(u)
+            except Exception:
+                to_remove.append(u)
+
+        for u in to_remove:
+            active_users.remove(u)
+
         if len(active_users) < Constants.RAIN_MIN_ACTIVE_COUNT:
             await Messages.add_x_reaction(msg)
             await Messages.send_error_dm(msg.author, f"Not enough users are active to rain - I need at least {Constants.RAIN_MIN_ACTIVE_COUNT} but there's only {len(active_users)} active bros")
