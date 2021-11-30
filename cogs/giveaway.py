@@ -699,7 +699,7 @@ class GiveawayCog(commands.Cog):
         try:
             tip_amount = RegexUtil.find_float(msg.content)
             if tip_amount < Constants.TIP_MINIMUM:
-                await Messages.send_error_dm(msg.author, f"Minimum tip amount if {Constants.TIP_MINIMUM}")
+                await Messages.send_error_dm(msg.author, f"Minimum tip amount is {Constants.TIP_MINIMUM}")
                 await Messages.delete_message_if_ok(msg)
                 return
         except AmountMissingException:
