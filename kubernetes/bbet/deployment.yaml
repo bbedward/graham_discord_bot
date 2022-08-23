@@ -27,11 +27,11 @@ spec:
           - name: BANANO
             value: "1"
           - name: REDIS_HOST
-            value: redis-0.redis
+            value: redis.redis
           - name: REDIS_DB
             value: "5"
           - name: POSTGRES_HOST
-            value: postgres.postgres
+            value: postgres-ha-postgresql-ha-pgpool.postgres
           - name: POSTGRES_DB
             valueFrom:
               secretKeyRef:

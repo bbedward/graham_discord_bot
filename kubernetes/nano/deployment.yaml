@@ -25,11 +25,11 @@ spec:
         args: ["cp /config/config.yaml .; python bot.py -p ! -u http://pippin-nano.pippin:11338 -s \"!help\""]
         env:
           - name: REDIS_HOST
-            value: redis-0.redis
+            value: redis.redis
           - name: REDIS_DB
             value: "6"
           - name: POSTGRES_HOST
-            value: postgres.postgres
+            value: postgres-ha-postgresql-ha-pgpool.postgres
           - name: POSTGRES_DB
             valueFrom:
               secretKeyRef:
