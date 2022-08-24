@@ -22,7 +22,7 @@ spec:
         - containerPort: 11337
           name: api
         command: ["/bin/bash", "-c"]
-        args: ["cp /config/config.yaml .; python bot.py -p . -s \"rug pull simulator\" -u http://pippin-banano.pippin:11338"]
+        args: ["cp /config/config.yaml .; python bot.py start_bot -p . -s \"rug pull simulator\" -u http://pippin-banano.pippin:11338"]
         env:
           - name: BANANO
             value: "1"

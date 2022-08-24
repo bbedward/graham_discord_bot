@@ -12,12 +12,13 @@ from db.models.transaction import Transaction
 from db.tortoise_config import DBConfig
 from db.redis import RedisDB
 from server import GrahamServer
-from tortoise import Tortoise
+from tortoise import Tortoise, run_async
 from util.discord.channel import ChannelUtil
 from util.env import Env
 from util.logger import setup_logger
 from version import __version__
 
+import sys
 import asyncio
 import discord
 intents = discord.Intents.default()
@@ -75,7 +76,7 @@ async def on_message(message: discord.Message):
     # Process commands
 	await client.process_commands(message)
 
-if __name__ == "__main__":
+async def start_bot():
 	# Add cogs
 	client.add_cog(account.AccountCog(client))
 	client.add_cog(tips.TipsCog(client))
@@ -91,38 +92,44 @@ if __name__ == "__main__":
 		# Add a command to warn users that tip unit has changed
 		client.add_cog(tip_legacy.TipLegacyCog(client))
 	# Start bot
-	loop = asyncio.get_event_loop()
 	try:
 		# Initialize database first
 		logger.info("Initializing database")
-		loop.run_until_complete(DBConfig().init_db())
-		tasks = [
-			client.start(config.bot_token),
-			# Create two queue consumers for transactions
-			TransactionQueue.instance(bot=client).queue_consumer(),
-			TransactionQueue.instance(bot=client).queue_consumer(),
-			reQueueTransactions(client)
-		]
-		# Setup optional server if configured
-		server_host, server_port = Config.instance().get_server_info()
-		if server_host is None or server_port is None:
-			logger.info("Graham server is disabled")
-		else:
-			server = GrahamServer(client, server_host, server_port)
-			logger.info(f"Graham server running at {server_host}:{server_port}")
-			tasks.append(server.start())
-		loop.run_until_complete(asyncio.wait(tasks))
+		await DBConfig().init_db()
+		asyncio.create_task(TransactionQueue.instance(bot=client).queue_consumer())
+		asyncio.create_task(reQueueTransactions(client))
+		await client.start(config.bot_token),
 	except Exception:
 		logger.exception("Graham exited with exception")
 	except BaseException:
 		pass
 	finally:
 		logger.info("Graham is exiting")
-		tasks = [
-			client.logout(),
-			RPCClient.close(),
-			RedisDB.close(),
-			Tortoise.close_connections()
-		]
-		loop.run_until_complete(asyncio.wait(tasks))
-		loop.close()
+		await client.logout()
+		await RPCClient.close()
+		await RedisDB.close()
+
+async def start_server():
+		# Setup optional server if configured
+		server_host, server_port = Config.instance().get_server_info()
+		if server_host is None or server_port is None:
+			logger.info("Graham server is disabled")
+			sys.exit(1)
+		server = GrahamServer(client, server_host, server_port)
+		logger.info(f"Graham server running at {server_host}:{server_port}")
+		DBConfig().init_db_aiohttp(server.app)
+		await server.start()
+
+if __name__ == "__main__":
+	if len(sys.argv) < 2:
+		print(f"Usage: python3 {sys.argv[0]} <start_bot|start_server>")
+		sys.exit(1)
+	elif sys.argv[1] not in ['start_bot', 'start_server']:
+		print(f"Usage: python3 {sys.argv[0]} <start_bot|start_server>")
+		sys.exit(1)
+
+	if sys.argv[1] == 'start_bot':
+		run_async(start_bot())
+		
+	# start server
+	asyncio.run(start_server())

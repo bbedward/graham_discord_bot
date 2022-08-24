@@ -22,7 +22,7 @@ spec:
         - containerPort: 11337
           name: api
         command: ["/bin/bash", "-c"]
-        args: ["cp /config/config.yaml .; python bot.py -p ! -u http://pippin-nano.pippin:11338 -s \"!help\""]
+        args: ["cp /config/config.yaml .; python bot.py start_bot -p ! -u http://pippin-nano.pippin:11338 -s \"!help\""]
         env:
           - name: REDIS_HOST
             value: redis.redis

@@ -9,4 +9,4 @@ spec:
     targetPort: 11337
     name: api
   selector:
-    app: graham-banano
+    app: graham-banano-server
