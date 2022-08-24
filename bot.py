@@ -109,7 +109,7 @@ async def start_bot():
 		await RPCClient.close()
 		await RedisDB.close()
 
-async def start_server():
+def start_server():
 		# Setup optional server if configured
 		server_host, server_port = Config.instance().get_server_info()
 		if server_host is None or server_port is None:
@@ -118,7 +118,7 @@ async def start_server():
 		server = GrahamServer(client, server_host, server_port)
 		logger.info(f"Graham server running at {server_host}:{server_port}")
 		DBConfig().init_db_aiohttp(server.app)
-		await server.start()
+		server.start()
 
 if __name__ == "__main__":
 	if len(sys.argv) < 2:
@@ -132,4 +132,4 @@ if __name__ == "__main__":
 		run_async(start_bot())
 		
 	# start server
-	asyncio.run(start_server())
+	start_server()

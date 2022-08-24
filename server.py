@@ -219,9 +219,6 @@ class GrahamServer(object):
                         await Messages.send_success_dm(discord_user, f"Your deposit of **{amount_string}** has been received. It will be in your available balance shortly!", header="Deposit Success", footer=f"I only notify you of deposits that are {self.min_amount} {Env.currency_symbol()} or greater.")
         return web.HTTPOk()
 
-    async def start(self):
+    def start(self):
         """Start the server"""
-        runner = web.AppRunner(self.app, access_log = None if not config.Config.instance().debug else self.logger)
-        await runner.setup()
-        site = web.TCPSite(runner, self.host, self.port)
-        await site.start()
+        web.run_app(self.app, host=self.host, port=self.port,  access_log = None if not config.Config.instance().debug else self.logger)
