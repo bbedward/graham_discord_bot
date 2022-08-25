@@ -275,6 +275,7 @@ class RainCog(commands.Cog):
 
         # Ignore em if they've messaged too recently
         last_msg_dt = datetime.datetime.strptime(active_stats['last_msg'], '%m/%d/%Y %H:%M:%S')
+        last_msg_dt = last_msg_dt.replace(tzinfo=datetime.timezone.utc)
         delta_s = (datetime.datetime.now(datetime.timezone.utc) - last_msg_dt).total_seconds()
         if 90 > delta_s:
             return
