@@ -224,7 +224,7 @@ class RainCog(commands.Cog):
             # Create stats and save
             active_stats = {
                 'user_id': msg.author.id,
-                'last_msg': datetime.datetime.utcnow().strftime('%m/%d/%Y %H:%M:%S'),
+                'last_msg': datetime.datetime.now(datetime.timezone.utc).strftime('%m/%d/%Y %H:%M:%S'),
                 'msg_count': Constants.RAIN_MSG_REQUIREMENT * 2
             }
             await RedisDB.instance().set(user_key, json.dumps(active_stats), expires=1800)
@@ -233,7 +233,7 @@ class RainCog(commands.Cog):
             active_stats = json.loads(active_stats)
             if active_stats['msg_count'] < Constants.RAIN_MSG_REQUIREMENT * 2:
                 active_stats['msg_count'] = Constants.RAIN_MSG_REQUIREMENT * 2
-            active_stats['last_msg'] = datetime.datetime.utcnow().strftime('%m/%d/%Y %H:%M:%S')
+            active_stats['last_msg'] = datetime.datetime.now(datetime.timezone.utc).strftime('%m/%d/%Y %H:%M:%S')
             await RedisDB.instance().set(user_key, json.dumps(active_stats), expires=1800)
 
     @staticmethod
@@ -265,7 +265,7 @@ class RainCog(commands.Cog):
             # Create stats and save
             active_stats = {
                 'user_id': msg.author.id,
-                'last_msg': datetime.datetime.utcnow().strftime('%m/%d/%Y %H:%M:%S'),
+                'last_msg': datetime.datetime.now(datetime.timezone.utc).strftime('%m/%d/%Y %H:%M:%S'),
                 'msg_count': 1
             }
             await RedisDB.instance().set(user_key, json.dumps(active_stats), expires=1800)
@@ -275,24 +275,24 @@ class RainCog(commands.Cog):
 
         # Ignore em if they've messaged too recently
         last_msg_dt = datetime.datetime.strptime(active_stats['last_msg'], '%m/%d/%Y %H:%M:%S')
-        delta_s = (datetime.datetime.utcnow() - last_msg_dt).total_seconds()
+        delta_s = (datetime.datetime.now(datetime.timezone.utc) - last_msg_dt).total_seconds()
         if 90 > delta_s:
             return
         elif delta_s > 1200:
             # Deduct a point
             if active_stats['msg_count'] > 1:
                 active_stats['msg_count'] -= 1
-            active_stats['last_msg'] = datetime.datetime.utcnow().strftime('%m/%d/%Y %H:%M:%S')
+            active_stats['last_msg'] = datetime.datetime.now(datetime.timezone.utc).strftime('%m/%d/%Y %H:%M:%S')
             await RedisDB.instance().set(user_key, json.dumps(active_stats), expires=1800)
         else:
             # add a point
             if active_stats['msg_count'] <= Constants.RAIN_MSG_REQUIREMENT * 2:
                 active_stats['msg_count'] += 1
-                active_stats['last_msg'] = datetime.datetime.utcnow().strftime('%m/%d/%Y %H:%M:%S')
+                active_stats['last_msg'] = datetime.datetime.now(datetime.timezone.utc).strftime('%m/%d/%Y %H:%M:%S')
                 await RedisDB.instance().set(user_key, json.dumps(active_stats), expires=1800)
             else:
                 # Reset key expiry
-                active_stats['last_msg'] = datetime.datetime.utcnow().strftime('%m/%d/%Y %H:%M:%S')
+                active_stats['last_msg'] = datetime.datetime.now(datetime.timezone.utc).strftime('%m/%d/%Y %H:%M:%S')
                 await RedisDB.instance().set(user_key, json.dumps(active_stats), expires=1800)
 
     @staticmethod

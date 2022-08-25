@@ -54,7 +54,7 @@ class Giveaway(Model):
             started_by=started_by,
             base_amount=str(Env.amount_to_raw(amount)),
             entry_fee=str(Env.amount_to_raw(entry_fee)),
-            end_at=datetime.datetime.utcnow() + datetime.timedelta(minutes=duration),
+            end_at=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=duration),
             server_id=server_id,
             started_in_channel=started_in_channel
         )

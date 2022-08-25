@@ -163,7 +163,7 @@ class GiveawayCog(commands.Cog):
             embed.description+= f"\nThis giveaway is free to enter:"
             embed.description+= f"\n`{config.Config.instance().command_prefix}ticket` - To enter this giveaway"
             embed.description+= f"\n`{config.Config.instance().command_prefix}{'donate' if Env.banano() else 'ntipgiveaway'} <amount>` - To increase the pot"            
-        duration = (giveaway.end_at - datetime.datetime.utcnow()).total_seconds()
+        duration = (giveaway.end_at - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
         if duration < 60:
             embed.description += f"\n\nThis giveaway will end in **{int(duration)} seconds**"
         else:
@@ -178,7 +178,7 @@ class GiveawayCog(commands.Cog):
             return
         self.giveaway_ids.append(giveaway.id)
         # Sleep for <giveaway duration> seconds
-        delta = (giveaway.end_at - datetime.datetime.utcnow()).total_seconds()
+        delta = (giveaway.end_at - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
         if delta > 0:
             await asyncio.sleep(delta)
         # End the giveaway
@@ -197,7 +197,7 @@ class GiveawayCog(commands.Cog):
             tx_sum += int(tx.amount)
         # Finish this
         async with in_transaction() as conn:
-            giveaway.ended_at = datetime.datetime.utcnow()
+            giveaway.ended_at = datetime.datetime.now(datetime.timezone.utc)
             giveaway.winning_user = winner
             giveaway.final_amount = str(tx_sum)
             await giveaway.save(using_db=conn, update_fields=['ended_at', 'winning_user_id', 'final_amount'])
@@ -581,7 +581,7 @@ class GiveawayCog(commands.Cog):
                 embed.description+= f"\nThis giveaway is free to enter:"
                 embed.description+= f"\n`{config.Config.instance().command_prefix}ticket` - To enter this giveaway"
                 embed.description+= f"\n`{config.Config.instance().command_prefix}{'donate' if Env.banano() else 'ntipgiveaway'} <amount>` - To increase the pot"            
-            duration = (gw.end_at - datetime.datetime.utcnow()).total_seconds()
+            duration = (gw.end_at - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
             if duration < 60:
                 embed.description += f"\n\nThis giveaway will end in **{int(duration)} seconds**"
             else:
@@ -795,7 +795,7 @@ class GiveawayCog(commands.Cog):
                 # re-fetch latest version
                 gw = await Giveaway.get_pending_bot_giveaway(server_id=msg.guild.id)
                 if gw is not None:
-                    gw.end_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=config.Config.instance().get_giveaway_auto_duration())
+                    gw.end_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=config.Config.instance().get_giveaway_auto_duration())
                     gw.started_in_channel = msg.channel.id
                     async with in_transaction() as conn:
                         await gw.save(update_fields=['end_at', 'started_in_channel'], using_db=conn)
