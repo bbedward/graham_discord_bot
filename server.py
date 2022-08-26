@@ -16,7 +16,8 @@ from db.models.transaction import Transaction
 
 class GrahamServer(object):
     """An AIOHTTP server that listens for callbacks and provides various APIs"""
-    def __init__(self, host: str, port: int):
+    def __init__(self, subID: str, host: str, port: int):
+        self.subID = subID
         self.app = web.Application(middlewares=[web.normalize_path_middleware()])
         self.app.add_routes([
             web.post('/callback', self.callback)
@@ -212,10 +213,10 @@ class GrahamServer(object):
                     self.logger.debug(f'Deposit received: {request_json["amount"]} for {account.user.id}')
                     amount_string = f"{Env.raw_to_amount(int(request_json['amount']))} {Env.currency_symbol()}"
                     redis = await RedisDB.instance().get_redis()
-                    # await redis.publish_json("deposit_notifications", {
-                    #     "id": account.user.id,
-                    #     "message": f"Your deposit of **{amount_string}** has been received. It will be in your available balance shortly!",
-                    # })
+                    await redis.publish_json(self.subID, {
+                        "id": account.user.id,
+                        "message": f"Your deposit of **{amount_string}** has been received. It will be in your available balance shortly!",
+                    })
         return web.HTTPOk()
 
     def start(self):

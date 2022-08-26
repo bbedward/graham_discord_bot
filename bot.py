@@ -32,6 +32,9 @@ from tasks.transaction_queue import TransactionQueue
 # Configuration
 config = Config.instance()
 
+# Unique ID for redis subscriptions
+subID = f"{config.bot_token}:deposits"
+
 # Setup logger
 setup_logger(config.log_file, log_level=logging.DEBUG if config.debug else logging.INFO)
 logger = logging.getLogger()
@@ -100,7 +103,7 @@ async def start_bot():
 		# Add a command to warn users that tip unit has changed
 		client.add_cog(tip_legacy.TipLegacyCog(client))
 	redis = await RedisDB.instance().get_redis()
-	sub = await redis.subscribe('deposit_notifications')		
+	sub = await redis.subscribe(subID)		
 	# Start bot
 	try:
 		# Initialize database first
@@ -119,7 +122,7 @@ async def start_bot():
 		logger.info("Graham is exiting")
 		await client.logout()
 		await RPCClient.close()
-		await sub.unsubscribe('deposit_notifications')
+		await sub.unsubscribe(subID)
 		await RedisDB.close()
 
 def start_server():
@@ -128,7 +131,7 @@ def start_server():
 		if server_host is None or server_port is None:
 			logger.info("Graham server is disabled")
 			sys.exit(1)
-		server = GrahamServer(server_host, server_port)
+		server = GrahamServer(subID, server_host, server_port)
 		logger.info(f"Graham server running at {server_host}:{server_port}")
 		DBConfig().init_db_aiohttp(server.app)
 		server.start()
