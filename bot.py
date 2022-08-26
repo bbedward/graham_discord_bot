@@ -87,7 +87,7 @@ async def deposit_notification_sub(ch):
 		if discord_user is not None:
 			logger.info("DMING")
 			logger.info(msg["uid"])
-			logger.info(account.user.id)
+			logger.info(msg["id"])
 			await Messages.send_success_dm(discord_user, msg["message"], header="Deposit Success", footer=f"I only notify you of deposits that are {10 if Env.banano() else 0.1} {Env.currency_symbol()} or greater.")
 
 async def start_bot():
