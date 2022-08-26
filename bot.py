@@ -107,7 +107,8 @@ async def start_bot():
 		asyncio.create_task(TransactionQueue.instance(bot=client).queue_consumer())
 		asyncio.create_task(reQueueTransactions(client))
 		# Listen for deposit notifications
-		sub = await RedisDB.instance().subscribe('deposit_notifications')
+		redis = RedisDB.instance().get_redis()
+		sub = await redis.subscribe('deposit_notifications')
 		asyncio.create_task(deposit_notification_sub(sub))
 		await client.start(config.bot_token),
 	except Exception:
@@ -143,4 +144,5 @@ if __name__ == "__main__":
 		run_async(start_bot())
 		
 	# start server
-	start_server()
+	if sys.argv[1] == 'start_server':
+		start_server()
