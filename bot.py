@@ -85,7 +85,9 @@ async def deposit_notification_sub(ch):
 		msg = await ch.get_json()
 		discord_user = await client.fetch_user(msg["id"])
 		if discord_user is not None:
-				await Messages.send_success_dm(discord_user, msg["message"], header="Deposit Success", footer=f"I only notify you of deposits that are {10 if Env.banano() else 0.1} {Env.currency_symbol()} or greater.")
+			if not await RedisDB.instance().exists(msg["uid"]):
+					await RedisDB.instance().set(msg["uid"], "val", expires=60)
+					await Messages.send_success_dm(discord_user, msg["message"], header="Deposit Success", footer=f"I only notify you of deposits that are {10 if Env.banano() else 0.1} {Env.currency_symbol()} or greater.")
 
 async def start_bot():
 	# Add cogs

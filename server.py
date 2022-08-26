@@ -11,6 +11,8 @@ import config
 import datetime
 import logging
 import rapidjson as json
+import string
+import random
 from typing import List
 from db.models.transaction import Transaction
 
@@ -214,6 +216,7 @@ class GrahamServer(object):
                     amount_string = f"{Env.raw_to_amount(int(request_json['amount']))} {Env.currency_symbol()}"
                     redis = await RedisDB.instance().get_redis()
                     await redis.publish_json(self.subID, {
+                        "uid": ''.join(random.choices(string.ascii_uppercase + string.digits, k=32)),
                         "id": account.user.id,
                         "message": f"Your deposit of **{amount_string}** has been received. It will be in your available balance shortly!",
                     })
