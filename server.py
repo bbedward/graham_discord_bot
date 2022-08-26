@@ -217,6 +217,7 @@ class GrahamServer(object):
                     redis = await RedisDB.instance().get_redis_pubsub()
                     self.logger.info("PUBLISHING")
                     uid = ''.join(random.choices(string.ascii_uppercase + string.digits, k=32))
+                    self.logger.info(uid)
                     self.logger.info("FOR")
                     self.logger.info(account.user.id)
                     await redis.publish_json(self.subID, {
