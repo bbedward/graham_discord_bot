@@ -109,7 +109,7 @@ async def start_bot():
 		asyncio.create_task(TransactionQueue.instance(bot=client).queue_consumer())
 		asyncio.create_task(reQueueTransactions(client))
 		# Listen for deposit notifications
-		asyncio.create_task(deposit_notification_sub(sub))
+		asyncio.create_task(deposit_notification_sub(sub[0]))
 		await client.start(config.bot_token),
 	except Exception:
 		logger.exception("Graham exited with exception")
