@@ -14,6 +14,7 @@ from db.redis import RedisDB
 from server import GrahamServer
 from tortoise import Tortoise, run_async
 from util.discord.channel import ChannelUtil
+from util.discord.messages import Messages
 from util.env import Env
 from util.logger import setup_logger
 from version import __version__
@@ -76,6 +77,13 @@ async def on_message(message: discord.Message):
     # Process commands
 	await client.process_commands(message)
 
+async def deposit_notification_sub(ch):
+	while (await ch.wait_message()):
+		msg = await ch.get_json()
+		discord_user = await client.fetch_user(msg["id"])
+		if discord_user is not None:
+				await Messages.send_success_dm(discord_user, msg["message"], header="Deposit Success", footer=f"I only notify you of deposits that are {10 if Env.banano() else 0.1} {Env.currency_symbol()} or greater.")
+
 async def start_bot():
 	# Add cogs
 	client.add_cog(account.AccountCog(client))
@@ -98,6 +106,9 @@ async def start_bot():
 		await DBConfig().init_db()
 		asyncio.create_task(TransactionQueue.instance(bot=client).queue_consumer())
 		asyncio.create_task(reQueueTransactions(client))
+		# Listen for deposit notifications
+		sub = await RedisDB.instance().subscribe('deposit_notifications')
+		asyncio.create_task(deposit_notification_sub(sub))
 		await client.start(config.bot_token),
 	except Exception:
 		logger.exception("Graham exited with exception")
@@ -115,7 +126,7 @@ def start_server():
 		if server_host is None or server_port is None:
 			logger.info("Graham server is disabled")
 			sys.exit(1)
-		server = GrahamServer(client, server_host, server_port)
+		server = GrahamServer(server_host, server_port)
 		logger.info(f"Graham server running at {server_host}:{server_port}")
 		DBConfig().init_db_aiohttp(server.app)
 		server.start()

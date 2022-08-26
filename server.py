@@ -1,10 +1,8 @@
 from aiohttp import web
-from discord.ext.commands import Bot
 from db.models.account import Account
 from db.models.user import User
 from db.redis import RedisDB
 from models.constants import Constants
-from util.discord.messages import Messages
 from util.env import Env
 from util.regex import RegexUtil, AddressMissingException, AddressAmbiguousException
 
@@ -18,8 +16,7 @@ from db.models.transaction import Transaction
 
 class GrahamServer(object):
     """An AIOHTTP server that listens for callbacks and provides various APIs"""
-    def __init__(self, bot: Bot, host: str, port: int):
-        self.bot = bot
+    def __init__(self, host: str, port: int):
         self.app = web.Application(middlewares=[web.normalize_path_middleware()])
         self.app.add_routes([
             web.post('/callback', self.callback)
@@ -214,9 +211,11 @@ class GrahamServer(object):
                         return web.HTTPOk()
                     self.logger.debug(f'Deposit received: {request_json["amount"]} for {account.user.id}')
                     amount_string = f"{Env.raw_to_amount(int(request_json['amount']))} {Env.currency_symbol()}"
-                    discord_user = await self.bot.fetch_user(account.user.id)
-                    if discord_user is not None:
-                        await Messages.send_success_dm(discord_user, f"Your deposit of **{amount_string}** has been received. It will be in your available balance shortly!", header="Deposit Success", footer=f"I only notify you of deposits that are {self.min_amount} {Env.currency_symbol()} or greater.")
+                    redis = await RedisDB.instance().get_redis()
+                    await redis.publish_json("deposit_notifications", {
+                        "id": account.user.id,
+                        "message": f"Your deposit of **{amount_string}** has been received. It will be in your available balance shortly!",
+                    })
         return web.HTTPOk()
 
     def start(self):
