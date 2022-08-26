@@ -31,7 +31,7 @@ spec:
           - name: REDIS_DB
             value: "8"
           - name: POSTGRES_HOST
-            value: postgres-ha-postgresql-ha-pgpool.postgres
+            value: postgres.kubegres
           - name: POSTGRES_DB
             valueFrom:
               secretKeyRef:
