@@ -35,27 +35,27 @@ spec:
           - name: POSTGRES_DB
             valueFrom:
               secretKeyRef:
-                name: bananobot
+                name: graham-bbet
                 key: postgres_db
           - name: POSTGRES_USER
             valueFrom:
               secretKeyRef:
-                name: bananobot
+                name: graham-bbet
                 key: postgres_user
           - name: POSTGRES_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: bananobot
+                name: graham-bbet
                 key: postgres_password
           - name: BOT_TOKEN
             valueFrom:
               secretKeyRef:
-                name: bananobot
+                name: graham-bbet
                 key: bot_token
           - name: WALLET_ID
             valueFrom:
               secretKeyRef:
-                name: bananobot
+                name: graham-bbet
                 key: wallet_id
         volumeMounts:
         - name: conf
