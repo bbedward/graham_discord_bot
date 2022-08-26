@@ -215,8 +215,12 @@ class GrahamServer(object):
                     self.logger.debug(f'Deposit received: {request_json["amount"]} for {account.user.id}')
                     amount_string = f"{Env.raw_to_amount(int(request_json['amount']))} {Env.currency_symbol()}"
                     redis = await RedisDB.instance().get_redis()
+                    print("PUBLISHING")
+                    uid = ''.join(random.choices(string.ascii_uppercase + string.digits, k=32))
+                    print("FOR")
+                    print(account.user.id)
                     await redis.publish_json(self.subID, {
-                        "uid": ''.join(random.choices(string.ascii_uppercase + string.digits, k=32)),
+                        "uid": uid,
                         "id": account.user.id,
                         "message": f"Your deposit of **{amount_string}** has been received. It will be in your available balance shortly!",
                     })
