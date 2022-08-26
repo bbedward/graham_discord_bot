@@ -15,8 +15,6 @@ class RedisDB(object):
         if cls._instance is None:
             cls._instance = cls.__new__(cls)
             cls.redis = None
-            # Separate conn for pubsub
-            cls.redis_pubsub = None
         return cls._instance
 
     @classmethod
@@ -34,14 +32,6 @@ class RedisDB(object):
         # TODO - we should let them override redis host/port in configuration
         cls.redis = await aioredis.create_redis_pool((os.getenv('REDIS_HOST', 'localhost'), 6379), db=int(os.getenv('REDIS_DB', '1')), encoding='utf-8', minsize=1, maxsize=5)
         return cls.redis
-
-    @classmethod
-    async def get_redis_pubsub(cls) -> aioredis.Redis:
-        if cls.redis_pubsub is not None:
-            return cls.redis_pubsub
-        # TODO - we should let them override redis host/port in configuration
-        cls.redis_pubsub = await aioredis.create_redis((os.getenv('REDIS_HOST', 'localhost'), 6379), db=int(os.getenv('REDIS_DB', '1')), encoding='utf-8')
-        return cls.redis_pubsub
 
     async def set(self, key: str, value: str, expires: int = 0):
         """Basic redis SET"""
