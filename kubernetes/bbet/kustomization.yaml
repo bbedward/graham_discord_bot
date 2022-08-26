@@ -5,3 +5,4 @@ resources:
 - deployment.yaml
 - configmap.yaml
 - svc.yaml
+- deployment_server.yaml
