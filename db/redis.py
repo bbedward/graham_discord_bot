@@ -30,7 +30,7 @@ class RedisDB(object):
         if cls.redis is not None:
             return cls.redis
         # TODO - we should let them override redis host/port in configuration
-        cls.redis = await aioredis.create_redis_pool((os.getenv('REDIS_HOST', 'localhost'), 6379), db=int(os.getenv('REDIS_DB', '1')), encoding='utf-8', minsize=1, maxsize=5)
+        cls.redis = await aioredis.create_redis((os.getenv('REDIS_HOST', 'localhost'), 6379), db=int(os.getenv('REDIS_DB', '1')), encoding='utf-8')
         return cls.redis
 
     async def set(self, key: str, value: str, expires: int = 0):
