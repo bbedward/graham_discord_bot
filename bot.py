@@ -99,6 +99,8 @@ async def start_bot():
 	if not Env.banano():
 		# Add a command to warn users that tip unit has changed
 		client.add_cog(tip_legacy.TipLegacyCog(client))
+	redis = RedisDB.instance().get_redis()
+	sub = await redis.subscribe('deposit_notifications')		
 	# Start bot
 	try:
 		# Initialize database first
@@ -107,8 +109,6 @@ async def start_bot():
 		asyncio.create_task(TransactionQueue.instance(bot=client).queue_consumer())
 		asyncio.create_task(reQueueTransactions(client))
 		# Listen for deposit notifications
-		redis = RedisDB.instance().get_redis()
-		sub = await redis.subscribe('deposit_notifications')
 		asyncio.create_task(deposit_notification_sub(sub))
 		await client.start(config.bot_token),
 	except Exception:
@@ -119,6 +119,7 @@ async def start_bot():
 		logger.info("Graham is exiting")
 		await client.logout()
 		await RPCClient.close()
+		await sub.unsubscribe('deposit_notifications')
 		await RedisDB.close()
 
 def start_server():
