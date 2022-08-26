@@ -99,7 +99,7 @@ async def start_bot():
 	if not Env.banano():
 		# Add a command to warn users that tip unit has changed
 		client.add_cog(tip_legacy.TipLegacyCog(client))
-	redis = RedisDB.instance().get_redis()
+	redis = await RedisDB.instance().get_redis()
 	sub = await redis.subscribe('deposit_notifications')		
 	# Start bot
 	try:
