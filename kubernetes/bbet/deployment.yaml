@@ -52,6 +52,11 @@ spec:
               secretKeyRef:
                 name: graham-bbet
                 key: bot_token
+          - name: BPOW_KEY
+            valueFrom:
+              secretKeyRef:
+                name: graham-bbet
+                key: bpow_key 
           - name: WALLET_ID
             valueFrom:
               secretKeyRef:

@@ -52,6 +52,11 @@ spec:
               secretKeyRef:
                 name: bananobot
                 key: bot_token
+          - name: BPOW_KEY
+            valueFrom:
+              secretKeyRef:
+                name: bananobot
+                key: bpow_key 
           - name: WALLET_ID
             valueFrom:
               secretKeyRef:
