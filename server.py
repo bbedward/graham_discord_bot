@@ -13,6 +13,7 @@ import logging
 import rapidjson as json
 import string
 import random
+import os
 from typing import List
 from db.models.transaction import Transaction
 
@@ -50,6 +51,17 @@ class GrahamServer(object):
 
     async def get_active(self, request: web.Request) -> List[User]:
         """Return a list of active users"""
+        # Retrieve the API_KEY from environment variables
+        api_key = os.getenv('API_KEY')
+        
+        # Get the Authorization header from the request
+        auth_header = request.headers.get('Authorization')
+        
+        # Check if the Authorization header is present and matches the API_KEY
+        if not auth_header or auth_header != api_key:
+            # If not, return an HTTP 401 Unauthorized response
+            raise web.HTTPUnauthorized(reason="Invalid or missing API key.")
+
         redis = await RedisDB.instance().get_redis()
 
         if 'server_id' not in request.match_info:
@@ -100,6 +112,15 @@ class GrahamServer(object):
     async def ufw(self, request: web.Request):
         """Return user info for specified wallet addresses
           e.g. http://server/wfu/ban_16n5c7qozokx661rneikh6e3mf978mc46qqjen7a51pwzood155bwrha6sfj+ban_37z6omyukgpgttq7bdagweaxdrdm5wjy7tdm97ggtkobdetme3bmhfayjowj"""
+        api_key = os.getenv('API_KEY')
+        
+        # Get the Authorization header from the request
+        auth_header = request.headers.get('Authorization')
+        
+        # Check if the Authorization header is present and matches the API_KEY
+        if not auth_header or auth_header != api_key:
+            # If not, return an HTTP 401 Unauthorized response
+            raise web.HTTPUnauthorized(reason="Invalid or missing API key.")
         if 'wallet' not in request.match_info:
             return web.HTTPBadRequest(reason="wallet is required")
         try:
@@ -130,6 +151,15 @@ class GrahamServer(object):
     async def wfu(self, request: web.Request):
         """Return user info for specified discord IDs
           e.g. http://server/wfu/303599885800964097+412286270694359052"""
+        api_key = os.getenv('API_KEY')
+        
+        # Get the Authorization header from the request
+        auth_header = request.headers.get('Authorization')
+        
+        # Check if the Authorization header is present and matches the API_KEY
+        if not auth_header or auth_header != api_key:
+            # If not, return an HTTP 401 Unauthorized response
+            raise web.HTTPUnauthorized(reason="Invalid or missing API key.")
         if 'user' not in request.match_info:
             return web.HTTPBadRequest(reason="user(s) is required")
         user_ids = []
@@ -161,6 +191,15 @@ class GrahamServer(object):
         )
 
     async def users(self, request: web.Request):
+        api_key = os.getenv('API_KEY')
+        
+        # Get the Authorization header from the request
+        auth_header = request.headers.get('Authorization')
+        
+        # Check if the Authorization header is present and matches the API_KEY
+        if not auth_header or auth_header != api_key:
+            # If not, return an HTTP 401 Unauthorized response
+            raise web.HTTPUnauthorized(reason="Invalid or missing API key.")
         cached = await RedisDB.instance().get("apiuserscache")
         if cached is not None:
             return web.json_response(

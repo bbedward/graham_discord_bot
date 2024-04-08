@@ -62,6 +62,11 @@ spec:
               secretKeyRef:
                 name: bananobot
                 key: wallet_id
+          - name: API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: bananobot
+                key: api_key
         volumeMounts:
         - name: conf
           mountPath: /config

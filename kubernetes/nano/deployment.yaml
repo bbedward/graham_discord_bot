@@ -60,6 +60,11 @@ spec:
               secretKeyRef:
                 name: graham-nano
                 key: wallet_id
+          - name: API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: graham-nano
+                key: api_key
         volumeMounts:
         - name: conf
           mountPath: /config
