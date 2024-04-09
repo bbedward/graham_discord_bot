@@ -59,6 +59,11 @@ spec:
               secretKeyRef:
                 name: graham-banano
                 key: wallet_id
+          - name: API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: graham-banano
+                key: api_key
         volumeMounts:
         - name: conf
           mountPath: /config
