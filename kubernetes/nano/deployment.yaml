@@ -22,14 +22,14 @@ spec:
         - containerPort: 11337
           name: api
         command: ["/bin/bash", "-c"]
-        args: ["cp /config/config.yaml .; python bot.py -p ! -u http://pippin-nano.pippin:11338 -s \"!help\""]
+        args: ["cp /config/config.yaml .; python bot.py start_bot -p ! -u http://pippin-nano.pippin:11338 -s \"!help\""]
         env:
           - name: REDIS_HOST
-            value: redis-0.redis
+            value: redis.redis
           - name: REDIS_DB
             value: "6"
           - name: POSTGRES_HOST
-            value: postgres.postgres
+            value: postgres.kubegres
           - name: POSTGRES_DB
             valueFrom:
               secretKeyRef:
@@ -50,11 +50,21 @@ spec:
               secretKeyRef:
                 name: graham-nano
                 key: bot_token
+          - name: BPOW_KEY
+            valueFrom:
+              secretKeyRef:
+                name: graham-nano
+                key: bpow_key 
           - name: WALLET_ID
             valueFrom:
               secretKeyRef:
                 name: graham-nano
                 key: wallet_id
+          - name: API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: graham-nano
+                key: api_key
         volumeMounts:
         - name: conf
           mountPath: /config

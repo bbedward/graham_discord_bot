@@ -12,12 +12,14 @@ from db.models.transaction import Transaction
 from db.tortoise_config import DBConfig
 from db.redis import RedisDB
 from server import GrahamServer
-from tortoise import Tortoise
+from tortoise import Tortoise, run_async
 from util.discord.channel import ChannelUtil
+from util.discord.messages import Messages
 from util.env import Env
 from util.logger import setup_logger
 from version import __version__
 
+import sys
 import asyncio
 import discord
 intents = discord.Intents.default()
@@ -29,6 +31,9 @@ from tasks.transaction_queue import TransactionQueue
 
 # Configuration
 config = Config.instance()
+
+# Unique ID for redis subscriptions
+subID = f"{config.bot_token}:deposits"
 
 # Setup logger
 setup_logger(config.log_file, log_level=logging.DEBUG if config.debug else logging.INFO)
@@ -75,7 +80,14 @@ async def on_message(message: discord.Message):
     # Process commands
 	await client.process_commands(message)
 
-if __name__ == "__main__":
+async def deposit_notification_sub(ch):
+	while (await ch.wait_message()):
+		msg = await ch.get_json()
+		discord_user = await client.fetch_user(msg["id"])
+		if discord_user is not None:
+			await Messages.send_success_dm(discord_user, msg["message"], header="Deposit Success", footer=f"I only notify you of deposits that are {10 if Env.banano() else 0.1} {Env.currency_symbol()} or greater.")
+
+async def start_bot():
 	# Add cogs
 	client.add_cog(account.AccountCog(client))
 	client.add_cog(tips.TipsCog(client))
@@ -90,39 +102,51 @@ if __name__ == "__main__":
 	if not Env.banano():
 		# Add a command to warn users that tip unit has changed
 		client.add_cog(tip_legacy.TipLegacyCog(client))
+	redis = await RedisDB.instance().get_redis()
+	sub = await redis.subscribe(subID)		
 	# Start bot
-	loop = asyncio.get_event_loop()
 	try:
 		# Initialize database first
 		logger.info("Initializing database")
-		loop.run_until_complete(DBConfig().init_db())
-		tasks = [
-			client.start(config.bot_token),
-			# Create two queue consumers for transactions
-			TransactionQueue.instance(bot=client).queue_consumer(),
-			TransactionQueue.instance(bot=client).queue_consumer(),
-			reQueueTransactions(client)
-		]
-		# Setup optional server if configured
-		server_host, server_port = Config.instance().get_server_info()
-		if server_host is None or server_port is None:
-			logger.info("Graham server is disabled")
-		else:
-			server = GrahamServer(client, server_host, server_port)
-			logger.info(f"Graham server running at {server_host}:{server_port}")
-			tasks.append(server.start())
-		loop.run_until_complete(asyncio.wait(tasks))
+		await DBConfig().init_db()
+		asyncio.create_task(TransactionQueue.instance(bot=client).queue_consumer())
+		asyncio.create_task(reQueueTransactions(client))
+		# Listen for deposit notifications
+		asyncio.create_task(deposit_notification_sub(sub[0]))
+		await client.start(config.bot_token),
 	except Exception:
 		logger.exception("Graham exited with exception")
 	except BaseException:
 		pass
 	finally:
 		logger.info("Graham is exiting")
-		tasks = [
-			client.logout(),
-			RPCClient.close(),
-			RedisDB.close(),
-			Tortoise.close_connections()
-		]
-		loop.run_until_complete(asyncio.wait(tasks))
-		loop.close()
+		await client.logout()
+		await RPCClient.close()
+		await sub.unsubscribe(subID)
+		await RedisDB.close()
+
+def start_server():
+		# Setup optional server if configured
+		server_host, server_port = Config.instance().get_server_info()
+		if server_host is None or server_port is None:
+			logger.info("Graham server is disabled")
+			sys.exit(1)
+		server = GrahamServer(subID, server_host, server_port)
+		logger.info(f"Graham server running at {server_host}:{server_port}")
+		DBConfig().init_db_aiohttp(server.app)
+		server.start()
+
+if __name__ == "__main__":
+	if len(sys.argv) < 2:
+		print(f"Usage: python3 {sys.argv[0]} <start_bot|start_server>")
+		sys.exit(1)
+	elif sys.argv[1] not in ['start_bot', 'start_server']:
+		print(f"Usage: python3 {sys.argv[0]} <start_bot|start_server>")
+		sys.exit(1)
+
+	if sys.argv[1] == 'start_bot':
+		run_async(start_bot())
+		
+	# start server
+	if sys.argv[1] == 'start_server':
+		start_server()

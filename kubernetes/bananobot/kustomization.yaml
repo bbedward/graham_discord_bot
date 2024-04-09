@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: graham-banano
 resources:
 - deployment.yaml
+- deployment_server.yaml
 - configmap.yaml
 - svc.yaml
 - ingress.yaml

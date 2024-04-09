@@ -133,7 +133,7 @@ class StatsCog(commands.Cog):
             await msg.channel.send("There are no stats for this server yet. Send some tips first!")
             return
         # Get datetime object representing first day of this month
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.timezone.utc)
         month = str(now.month).zfill(2)
         year = now.year
         first_day_of_month = datetime.datetime.strptime(f'{month}/01/{year} 00:00:00', '%m/%d/%Y %H:%M:%S')

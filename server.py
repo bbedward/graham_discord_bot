@@ -1,10 +1,8 @@
 from aiohttp import web
-from discord.ext.commands import Bot
 from db.models.account import Account
 from db.models.user import User
 from db.redis import RedisDB
 from models.constants import Constants
-from util.discord.messages import Messages
 from util.env import Env
 from util.regex import RegexUtil, AddressMissingException, AddressAmbiguousException
 
@@ -13,13 +11,16 @@ import config
 import datetime
 import logging
 import rapidjson as json
+import string
+import random
+import os
 from typing import List
 from db.models.transaction import Transaction
 
 class GrahamServer(object):
     """An AIOHTTP server that listens for callbacks and provides various APIs"""
-    def __init__(self, bot: Bot, host: str, port: int):
-        self.bot = bot
+    def __init__(self, subID: str, host: str, port: int):
+        self.subID = subID
         self.app = web.Application(middlewares=[web.normalize_path_middleware()])
         self.app.add_routes([
             web.post('/callback', self.callback)
@@ -50,6 +51,17 @@ class GrahamServer(object):
 
     async def get_active(self, request: web.Request) -> List[User]:
         """Return a list of active users"""
+        # Retrieve the API_KEY from environment variables
+        api_key = os.getenv('API_KEY')
+        
+        # Get the Authorization header from the request
+        auth_header = request.headers.get('Authorization')
+        
+        # Check if the Authorization header is present and matches the API_KEY
+        if not auth_header or auth_header != api_key:
+            # If not, return an HTTP 401 Unauthorized response
+            raise web.HTTPUnauthorized(reason="Invalid or missing API key.")
+
         redis = await RedisDB.instance().get_redis()
 
         if 'server_id' not in request.match_info:
@@ -100,6 +112,15 @@ class GrahamServer(object):
     async def ufw(self, request: web.Request):
         """Return user info for specified wallet addresses
           e.g. http://server/wfu/ban_16n5c7qozokx661rneikh6e3mf978mc46qqjen7a51pwzood155bwrha6sfj+ban_37z6omyukgpgttq7bdagweaxdrdm5wjy7tdm97ggtkobdetme3bmhfayjowj"""
+        api_key = os.getenv('API_KEY')
+        
+        # Get the Authorization header from the request
+        auth_header = request.headers.get('Authorization')
+        
+        # Check if the Authorization header is present and matches the API_KEY
+        if not auth_header or auth_header != api_key:
+            # If not, return an HTTP 401 Unauthorized response
+            raise web.HTTPUnauthorized(reason="Invalid or missing API key.")
         if 'wallet' not in request.match_info:
             return web.HTTPBadRequest(reason="wallet is required")
         try:
@@ -130,6 +151,15 @@ class GrahamServer(object):
     async def wfu(self, request: web.Request):
         """Return user info for specified discord IDs
           e.g. http://server/wfu/303599885800964097+412286270694359052"""
+        api_key = os.getenv('API_KEY')
+        
+        # Get the Authorization header from the request
+        auth_header = request.headers.get('Authorization')
+        
+        # Check if the Authorization header is present and matches the API_KEY
+        if not auth_header or auth_header != api_key:
+            # If not, return an HTTP 401 Unauthorized response
+            raise web.HTTPUnauthorized(reason="Invalid or missing API key.")
         if 'user' not in request.match_info:
             return web.HTTPBadRequest(reason="user(s) is required")
         user_ids = []
@@ -161,6 +191,15 @@ class GrahamServer(object):
         )
 
     async def users(self, request: web.Request):
+        api_key = os.getenv('API_KEY')
+        
+        # Get the Authorization header from the request
+        auth_header = request.headers.get('Authorization')
+        
+        # Check if the Authorization header is present and matches the API_KEY
+        if not auth_header or auth_header != api_key:
+            # If not, return an HTTP 401 Unauthorized response
+            raise web.HTTPUnauthorized(reason="Invalid or missing API key.")
         cached = await RedisDB.instance().get("apiuserscache")
         if cached is not None:
             return web.json_response(
@@ -214,14 +253,13 @@ class GrahamServer(object):
                         return web.HTTPOk()
                     self.logger.debug(f'Deposit received: {request_json["amount"]} for {account.user.id}')
                     amount_string = f"{Env.raw_to_amount(int(request_json['amount']))} {Env.currency_symbol()}"
-                    discord_user = await self.bot.fetch_user(account.user.id)
-                    if discord_user is not None:
-                        await Messages.send_success_dm(discord_user, f"Your deposit of **{amount_string}** has been received. It will be in your available balance shortly!", header="Deposit Success", footer=f"I only notify you of deposits that are {self.min_amount} {Env.currency_symbol()} or greater.")
+                    redis = await RedisDB.instance().get_redis()
+                    await redis.publish_json(self.subID, {
+                        "id": account.user.id,
+                        "message": f"Your deposit of **{amount_string}** has been received. It will be in your available balance shortly!",
+                    })
         return web.HTTPOk()
 
-    async def start(self):
+    def start(self):
         """Start the server"""
-        runner = web.AppRunner(self.app, access_log = None if not config.Config.instance().debug else self.logger)
-        await runner.setup()
-        site = web.TCPSite(runner, self.host, self.port)
-        await site.start()
+        web.run_app(self.app, host=self.host, port=self.port,  access_log = None if not config.Config.instance().debug else self.logger)

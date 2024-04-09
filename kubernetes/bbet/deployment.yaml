@@ -22,16 +22,16 @@ spec:
         - containerPort: 11337
           name: api
         command: ["/bin/bash", "-c"]
-        args: ["cp /config/config.yaml .; python bot.py -p . -u http://pippin-banano.pippin:11338"]
+        args: ["cp /config/config.yaml .; python bot.py start_bot -p . -u http://pippin-banano.pippin:11338"]
         env:
           - name: BANANO
             value: "1"
           - name: REDIS_HOST
-            value: redis-0.redis
+            value: redis.redis
           - name: REDIS_DB
             value: "5"
           - name: POSTGRES_HOST
-            value: postgres.postgres
+            value: postgres.kubegres
           - name: POSTGRES_DB
             valueFrom:
               secretKeyRef:
@@ -52,6 +52,11 @@ spec:
               secretKeyRef:
                 name: graham-bbet
                 key: bot_token
+          - name: BPOW_KEY
+            valueFrom:
+              secretKeyRef:
+                name: graham-bbet
+                key: bpow_key 
           - name: WALLET_ID
             valueFrom:
               secretKeyRef:

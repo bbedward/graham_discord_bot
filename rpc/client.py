@@ -1,6 +1,7 @@
 import aiohttp
 import rapidjson as json
 import socket
+import os
 from config import Config
 from typing import List, Tuple
 
@@ -17,6 +18,7 @@ class RPCClient(object):
             cls.wallet_id = Config.instance().wallet
             cls.node_url = Config.instance().node_url
             cls.session = aiohttp.ClientSession(json_serialize=json.dumps)
+            cls.bpow_key = os.getenv('BPOW_KEY', None)
         return cls._instance
 
     @classmethod
@@ -60,6 +62,8 @@ class RPCClient(object):
             'amount': amount,
             'id': id
         }
+        if self.bpow_key is not None:
+            send_action['bpow_key'] = self.bpow_key
         respjson = await self.make_request(send_action)
         if 'block' in respjson:
             return respjson['block']
@@ -85,6 +89,8 @@ class RPCClient(object):
             'account': account,
             'block': hash
         }
+        if self.bpow_key is not None:
+            receive_action['bpow_key'] = self.bpow_key
         respjson = await self.make_request(receive_action)
         if 'block' in respjson:
             return respjson['block']
@@ -108,6 +114,8 @@ class RPCClient(object):
             "account": account,
             "representative": rep
         }
+        if self.bpow_key is not None:
+            rep_action['bpow_key'] = self.bpow_key
         respjson = await self.make_request(rep_action)
         if 'block' in respjson:
             return respjson['block']

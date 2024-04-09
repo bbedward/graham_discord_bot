@@ -1,72 +1,65 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: bananobot
-  namespace: graham-banano
+  name: graham-nano-server
+  namespace: graham-nano
 spec:
   strategy:
     type: Recreate
   replicas: 1
   selector:
     matchLabels:
-      app: bananobot
+      app: graham-nano-server
   template:
     metadata:
       labels:
-        app: bananobot
+        app: graham-nano-server
     spec:
       containers:
-      - name: bananobot
+      - name: graham-nano-server
         image: replaceme
         ports:
         - containerPort: 11337
           name: api
         command: ["/bin/bash", "-c"]
-        args: ["cp /config/config.yaml .; python bot.py start_bot -p . -s \"rug pull simulator\" -u http://pippin-banano.pippin:11338"]
+        args: ["cp /config/config.yaml .; python bot.py start_server -p ! -u http://pippin-nano.pippin:11338 -s \"!help\""]
         env:
-          - name: BANANO
-            value: "1"
           - name: REDIS_HOST
             value: redis.redis
           - name: REDIS_DB
-            value: "8"
+            value: "6"
           - name: POSTGRES_HOST
             value: postgres.kubegres
           - name: POSTGRES_DB
             valueFrom:
               secretKeyRef:
-                name: bananobot
+                name: graham-nano
                 key: postgres_db
           - name: POSTGRES_USER
             valueFrom:
               secretKeyRef:
-                name: bananobot
+                name: graham-nano
                 key: postgres_user
           - name: POSTGRES_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: bananobot
+                name: graham-nano
                 key: postgres_password
           - name: BOT_TOKEN
             valueFrom:
               secretKeyRef:
-                name: bananobot
+                name: graham-nano
                 key: bot_token
           - name: BPOW_KEY
             valueFrom:
               secretKeyRef:
-                name: bananobot
+                name: graham-nano
                 key: bpow_key 
           - name: WALLET_ID
             valueFrom:
               secretKeyRef:
-                name: bananobot
+                name: graham-nano
                 key: wallet_id
-          - name: API_KEY
-            valueFrom:
-              secretKeyRef:
-                name: bananobot
-                key: api_key
         volumeMounts:
         - name: conf
           mountPath: /config
@@ -74,5 +67,5 @@ spec:
       volumes:
       - name: conf
         configMap:
-          name: bananobot
+          name: graham-nano
           defaultMode: 0755

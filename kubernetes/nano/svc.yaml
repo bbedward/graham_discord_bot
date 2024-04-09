@@ -10,4 +10,4 @@ spec:
     targetPort: 11337
     name: api
   selector:
-    app: graham-nano
+    app: graham-nano-server

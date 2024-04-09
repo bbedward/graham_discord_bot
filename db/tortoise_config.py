@@ -1,6 +1,7 @@
 import logging
 import os
 from tortoise import Tortoise
+from tortoise.contrib.aiohttp import register_tortoise
 
 class DBConfig(object):
     def __init__(self):
@@ -17,18 +18,22 @@ class DBConfig(object):
         elif self.postgres_db is not None or self.postgres_user is not None or self.postgres_password is not None:
             raise Exception("ERROR: Postgres is not properly configured. POSTGRES_DB, POSTGRES_USER, and POSTGRES_PASSWORD environment variables are all required.")
 
-    async def init_db(self):
+    def get_db_url(self) -> str:
         if self.use_postgres:
-            self.logger.info(f"Using PostgreSQL Database {self.postgres_db}")
-            await Tortoise.init(
-                db_url=f'postgres://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}',
-                modules=self.modules
-            )
-        else:
-            self.logger.info(f"Using SQLite database dev.db")
-            await Tortoise.init(
-                db_url='sqlite://dev.db',
-                modules=self.modules
-            )
+            self.logger.info("Using PostgreSQL Database {self.postgres_db}")
+            return f'postgres://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}'
+        self.logger.info(f"Using SQLite database dev.db")
+        return f'sqlite://dev.db'
+
+    def init_db_aiohttp(self, app):
+        register_tortoise(app, db_url=self.get_db_url(),
+                          modules=self.modules,
+                          generate_schemas=True)
+
+    async def init_db(self):
+        await Tortoise.init(
+            db_url=self.get_db_url(),
+            modules=self.modules
+        )
         # Create tables
         await Tortoise.generate_schemas(safe=True)

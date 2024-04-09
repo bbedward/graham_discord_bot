@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: bananobot
+  name: grahambbet-server
   namespace: graham-banano
 spec:
   strategy:
@@ -9,64 +9,59 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: bananobot
+      app: grahambbet-server
   template:
     metadata:
       labels:
-        app: bananobot
+        app: grahambbet-server
     spec:
       containers:
-      - name: bananobot
+      - name: grahambbet-server
         image: replaceme
         ports:
         - containerPort: 11337
           name: api
         command: ["/bin/bash", "-c"]
-        args: ["cp /config/config.yaml .; python bot.py start_bot -p . -s \"rug pull simulator\" -u http://pippin-banano.pippin:11338"]
+        args: ["cp /config/config.yaml .; python bot.py start_server -p . -s \"rug pull simulator\" -u http://pippin-banano.pippin:11338"]
         env:
           - name: BANANO
             value: "1"
           - name: REDIS_HOST
             value: redis.redis
           - name: REDIS_DB
-            value: "8"
+            value: "5"
           - name: POSTGRES_HOST
             value: postgres.kubegres
           - name: POSTGRES_DB
             valueFrom:
               secretKeyRef:
-                name: bananobot
+                name: graham-bbet
                 key: postgres_db
           - name: POSTGRES_USER
             valueFrom:
               secretKeyRef:
-                name: bananobot
+                name: graham-bbet
                 key: postgres_user
           - name: POSTGRES_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: bananobot
+                name: graham-bbet
                 key: postgres_password
           - name: BOT_TOKEN
             valueFrom:
               secretKeyRef:
-                name: bananobot
+                name: graham-bbet
                 key: bot_token
           - name: BPOW_KEY
             valueFrom:
               secretKeyRef:
-                name: bananobot
-                key: bpow_key 
+                name: graham-bbet
+                key: bpow_key                
           - name: WALLET_ID
             valueFrom:
               secretKeyRef:
-                name: bananobot
+                name: graham-bbet
                 key: wallet_id
-          - name: API_KEY
-            valueFrom:
-              secretKeyRef:
-                name: bananobot
-                key: api_key
         volumeMounts:
         - name: conf
           mountPath: /config

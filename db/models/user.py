@@ -128,7 +128,7 @@ class User(Model):
         if last_withdraw is None:
             return -1
         # Get how many seconds until they can withdraw again
-        delta = (datetime.datetime.utcnow() - last_withdraw.created_at).total_seconds()
+        delta = (datetime.datetime.now(datetime.timezone.utc) - last_withdraw.created_at).total_seconds()
         return int(Constants.WITHDRAW_COOLDOWN - delta)
 
     async def is_muted_by(self, user_id: int) -> bool:

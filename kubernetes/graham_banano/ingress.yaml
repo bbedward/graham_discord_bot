@@ -1,4 +1,4 @@
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: grahamapi-ingress
@@ -6,16 +6,23 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: "nginx"
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      location = /callback {
+        return 403;
+      }
 spec:
   tls:
-  - hosts:
-    - grahamapi.banano.cc
-    secretName: grahamapi-banano-cc-server-secret
+    - hosts:
+        - grahamapi.banano.cc
+      secretName: grahamapi-banano-cc-server-secret
   rules:
-  - host: grahamapi.banano.cc
-    http:
-      paths:
-      - path: /
-        backend:
-          serviceName: graham-banano
-          servicePort: 11337
+    - host: grahamapi.banano.cc
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: graham-banano
+                port:
+                  number: 11337

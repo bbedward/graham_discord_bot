@@ -35,8 +35,8 @@ class Stats(Model):
         # https://github.com/tortoise/tortoise-orm/issues/245
 
         # Reset ballers list if it's a new year
-        if self.stats_reset_at.year < datetime.datetime.utcnow().year:
-            await Stats.all().update(total_tipped_amount=0, stats_reset_at=datetime.datetime.utcnow())
+        if self.stats_reset_at.year < datetime.datetime.now(datetime.timezone.utc).year:
+            await Stats.all().update(total_tipped_amount=0, stats_reset_at=datetime.datetime.now(datetime.timezone.utc))
 
         # Update total tipped amount and count
         amount = Env.truncate_digits(amount, max_digits=Env.precision_digits())
@@ -47,20 +47,20 @@ class Stats(Model):
         top_tip_updated = False
         if amount > self.top_tip:
             self.top_tip = amount
-            self.top_tip_at = datetime.datetime.utcnow()
+            self.top_tip_at = datetime.datetime.now(datetime.timezone.utc)
             top_tip_updated = True
         # Update monthly tip if necessary
         top_tip_month_updated = False
-        if self.top_tip_month_at.month != datetime.datetime.utcnow().month or amount > self.top_tip_month:
+        if self.top_tip_month_at.month != datetime.datetime.now(datetime.timezone.utc).month or amount > self.top_tip_month:
             self.top_tip_month = amount
-            self.top_tip_month_at = datetime.datetime.utcnow()
+            self.top_tip_month_at = datetime.datetime.now(datetime.timezone.utc)
             top_tip_month_updated = True
         # Update 24H tip if necessary
         top_tip_day_updated = False
-        delta = datetime.datetime.utcnow() - self.top_tip_day_at
+        delta = datetime.datetime.now(datetime.timezone.utc) - self.top_tip_day_at
         if delta.total_seconds() > 86400 or amount > self.top_tip_day:
             self.top_tip_day = amount
-            self.top_tip_day_at = datetime.datetime.utcnow()
+            self.top_tip_day_at = datetime.datetime.now(datetime.timezone.utc)
             top_tip_day_updated = True
         # Update rain or giveaway stats
         rain_updated = False

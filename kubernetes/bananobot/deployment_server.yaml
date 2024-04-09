@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: bananobot
+  name: bananobot-server
   namespace: graham-banano
 spec:
   strategy:
@@ -9,20 +9,20 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: bananobot
+      app: bananobot-server
   template:
     metadata:
       labels:
-        app: bananobot
+        app: bananobot-server
     spec:
       containers:
-      - name: bananobot
+      - name: bananobot-server
         image: replaceme
         ports:
         - containerPort: 11337
           name: api
         command: ["/bin/bash", "-c"]
-        args: ["cp /config/config.yaml .; python bot.py start_bot -p . -s \"rug pull simulator\" -u http://pippin-banano.pippin:11338"]
+        args: ["cp /config/config.yaml .; python bot.py start_server -p . -s \"rug pull simulator\" -u http://pippin-banano.pippin:11338"]
         env:
           - name: BANANO
             value: "1"
@@ -62,11 +62,6 @@ spec:
               secretKeyRef:
                 name: bananobot
                 key: wallet_id
-          - name: API_KEY
-            valueFrom:
-              secretKeyRef:
-                name: bananobot
-                key: api_key
         volumeMounts:
         - name: conf
           mountPath: /config

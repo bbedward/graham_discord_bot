@@ -1,4 +1,4 @@
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: nanobotapi-ingress
@@ -6,16 +6,23 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: "nginx"
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      location = /callback {
+        return 403;
+      }
 spec:
   tls:
-  - hosts:
-    - nanobotapi.banano.cc
-    secretName: nanobotapi-banano-cc-server-secret
+    - hosts:
+        - nanobotapi.banano.cc
+      secretName: nanobotapi-banano-cc-server-secret
   rules:
-  - host: nanobotapi.banano.cc
-    http:
-      paths:
-      - path: /
-        backend:
-          serviceName: graham-nano
-          servicePort: 11337
+    - host: nanobotapi.banano.cc
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: graham-nano
+                port:
+                  number: 11337
