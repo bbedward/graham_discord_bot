@@ -1,3 +1,4 @@
+import logging
 import aiohttp
 import rapidjson as json
 import socket
@@ -19,6 +20,7 @@ class RPCClient(object):
             cls.node_url = Config.instance().node_url
             cls.session = aiohttp.ClientSession(json_serialize=json.dumps)
             cls.bpow_key = os.getenv('BPOW_KEY', None)
+            cls.logger = logging.getLogger('RPCClient')
         return cls._instance
 
     @classmethod
@@ -30,7 +32,12 @@ class RPCClient(object):
 
     async def make_request(self, req_json: dict):
         async with self.session.post(self.node_url ,json=req_json, timeout=300) as resp:
-            return await resp.json()
+            respJson = await resp.json()
+            if resp.status != 200:
+                self.logger.error(f"RPC request failed with status {resp.status}")
+                self.logger.error(f"Request: {req_json}")
+                self.logger.error(f"Response: {respJson}")
+            return respJson
 
     async def account_create(self) -> str:
         account_create = {
