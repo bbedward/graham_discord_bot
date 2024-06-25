@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   test:
@@ -30,9 +30,9 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     env:
-      GITHUB_RUN_ID: ${{ github.run_id }}    
+      GITHUB_RUN_ID: ${{ github.run_id }}
     steps:
-      - uses: actions/checkout@master   
+      - uses: actions/checkout@master
 
       - name: Get branch name (merge)
         if: github.event_name != 'pull_request'
@@ -54,7 +54,7 @@ jobs:
         if: success()
         run: docker build -t bananocoin/graham:${{ env.BRANCH_NAME }}-${{ env.GITHUB_RUN_ID }} .
 
-      - name: Push image   
+      - name: Push image
         if: success()
         uses: actions-hub/docker@master
         with:
@@ -67,10 +67,10 @@ jobs:
     env:
       GITHUB_RUN_ID: ${{ github.run_id }}
     steps:
-      - uses: actions/checkout@master   
+      - uses: actions/checkout@master
       - uses: imranismail/setup-kustomize@v1
         with:
-          kustomize-version: "3.x"
+          kustomize-version: '3.x'
 
       - name: Get branch name (merge)
         if: github.event_name != 'pull_request'
@@ -95,107 +95,107 @@ jobs:
         with:
           args: apply -f ./kubernetes/bbet/deployment-k.yaml
 
-  deploy_nano:
-    name: Deploy nano discord bot
-    needs: build_and_publish
-    runs-on: ubuntu-latest
-    env:
-      GITHUB_RUN_ID: ${{ github.run_id }}
-    steps:
-      - uses: actions/checkout@master   
-      - uses: imranismail/setup-kustomize@v1
-        with:
-          kustomize-version: "3.x"
+  # deploy_nano:
+  #   name: Deploy nano discord bot
+  #   needs: build_and_publish
+  #   runs-on: ubuntu-latest
+  #   env:
+  #     GITHUB_RUN_ID: ${{ github.run_id }}
+  #   steps:
+  #     - uses: actions/checkout@master
+  #     - uses: imranismail/setup-kustomize@v1
+  #       with:
+  #         kustomize-version: "3.x"
 
-      - name: Get branch name (merge)
-        if: github.event_name != 'pull_request'
-        shell: bash
-        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | tr / -)" >> $GITHUB_ENV
+  #     - name: Get branch name (merge)
+  #       if: github.event_name != 'pull_request'
+  #       shell: bash
+  #       run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | tr / -)" >> $GITHUB_ENV
 
-      - name: Get branch name (pull request)
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
+  #     - name: Get branch name (pull request)
+  #       if: github.event_name == 'pull_request'
+  #       shell: bash
+  #       run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
 
-      - name: Set image
-        working-directory: ./kubernetes/nano
-        run: |
-          kustomize edit set image replaceme=bananocoin/graham:${{ env.BRANCH_NAME }}-${{ env.GITHUB_RUN_ID }}
-          kustomize build . > deployment-k.yaml
+  #     - name: Set image
+  #       working-directory: ./kubernetes/nano
+  #       run: |
+  #         kustomize edit set image replaceme=bananocoin/graham:${{ env.BRANCH_NAME }}-${{ env.GITHUB_RUN_ID }}
+  #         kustomize build . > deployment-k.yaml
 
-      - name: Deploy image to k8s cluster
-        uses: bbedward/kubectl@master
-        env:
-          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
-        with:
-          args: apply -f ./kubernetes/nano/deployment-k.yaml
+  #     - name: Deploy image to k8s cluster
+  #       uses: bbedward/kubectl@master
+  #       env:
+  #         KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+  #       with:
+  #         args: apply -f ./kubernetes/nano/deployment-k.yaml
 
-  deploy_graham_banano:
-    name: Deploy graham bot (banano)
-    needs: build_and_publish
-    runs-on: ubuntu-latest
-    env:
-      GITHUB_RUN_ID: ${{ github.run_id }}
-    steps:
-      - uses: actions/checkout@master   
-      - uses: imranismail/setup-kustomize@v1
-        with:
-          kustomize-version: "3.x"
+  # deploy_graham_banano:
+  #   name: Deploy graham bot (banano)
+  #   needs: build_and_publish
+  #   runs-on: ubuntu-latest
+  #   env:
+  #     GITHUB_RUN_ID: ${{ github.run_id }}
+  #   steps:
+  #     - uses: actions/checkout@master
+  #     - uses: imranismail/setup-kustomize@v1
+  #       with:
+  #         kustomize-version: "3.x"
 
-      - name: Get branch name (merge)
-        if: github.event_name != 'pull_request'
-        shell: bash
-        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | tr / -)" >> $GITHUB_ENV
+  #     - name: Get branch name (merge)
+  #       if: github.event_name != 'pull_request'
+  #       shell: bash
+  #       run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | tr / -)" >> $GITHUB_ENV
 
-      - name: Get branch name (pull request)
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
+  #     - name: Get branch name (pull request)
+  #       if: github.event_name == 'pull_request'
+  #       shell: bash
+  #       run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
 
-      - name: Set image
-        working-directory: ./kubernetes/graham_banano
-        run: |
-          kustomize edit set image replaceme=bananocoin/graham:${{ env.BRANCH_NAME }}-${{ env.GITHUB_RUN_ID }}
-          kustomize build . > deployment-k.yaml
+  #     - name: Set image
+  #       working-directory: ./kubernetes/graham_banano
+  #       run: |
+  #         kustomize edit set image replaceme=bananocoin/graham:${{ env.BRANCH_NAME }}-${{ env.GITHUB_RUN_ID }}
+  #         kustomize build . > deployment-k.yaml
 
-      - name: Deploy image to k8s cluster
-        uses: bbedward/kubectl@master
-        env:
-          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
-        with:
-          args: apply -f ./kubernetes/graham_banano/deployment-k.yaml
+  #     - name: Deploy image to k8s cluster
+  #       uses: bbedward/kubectl@master
+  #       env:
+  #         KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+  #       with:
+  #         args: apply -f ./kubernetes/graham_banano/deployment-k.yaml
 
-  deploy_bananobot:
-    name: Deploy BananoBot++
-    needs: build_and_publish
-    runs-on: ubuntu-latest
-    env:
-      GITHUB_RUN_ID: ${{ github.run_id }}
-    steps:
-      - uses: actions/checkout@master   
-      - uses: imranismail/setup-kustomize@v1
-        with:
-          kustomize-version: "3.x"
+  # deploy_bananobot:
+  #   name: Deploy BananoBot++
+  #   needs: build_and_publish
+  #   runs-on: ubuntu-latest
+  #   env:
+  #     GITHUB_RUN_ID: ${{ github.run_id }}
+  #   steps:
+  #     - uses: actions/checkout@master
+  #     - uses: imranismail/setup-kustomize@v1
+  #       with:
+  #         kustomize-version: "3.x"
 
-      - name: Get branch name (merge)
-        if: github.event_name != 'pull_request'
-        shell: bash
-        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | tr / -)" >> $GITHUB_ENV
+  #     - name: Get branch name (merge)
+  #       if: github.event_name != 'pull_request'
+  #       shell: bash
+  #       run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | tr / -)" >> $GITHUB_ENV
 
-      - name: Get branch name (pull request)
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
+  #     - name: Get branch name (pull request)
+  #       if: github.event_name == 'pull_request'
+  #       shell: bash
+  #       run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
 
-      - name: Set image
-        working-directory: ./kubernetes/bananobot
-        run: |
-          kustomize edit set image replaceme=bananocoin/graham:${{ env.BRANCH_NAME }}-${{ env.GITHUB_RUN_ID }}
-          kustomize build . > deployment-k.yaml
+  #     - name: Set image
+  #       working-directory: ./kubernetes/bananobot
+  #       run: |
+  #         kustomize edit set image replaceme=bananocoin/graham:${{ env.BRANCH_NAME }}-${{ env.GITHUB_RUN_ID }}
+  #         kustomize build . > deployment-k.yaml
 
-      - name: Deploy image to k8s cluster
-        uses: bbedward/kubectl@master
-        env:
-          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
-        with:
-          args: apply -f ./kubernetes/bananobot/deployment-k.yaml
+  #     - name: Deploy image to k8s cluster
+  #       uses: bbedward/kubectl@master
+  #       env:
+  #         KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+  #       with:
+  #         args: apply -f ./kubernetes/bananobot/deployment-k.yaml
