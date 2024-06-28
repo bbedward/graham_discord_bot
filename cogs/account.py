@@ -141,7 +141,7 @@ class AccountCog(commands.Cog):
         # Build and send response
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name=user_address, icon_url="https://github.com/bbedward/graham_discord_bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/graham_discord_bot/raw/master/assets/nano_logo.png")
-        embed.set_image(url=f"https://chart.googleapis.com/chart?cht=qr&chl={uri}&chs=180x180&choe=UTF-8&chld=L|2")
+        embed.set_image(url=f"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={uri}%20t&charset-source=utf-8")
         await msg.author.send(embed=embed)
         await msg.author.send(user_address)
 
