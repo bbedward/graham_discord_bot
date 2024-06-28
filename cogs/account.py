@@ -170,7 +170,7 @@ class AccountCog(commands.Cog):
                 return
             # Get "actual" balance
             address = await user.get_address()
-            balance_json = await RPCClient.instance().account_balance(address)
+            balance_json = await RPCClient.instance().account_balance(address, False)
             if balance_json is None:
                 raise Exception("balance_json was None")
             balance_raw = int(balance_json['balance'])
@@ -211,7 +211,7 @@ class AccountCog(commands.Cog):
         # Update their balance message
         if should_update_balance:
             # Update balance
-            balance_json = await RPCClient.instance().account_balance(address)
+            balance_json = await RPCClient.instance().account_balance(address, True)
             if balance_json is None:
                 raise Exception("balance_json was None")
             balance_raw = int(balance_json['balance'])

@@ -49,10 +49,11 @@ class RPCClient(object):
             return respjson['account']
         return None
 
-    async def account_balance(self, account: str) -> dict:
+    async def account_balance(self, account: str, include_only_confirmed: bool) -> dict:
         account_balance = {
             'action': 'account_balance',
-            'account': account
+            'account': account,
+            'include_only_confirmed': include_only_confirmed
         }
         respjson = await self.make_request(account_balance)
         if 'balance' in respjson:
