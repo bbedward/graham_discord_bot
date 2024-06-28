@@ -31,17 +31,11 @@ spec:
           - name: REDIS_DB
             value: "8"
           - name: POSTGRES_HOST
-            value: postgres.kubegres
+            value: pg-bananobot.graham-banano
           - name: POSTGRES_DB
-            valueFrom:
-              secretKeyRef:
-                name: bananobot
-                key: postgres_db
+            value: postgres
           - name: POSTGRES_USER
-            valueFrom:
-              secretKeyRef:
-                name: bananobot
-                key: postgres_user
+            value: postgres
           - name: POSTGRES_PASSWORD
             valueFrom:
               secretKeyRef:
