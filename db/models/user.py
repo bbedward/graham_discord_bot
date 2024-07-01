@@ -110,7 +110,7 @@ class User(Model):
         """Get available balance of user (in RAW)"""
         address = await self.get_address()
         pending_send, pending_receive = await self.get_pending()
-        actual = await RPCClient.instance().account_balance(address, True)
+        actual = await RPCClient.instance().account_balance(address, False)
         return int(actual['balance']) - pending_send
 
     async def get_available_balance_dec(self) -> float:
