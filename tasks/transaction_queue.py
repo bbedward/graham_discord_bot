@@ -42,7 +42,7 @@ class TransactionQueue(object):
         bot: Bot = self.bot
         user = bot.get_user(tx.sending_user.id)
         if user is None:
-            self.logger.warn(f"User with ID {tx.sending_user.id} was not found, so I couldn't notify them of their withdraw")
+            self.logger.warn(f"User with ID {tx.sending_user.id} was not found, so I couldn't notify them of their withdrawal")
             return
         if Env.banano():
             await user.send(f"Withdraw processed: https://creeper.banano.cc/explorer/block/{hash}")
