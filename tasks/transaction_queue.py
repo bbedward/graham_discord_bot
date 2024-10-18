@@ -47,7 +47,7 @@ class TransactionQueue(object):
         if Env.banano():
             await user.send(f"Withdraw processed: https://creeper.banano.cc/explorer/block/{hash}")
         else:
-            await user.send(f"Withdraw processed: https://nanocrawler.cc/explorer/block/{hash}")
+            await user.send(f"Withdraw processed: https://blocklattice.io/block/{hash}")
 
     async def retry(self, tx: Transaction):
         delay = tx.retries + 1 * 5
