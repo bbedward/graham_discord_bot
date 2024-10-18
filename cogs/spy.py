@@ -62,7 +62,7 @@ class SpyCog(commands.Cog):
             if Env.banano():
                 response += f"https://creeper.banano.cc/explorer/account/{u.account.address}\n"
             else:
-                response += f"https://nanocrawler.cc/explorer/account/{u.account.address}\n"
+                response += f"https://blocklattice.io/account/{u.account.address}\n"
 
         embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
         embed.set_author(name="WFU Result", icon_url="https://github.com/bbedward/graham_discord_bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/graham_discord_bot/raw/master/assets/nano_logo.png")
