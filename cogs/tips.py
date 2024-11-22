@@ -116,7 +116,6 @@ class TipsCog(commands.Cog):
 
     @commands.command()
     async def burn(self, ctx: Context):
-        return
         msg = ctx.message
         user = ctx.user
         send_amount = ctx.send_amount
