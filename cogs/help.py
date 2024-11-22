@@ -147,7 +147,7 @@ class HelpCog(commands.Cog):
         description = "This bot is completely free, open source, and MIT licensed"
         description+= f"\n\nMade with {heart} for the **BANANO** and **NANO** communities"
         description+= f"\nHangout with some awesome people at https://chat.banano.cc"
-        description+= f"\nMy Discord: **@bbedward#9246**"
+        description+= f"\nMy Discord: **bbedward**"
         description+= f"\nMy Reddit: **/u/bbedward**"
         description+= f"\nMy Twitter: **@theRealBbedward**"
         description+= f"\n\nGraham GitHub: https://github.com/bbedward/graham_discord_bot"
