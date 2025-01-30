@@ -5,6 +5,7 @@ import socket
 import os
 from config import Config
 from typing import List, Tuple
+from util.util import Utils, BNSResolvingException
 
 class RPCClient(object):
     _instance = None
@@ -31,7 +32,7 @@ class RPCClient(object):
             cls._instance = None
 
     async def make_request(self, req_json: dict):
-        async with self.session.post(self.node_url ,json=req_json, timeout=300) as resp:
+        async with self.session.post(self.node_url, json=req_json, timeout=300) as resp:
             respJson = await resp.json()
             if resp.status != 200:
                 self.logger.error(f"RPC request failed with status {resp.status}")
@@ -61,7 +62,18 @@ class RPCClient(object):
         return None
 
     async def send(self, id: str, source: str, destination: str, amount: str) -> str:
-        """Make transaction, return hash if successful"""
+        """Make transaction, return hash if successful, resolve BNS domain if relevant"""
+        if '.' in destination:
+            #if . is in destination, this is a BNS domain not a Banano address
+            #resolve it into a Banano address if possible
+            bnsrespjson = await Utils.resolve_bns(destination)
+            resolved = False
+            if 'domain' in bnsrespjson:
+                if 'resolved_address' in bnsrespjson['domain']:
+                    destination = bnsrespjson['domain']['resolved_address']
+                    resolved = True
+            if not resolved:
+                raise BNSResolvingException("Could not resolve BNS Domain to address")
         send_action = {
             'action': 'send',
             'wallet': Config.instance().wallet,

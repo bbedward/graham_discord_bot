@@ -197,3 +197,11 @@ class Config(object):
         elif 'restrictions' in self.yaml and 'no_stats_channels' in self.yaml['restrictions']:
             return self.yaml['restrictions']['no_stats_channels']
         return default
+
+    def get_bns_enabled(self) -> bool:
+        default = False
+        if not self.has_yaml():
+            return default
+        elif 'bns' in self.yaml:
+            return self.yaml['bns']
+        return default
