@@ -29,13 +29,16 @@ class RegexUtil():
         raise AmountMissingException("amount_not_found")
 
     @staticmethod
-    def find_address_match(input_text: str) -> str:
+    def find_address_match(input_text: str, bns_enabled: bool = False) -> str:
         """Find nano/banano address in a string"""
         if Env.banano():
             address_regex = '(?:ban)(?:_)(?:1|3)(?:[13456789abcdefghijkmnopqrstuwxyz]{59})'
         else:
             address_regex = '(?:nano|xrb)(?:_)(?:1|3)(?:[13456789abcdefghijkmnopqrstuwxyz]{59})'
         matches = re.findall(address_regex, input_text)
+        #if bns not enabled, don't match bns domains so they can't be passed down to later functions
+        if bns_enabled:
+            matches += re.findall('[0-9a-z]+\.[0-9a-z]+', input_text)
         if len(matches) == 1:
             return matches[0]
         elif len(matches) > 1:

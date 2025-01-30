@@ -4,6 +4,7 @@ import logging
 from discord.ext.commands import Bot
 from db.models.transaction import Transaction
 from util.env import Env
+from util.util import BNSResolvingException
 
 class TransactionQueue(object):
     _instance = None
@@ -49,6 +50,14 @@ class TransactionQueue(object):
         else:
             await user.send(f"Withdraw processed: https://blocklattice.io/block/{hash}")
 
+    async def notify_user_bns_fail(self, tx: Transaction):
+        bot: Bot = self.bot
+        user = bot.get_user(tx.sending_user.id)
+        if user is None:
+            self.logger.warn(f"User with ID {tx.sending_user.id} was not found, so I couldn't notify them that we could not resolve the withdrawal BNS domain to an address")
+            return
+        await user.send("Failed to resolve that BNS name")
+
     async def retry(self, tx: Transaction):
         delay = tx.retries + 1 * 5
         tx.retries += 1
@@ -68,6 +77,9 @@ class TransactionQueue(object):
                 elif tx.receiving_user is None:
                     # Notify user their withdraw was processed
                     asyncio.ensure_future(self.notify_user(tx=tx, hash=res))
+            except BNSResolvingException:
+                asyncio.ensure_future(self.notify_user_bns_fail(tx=tx))
+                break #not needed?
             except KeyboardInterrupt:
                 break
             except Exception:
