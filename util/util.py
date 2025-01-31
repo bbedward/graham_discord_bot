@@ -1,15 +1,10 @@
 from pathlib import Path
 from typing import List
 
-import aiohttp
 import asyncio
 import emoji
-import rapidjson as json
 import re
 import secrets
-
-class BNSResolvingException(Exception):
-    pass
 
 class Utils(object):
     """Generic utilities"""
@@ -34,18 +29,3 @@ class Utils(object):
     @staticmethod
     def random_float() -> float:
         return secrets.randbelow(100) / 100
-
-    @staticmethod
-    async def resolve_bns(domain_and_tld: str) -> dict:
-        parts = domain_and_tld.split('.')
-        async with aiohttp.ClientSession(json_serialize=json.dumps) as session:
-            async with session.post("https://api.creeper.banano.cc/banano/v1/account/bns", json={
-                'domain_name': parts[0],
-                'tld': parts[1],
-            }, timeout=300) as resp:
-                respJson = await resp.json()
-                if resp.status != 200:
-                    self.logger.error(f"BNS resolve request failed with status {resp.status}")
-                    self.logger.error(f"Request: {req_json}")
-                    self.logger.error(f"Response: {respJson}")
-                return respJson

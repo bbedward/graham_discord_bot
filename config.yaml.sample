@@ -85,5 +85,3 @@ server:
   # Callback is at $host:$port/callback (e.g. 127.0.0.1:11337/callback)
   host: 127.0.0.1
   port: 11337
-
-bns: true

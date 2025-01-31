@@ -100,7 +100,7 @@ class AccountCog(commands.Cog):
                 ctx.error = True
                 return
             try:
-                ctx.destination = RegexUtil.find_address_match(msg.content, config.Config.instance().get_bns_enabled())
+                ctx.destination = RegexUtil.find_address_match(msg.content)
             except AddressMissingException:
                 await Messages.send_usage_dm(msg.author, SEND_INFO)
                 ctx.error = True
@@ -109,8 +109,7 @@ class AccountCog(commands.Cog):
                 await Messages.send_error_dm(msg.author, "You can only specify 1 destination address")
                 ctx.error = True
                 return
-            #Disallow invalid Banano addresses but allow BNS domains
-            if not Validators.is_valid_address(ctx.destination) and not "." in ctx.destination:
+            if not Validators.is_valid_address(ctx.destination):
                 await Messages.send_error_dm(msg.author, "The destination address you specified is invalid")
                 ctx.error = True
                 return
