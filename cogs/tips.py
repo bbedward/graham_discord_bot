@@ -34,7 +34,7 @@ TIPSPLIT_INFO = CommandInfo(
     details = f"Divide the specified amount between mentioned user(s) (**minimum tip is {Constants.TIP_MINIMUM} {Constants.TIP_UNIT}**)" +
         "\nThe recipient(s) will be notified of your tip via private message" +
         "\nSuccessful tips will be deducted from your available balance immediately.\n" +
-     f"Example: `{config.Config.instance().command_prefix}{'bansplit' if Env.banano() else 'ntipsplit'} 2 @user1 @user2` would send 1 to user1 and 2 to user2"
+     f"Example: `{config.Config.instance().command_prefix}{'bansplit' if Env.banano() else 'ntipsplit'} 2 @user1 @user2` would send 1 to user1 and 1 to user2"
 )
 TIPRANDOM_INFO = CommandInfo(
     triggers = ["banrandom", "br"] if Env.banano() else ["ntiprandom", "ntr"],
