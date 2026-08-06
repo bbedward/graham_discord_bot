@@ -462,48 +462,72 @@ class GiveawayCog(commands.Cog):
             return
 
         # There is an active giveaway, enter em if not already entered.
-        active_tx = await Transaction.filter(giveaway__id=gw.id, sending_user__id=user.id).first()
-        if active_tx is not None and int(gw.entry_fee) == 0:
-            await Messages.send_error_dm(msg.author, "You've already entered this giveaway.")
-            await Messages.delete_message_if_ok(msg)
-            return
-        elif active_tx is None:
-            paid_already = 0
-        else:
-            paid_already = int(active_tx.amount)
-    
-        if paid_already >= int(gw.entry_fee) and int(gw.entry_fee) > 0:
-            await Messages.send_error_dm(msg.author, "You've already entered this giveaway.")
-            await Messages.delete_message_if_ok(msg)
-            return
-
-        # Enter em
-        fee_raw = int(gw.entry_fee) - paid_already
-        fee = Env.raw_to_amount(fee_raw)
-        # Check balance if fee is > 0
-        if fee > 0:
-            try:
-                amount = RegexUtil.find_float(msg.content)
-                if amount < fee:
-                    await Messages.send_error_dm(msg.author, f"This giveaway has a fee of {fee} {Env.currency_symbol()}. The amount you specified isn't enough to cover the entry fee")
+        # Everything from here on has to happen under a per-user, per-giveaway lock. Without it two
+        # copies of this command (a double-tap, a gateway redelivery, or just a fast typist) both read
+        # "not entered yet", both pass the balance check, and both insert an entry row - and every one
+        # of those rows becomes a real on-chain send to the winner when the giveaway ends.
+        try:
+            async with RedisLock(
+                await RedisDB.instance().get_redis(),
+                key=f"{Env.currency_symbol().lower()}giveawayentrylock:{gw.id}:{user.id}",
+                timeout=30,
+                wait_timeout=10
+            ):
+                # Re-read inside the lock, the value we read outside of it is not trustworthy
+                active_tx = await Transaction.filter(giveaway__id=gw.id, sending_user__id=user.id).order_by('created_at').first()
+                if active_tx is not None and int(gw.entry_fee) == 0:
+                    await Messages.send_error_dm(msg.author, "You've already entered this giveaway.")
                     await Messages.delete_message_if_ok(msg)
                     return
-            except AmountMissingException:
-                await Messages.send_error_dm(msg.author, f"This giveaway has a fee, you need to specify the amount to enter. `{config.Config.instance().command_prefix}ticket {fee}`")
-                await Messages.delete_message_if_ok(msg)
-                return
-            available_balance = Env.raw_to_amount(await user.get_available_balance())
-            if fee > available_balance:
-                await Messages.add_x_reaction(ctx.message)
-                await Messages.send_error_dm(msg.author, f"Your balance isn't high enough to complete this tip. You have **{available_balance} {Env.currency_symbol()}**, but this entry would cost you **{fee} {Env.currency_symbol()}**")
-                await Messages.delete_message_if_ok(msg)
-                await RedisDB.instance().set(f"ticketspam:{msg.author.id}", str(spam + 1), expires=3600)
-                return
-        await Transaction.create_transaction_giveaway(
-            user,
-            fee,
-            gw
-        )
+                elif active_tx is None:
+                    paid_already = 0
+                else:
+                    paid_already = int(active_tx.amount)
+
+                if paid_already >= int(gw.entry_fee) and int(gw.entry_fee) > 0:
+                    await Messages.send_error_dm(msg.author, "You've already entered this giveaway.")
+                    await Messages.delete_message_if_ok(msg)
+                    return
+
+                # Enter em
+                fee_raw = int(gw.entry_fee) - paid_already
+                fee = Env.raw_to_amount(fee_raw)
+                # Check balance if fee is > 0
+                if fee > 0:
+                    try:
+                        amount = RegexUtil.find_float(msg.content)
+                        if amount < fee:
+                            await Messages.send_error_dm(msg.author, f"This giveaway has a fee of {fee} {Env.currency_symbol()}. The amount you specified isn't enough to cover the entry fee")
+                            await Messages.delete_message_if_ok(msg)
+                            return
+                    except AmountMissingException:
+                        await Messages.send_error_dm(msg.author, f"This giveaway has a fee, you need to specify the amount to enter. `{config.Config.instance().command_prefix}ticket {fee}`")
+                        await Messages.delete_message_if_ok(msg)
+                        return
+                    available_balance = Env.raw_to_amount(await user.get_available_balance())
+                    if fee > available_balance:
+                        await Messages.add_x_reaction(ctx.message)
+                        await Messages.send_error_dm(msg.author, f"Your balance isn't high enough to complete this tip. You have **{available_balance} {Env.currency_symbol()}**, but this entry would cost you **{fee} {Env.currency_symbol()}**")
+                        await Messages.delete_message_if_ok(msg)
+                        await RedisDB.instance().set(f"ticketspam:{msg.author.id}", str(spam + 1), expires=3600)
+                        return
+                # One entry row per user per giveaway, always. If they already have a partial row
+                # (a small donation, or a 0 amount row from a free giveaway) top it up instead of
+                # inserting a second one - this matches what tipgiveaway_cmd already does.
+                if active_tx is not None:
+                    async with in_transaction() as conn:
+                        active_tx.amount = str(paid_already + fee_raw)
+                        await active_tx.save(update_fields=['amount'], using_db=conn)
+                else:
+                    await Transaction.create_transaction_giveaway(
+                        user,
+                        fee,
+                        gw
+                    )
+        except LockTimeoutError:
+            await Messages.send_error_dm(msg.author, "I'm still processing your last entry, try again in a moment.")
+            await Messages.delete_message_if_ok(msg)
+            return
         await Messages.send_success_dm(msg.author, f"You've successfully been entered into giveaway #{gw.id}")
         await Messages.delete_message_if_ok(msg)
         return
@@ -762,22 +786,35 @@ class GiveawayCog(commands.Cog):
             await Messages.delete_message_if_ok(msg)
             return
 
-        # See if they already contributed
-        user_tx = await Transaction.filter(giveaway__id=gw.id, sending_user__id=user.id).first()
+        # See if they already contributed. Same lock as ticket_cmd - the read-then-write below is
+        # not safe against two concurrent donations, which would either lose an update or insert a
+        # duplicate entry row for this user.
         already_entered = False
-        async with in_transaction() as conn:
-            if user_tx is not None:
-                if int(user_tx.amount) >= int(gw.entry_fee):
-                    already_entered=True
-                user_tx.amount = str(int(user_tx.amount) + Env.amount_to_raw(tip_amount))
-                await user_tx.save(update_fields=['amount'], using_db=conn)
-            else:
-                user_tx = await Transaction.create_transaction_giveaway(
-                    user,
-                    tip_amount,
-                    gw,
-                    conn=conn
-                )
+        try:
+            async with RedisLock(
+                await RedisDB.instance().get_redis(),
+                key=f"{Env.currency_symbol().lower()}giveawayentrylock:{gw.id}:{user.id}",
+                timeout=30,
+                wait_timeout=10
+            ):
+                user_tx = await Transaction.filter(giveaway__id=gw.id, sending_user__id=user.id).order_by('created_at').first()
+                async with in_transaction() as conn:
+                    if user_tx is not None:
+                        if int(user_tx.amount) >= int(gw.entry_fee):
+                            already_entered=True
+                        user_tx.amount = str(int(user_tx.amount) + Env.amount_to_raw(tip_amount))
+                        await user_tx.save(update_fields=['amount'], using_db=conn)
+                    else:
+                        user_tx = await Transaction.create_transaction_giveaway(
+                            user,
+                            tip_amount,
+                            gw,
+                            conn=conn
+                        )
+        except LockTimeoutError:
+            await Messages.send_error_dm(msg.author, "I'm still processing your last donation, try again in a moment.")
+            await Messages.delete_message_if_ok(msg)
+            return
     
         if gw.end_at is None:
             if not already_entered and int(user_tx.amount) >= int(gw.entry_fee):
