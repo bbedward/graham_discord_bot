@@ -180,7 +180,7 @@ class StatsCog(commands.Cog):
             return
 
         # Get list
-        ballers = await Stats.filter(server_id=msg.guild.id, banned=False).order_by('-total_tipped_amount').prefetch_related('user').limit(15).all()
+        ballers = await Stats.filter(server_id=msg.guild.id, banned=False).order_by('-total_tipped_amount').prefetch_related('user').limit(19).all()
 
         if len(ballers) == 0:
             await msg.channel.send(f"<@{msg.author.id}> There are no stats for this server yet, send some tips!")
@@ -222,7 +222,7 @@ class StatsCog(commands.Cog):
             return
 
         # Get list
-        ballers = await Stats.filter(server_id=msg.guild.id, banned=False).order_by('-legacy_total_tipped_amount').prefetch_related('user').limit(15).all()
+        ballers = await Stats.filter(server_id=msg.guild.id, banned=False).order_by('-legacy_total_tipped_amount').prefetch_related('user').limit(19).all()
 
         if len(ballers) == 0:
             await msg.channel.send(f"<@{msg.author.id}> There are no stats for this server yet, send some tips!")
