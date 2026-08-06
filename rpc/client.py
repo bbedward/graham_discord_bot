@@ -77,6 +77,34 @@ class RPCClient(object):
             return respjson['block']
         return None
 
+    async def account_history(self, account: str, count: int = 100) -> List[dict]:
+        """Return recent blocks for an account, newest first"""
+        history_action = {
+            'action': 'account_history',
+            'account': account,
+            'count': count
+        }
+        respjson = await self.make_request(history_action)
+        if 'history' in respjson and isinstance(respjson['history'], list):
+            return respjson['history']
+        return []
+
+    async def find_existing_send(self, source: str, destination: str, amount: str, count: int = 200) -> str:
+        """Return the hash of an already-published send from source to destination for amount.
+
+        This exists because a `send` that returns no block is NOT proof that nothing was sent. The
+        node can create and broadcast the block and still hand back an error, and if the `id` we
+        pass never makes it to the wallet (dropped by a proxy, different wallet, and so on) then the
+        node-side idempotency we rely on silently does nothing. Re-sending blind in that situation
+        is a real double spend, so check the chain first.
+        """
+        for block in await self.account_history(source, count=count):
+            if block.get('type') != 'send':
+                continue
+            if block.get('account') == destination and str(block.get('amount')) == str(amount):
+                return block.get('hash')
+        return None
+
     async def pending(self, account: str, count: int = 5) -> List[str]:
         """Return a list of pending blocks"""
         pending_action = {
