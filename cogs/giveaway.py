@@ -462,10 +462,7 @@ class GiveawayCog(commands.Cog):
             return
 
         # There is an active giveaway, enter em if not already entered.
-        # Everything from here on has to happen under a per-user, per-giveaway lock. Without it two
-        # copies of this command (a double-tap, a gateway redelivery, or just a fast typist) both read
-        # "not entered yet", both pass the balance check, and both insert an entry row - and every one
-        # of those rows becomes a real on-chain send to the winner when the giveaway ends.
+        # Check and write under a per-user lock - every duplicate entry row becomes a real send
         try:
             async with RedisLock(
                 await RedisDB.instance().get_redis(),
@@ -473,7 +470,6 @@ class GiveawayCog(commands.Cog):
                 timeout=30,
                 wait_timeout=10
             ):
-                # Re-read inside the lock, the value we read outside of it is not trustworthy
                 active_tx = await Transaction.filter(giveaway__id=gw.id, sending_user__id=user.id).order_by('created_at').first()
                 if active_tx is not None and int(gw.entry_fee) == 0:
                     await Messages.send_error_dm(msg.author, "You've already entered this giveaway.")
@@ -511,9 +507,7 @@ class GiveawayCog(commands.Cog):
                         await Messages.delete_message_if_ok(msg)
                         await RedisDB.instance().set(f"ticketspam:{msg.author.id}", str(spam + 1), expires=3600)
                         return
-                # One entry row per user per giveaway, always. If they already have a partial row
-                # (a small donation, or a 0 amount row from a free giveaway) top it up instead of
-                # inserting a second one - this matches what tipgiveaway_cmd already does.
+                # Top up any existing entry row rather than inserting a second one
                 if active_tx is not None:
                     async with in_transaction() as conn:
                         active_tx.amount = str(paid_already + fee_raw)
@@ -786,9 +780,7 @@ class GiveawayCog(commands.Cog):
             await Messages.delete_message_if_ok(msg)
             return
 
-        # See if they already contributed. Same lock as ticket_cmd - the read-then-write below is
-        # not safe against two concurrent donations, which would either lose an update or insert a
-        # duplicate entry row for this user.
+        # See if they already contributed, under the same per-user lock as ticket_cmd
         already_entered = False
         try:
             async with RedisLock(

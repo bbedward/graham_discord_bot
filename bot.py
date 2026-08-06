@@ -49,8 +49,6 @@ async def reQueueTransactions(client):
 		logger.info(f"Re-queue task started")
 		await asyncio.sleep(600)
 		logger.info(f"Re-queue task running")
-		# Don't clear() here - it throws away transactions that are legitimately waiting to be sent,
-		# and it used to race with whatever the consumer had in flight. The queue de-dupes by tx id.
 		unprocessed_txs = await Transaction.filter(block_hash=None, destination__not_isnull=True, failed=False).all().prefetch_related('sending_user', 'receiving_user')
 		for tx in unprocessed_txs:
 			await TransactionQueue.instance(bot=client).put(tx)
@@ -66,9 +64,7 @@ async def on_ready():
 	logger.info(f"Bot Discord ID: {client.user.id}")
 	await client.change_presence(activity=discord.Game(config.playing_status))
 
-	# Process any transactions in our DB that are outstanding.
-	# NOTE: on_ready fires again on every gateway reconnect, not just at startup, so this runs
-	# repeatedly over the life of the process. TransactionQueue.put() de-dupes by tx id.
+	# Process any transactions in our DB that are outstanding
 	logger.info(f"Re-queueing any unprocessed transactions")
 	unprocessed_txs = await Transaction.filter(block_hash=None, destination__not_isnull=True, failed=False).all().prefetch_related('sending_user', 'receiving_user')
 	for tx in unprocessed_txs:

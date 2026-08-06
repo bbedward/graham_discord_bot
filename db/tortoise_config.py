@@ -1,6 +1,6 @@
 import logging
 import os
-from tortoise import Tortoise
+from tortoise import Tortoise, connections
 from tortoise.contrib.aiohttp import register_tortoise
 
 class DBConfig(object):
@@ -37,3 +37,24 @@ class DBConfig(object):
         )
         # Create tables
         await Tortoise.generate_schemas(safe=True)
+        await self.run_migrations()
+
+    async def run_migrations(self):
+        # generate_schemas(safe=True) never ALTERs existing tables, so schema changes to them
+        # ship as SQL files in db/migrations and are applied here, once, in filename order
+        if not self.use_postgres:
+            return
+        migrations_dir = os.path.join(os.path.dirname(__file__), 'migrations')
+        if not os.path.isdir(migrations_dir):
+            return
+        conn = connections.get('default')
+        await conn.execute_script('CREATE TABLE IF NOT EXISTS applied_migrations (name VARCHAR(255) PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())')
+        rows = await conn.execute_query_dict('SELECT name FROM applied_migrations')
+        applied = {row['name'] for row in rows}
+        for name in sorted(os.listdir(migrations_dir)):
+            if not name.endswith('.sql') or name in applied:
+                continue
+            with open(os.path.join(migrations_dir, name)) as f:
+                await conn.execute_script(f.read())
+            await conn.execute_query('INSERT INTO applied_migrations (name) VALUES ($1)', [name])
+            self.logger.info(f"Applied migration {name}")

@@ -20,10 +20,6 @@ class Transaction(Model):
     created_at = fields.DatetimeField(auto_now_add=True, index=True)
     modified_at = fields.DatetimeField(auto_now=True)
     giveaway = fields.ForeignKeyField('db.Giveaway', related_name='giveaway_transactions', null=True, index=True)
-    # These used to be a bare class attribute (retries = 0), which meant the retry count was never
-    # persisted. Every re-queue produced a fresh object with retries back at 0, so the "give up after
-    # 20 tries" cap in the queue consumer never actually stopped anything - a transaction that could
-    # not be recorded was re-sent every 10 minutes forever.
     retries = fields.IntField(default=0)
     failed = fields.BooleanField(default=False)
 
@@ -108,33 +104,40 @@ class Transaction(Model):
     async def send(self) -> str:
         if self.block_hash is not None:
             return self.block_hash
-        elif self.destination is None:
-            return
+        if self.destination is None:
+            return None
         source = await self.sending_user.get_address()
-        # Anything past the first attempt has to be reconciled against the chain before we send
-        # again. A previous attempt can have landed on-chain even though the node handed us back no
-        # block, and we cannot assume the node's send `id` de-dupe caught it. Adopt the existing
-        # block instead of publishing a second one.
-        if self.retries > 0:
-            existing = await RPCClient.instance().find_existing_send(
-                source=source,
-                destination=self.destination,
-                amount=self.amount
-            )
-            if existing is not None:
-                async with in_transaction() as conn:
-                    self.block_hash = existing
-                    await self.save(using_db=conn)
-                return existing
-        # Make transaction internal
+        existing = await self.find_published_send(source)
+        if existing is not None:
+            await self.set_block_hash(existing)
+            return existing
         resp = await RPCClient.instance().send(
             id=str(self.id),
             source=source,
             destination=self.destination,
             amount=self.amount
         )
-        if resp is not None:
-            async with in_transaction() as conn:
-                self.block_hash = resp
-                await self.save(using_db=conn)
+        if resp is None:
+            return None
+        await self.set_block_hash(resp)
         return resp
+
+    async def find_published_send(self, source: str) -> str:
+        # A send attempt can publish a block even when the RPC response reports failure, so adopt
+        # any matching on-chain block that no other transaction has claimed before publishing again
+        candidates = await RPCClient.instance().find_existing_sends(
+            source=source,
+            destination=self.destination,
+            amount=self.amount,
+            min_timestamp=int(self.created_at.timestamp()) - 300
+        )
+        for block_hash in candidates:
+            claimed = await Transaction.filter(block_hash=block_hash).exists()
+            if not claimed:
+                return block_hash
+        return None
+
+    async def set_block_hash(self, block_hash: str):
+        async with in_transaction() as conn:
+            self.block_hash = block_hash
+            await self.save(update_fields=['block_hash'], using_db=conn)
