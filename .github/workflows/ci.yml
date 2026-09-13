@@ -64,7 +64,7 @@ jobs:
     strategy:
       matrix:
         # v5 canary: restore [bbet, nano, graham_banano, bananobot] once verified
-        app: [bbet]
+        app: [bbet, nano]
     steps:
       - uses: actions/checkout@v4
       - uses: imranismail/setup-kustomize@v2

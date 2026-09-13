@@ -24,6 +24,8 @@ spec:
         command: ["/bin/bash", "-c"]
         args: ["cp /config/config.yaml .; python bot.py start_bot -p ! -u http://pippin-nano.pippin:11338 -s \"/help\""]
         env:
+          - name: GRAHAM_PRIVILEGED_INTENTS
+            value: "0"
           - name: REDIS_HOST
             value: redis.redis
           - name: REDIS_DB
