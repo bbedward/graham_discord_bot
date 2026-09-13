@@ -5,7 +5,7 @@ from tortoise import fields
 import db.models.user as usr
 
 class Muted(Model):
-    user = fields.ForeignKeyField('db.User', related_name='muted', index=True)
+    user = fields.ForeignKeyField('db.User', related_name='muted', db_index=True)
     target_user = fields.ForeignKeyField('db.User', related_name='muted_by')
 
     class Meta:

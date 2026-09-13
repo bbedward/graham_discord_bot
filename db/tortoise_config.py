@@ -20,21 +20,24 @@ class DBConfig(object):
 
     def get_db_url(self) -> str:
         if self.use_postgres:
-            self.logger.info("Using PostgreSQL Database {self.postgres_db}")
+            self.logger.info(f"Using PostgreSQL Database {self.postgres_db}")
             return f'postgres://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}'
         self.logger.info(f"Using SQLite database dev.db")
         return f'sqlite://dev.db'
 
+    def get_config(self) -> dict:
+        # Existing columns are naive timestamps, so keep tortoise's pre-1.0 use_tz behavior
+        return {
+            'connections': {'default': self.get_db_url()},
+            'apps': {'db': {'models': self.modules['db'], 'default_connection': 'default'}},
+            'use_tz': False
+        }
+
     def init_db_aiohttp(self, app):
-        register_tortoise(app, db_url=self.get_db_url(),
-                          modules=self.modules,
-                          generate_schemas=True)
+        register_tortoise(app, config=self.get_config(), generate_schemas=True)
 
     async def init_db(self):
-        await Tortoise.init(
-            db_url=self.get_db_url(),
-            modules=self.modules
-        )
+        await Tortoise.init(config=self.get_config())
         # Create tables
         await Tortoise.generate_schemas(safe=True)
         await self.run_migrations()

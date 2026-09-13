@@ -7,7 +7,7 @@ import datetime
 import db.models.user as usr
 
 class Giveaway(Model):
-    started_by = fields.ForeignKeyField('db.User', related_name='started_giveaways', index=True, null=True)
+    started_by = fields.ForeignKeyField('db.User', related_name='started_giveaways', db_index=True, null=True)
     started_by_bot = fields.BooleanField(default=False)
     base_amount = fields.CharField(max_length=50, default = '0')
     final_amount = fields.CharField(max_length=50, default = '0', null=True)

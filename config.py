@@ -26,7 +26,7 @@ class Config(object):
             except FileNotFoundError:
                 cls.yaml = None
             parser = argparse.ArgumentParser(description=f"Graham {'BANANO' if Env.banano() else 'Nano'} Discord Bot v{__version__}")
-            parser.add_argument('-p', '--prefix', type=str, help='Command prefix for bot commands', default='!')
+            parser.add_argument('-p', '--prefix', type=str, help='Unused, kept for compatibility with old deployments', default='!')
             parser.add_argument('-l', '--log-file', type=str, help='Log file location', default='/tmp/graham_bot.log')
             parser.add_argument('-s', '--status', type=str, help="The bot's 'playing status'", default=None, required=False)
             parser.add_argument('-u', '--node-url', type=str, help='URL of the node, e.g.: http://[::1]:7072', default='http://[::1]:7072' if Env.banano() else 'http://[::1]:7076')
@@ -34,13 +34,9 @@ class Config(object):
             options, unknown = parser.parse_known_args()
 
             # Parse options
-            cls.command_prefix = options.prefix
-            if len(cls.command_prefix) != 1:
-                print("Command prefix can only be 1 character")
-                exit(1)
             cls.log_file = options.log_file
             cls.debug = options.debug
-            cls.playing_status = f"{cls.command_prefix}help for help" if options.status is None else options.status
+            cls.playing_status = "/help for help" if options.status is None else options.status
 
             cls.bot_token = os.getenv('BOT_TOKEN')
             if cls.bot_token is None:

@@ -12,14 +12,14 @@ from util.env import Env
 
 class Transaction(Model):
     id = fields.UUIDField(pk=True)
-    sending_user = fields.ForeignKeyField('db.User', related_name='sent_transactions', index=True)
-    receiving_user = fields.ForeignKeyField('db.User', related_name='received_transactions', null=True, index=True)
+    sending_user = fields.ForeignKeyField('db.User', related_name='sent_transactions', db_index=True)
+    receiving_user = fields.ForeignKeyField('db.User', related_name='received_transactions', null=True, db_index=True)
     destination = fields.CharField(max_length=65, null=True)
-    block_hash = fields.CharField(max_length=64, index=True, null=True)
+    block_hash = fields.CharField(max_length=64, db_index=True, null=True)
     amount = fields.CharField(max_length=50)
-    created_at = fields.DatetimeField(auto_now_add=True, index=True)
+    created_at = fields.DatetimeField(auto_now_add=True, db_index=True)
     modified_at = fields.DatetimeField(auto_now=True)
-    giveaway = fields.ForeignKeyField('db.Giveaway', related_name='giveaway_transactions', null=True, index=True)
+    giveaway = fields.ForeignKeyField('db.Giveaway', related_name='giveaway_transactions', null=True, db_index=True)
     retries = fields.IntField(default=0)
     failed = fields.BooleanField(default=False)
 

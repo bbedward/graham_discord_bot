@@ -16,7 +16,7 @@ Because Graham is awesome, with it you can:
 
 ## Where can I see it in action?
 
-Head to the [BANANO Discord](https://chat.banano.cc) - you can see both the NANO and BANANO bots in action just by typing `?help` and `.help`
+Head to the [BANANO Discord](https://chat.banano.cc) - you can see both the NANO and BANANO bots in action just by typing `/help`
 
 ## How do I add it to my server?
 
@@ -26,27 +26,40 @@ Graham is currently not public, but it will be soon! In the meantime you can fol
 
 ## Requirements
 
-Graham 4.0+ requires the following:
+Graham 5.0+ requires the following:
 
 - A unix environment (MacOS or Linux or WSL)
-- Python 3.7+
+- Python 3.14+
 - PostgreSQL or SQLite3
 - A Redis Server/Database
 - A NANO or BANANO node - [setting up a node](https://docs.nano.org/running-a-node/node-setup/). You will want to enable RPC and enable_control once your node is up and running. [node configuration](https://docs.nano.org/running-a-node/configuration/)
 
 It sounds like a lot, but it's actually quite simple.
 
-On ubuntu 18.04 you can get everything you need with:
+## Privileged intents
+
+Graham 5.0 works with or without Discord's privileged gateway intents. At startup it asks Discord which intents the application actually has enabled and connects accordingly:
+
+- **Server Members** granted: member/role lookups come from the gateway cache.
+- **Server Members** missing: lookups fall back to per-user HTTP fetches - everything keeps working, rains are just marginally slower.
+- **Presence** granted: users in Do Not Disturb don't receive tip notification DMs.
+- **Presence** missing: everyone receives tip notification DMs.
+- **Message Content** is never used or requested.
+
+Set `GRAHAM_PRIVILEGED_INTENTS=0` (or `=1`) in the environment to skip the probe and force a mode.
+
+
+On ubuntu you can get everything you need with:
 ```
 $ sudo apt update
 $ sudo apt install software-properties-common
 $ sudo add-apt-repository ppa:deadsnakes/ppa
-$ sudo apt install python3.7 python3.7-dev redis-server git
+$ sudo apt install python3.14 python3.14-dev python3.14-venv redis-server git
 # And if you choose to use PostgreSQL over SQLite
 $ sudo apt install postgresql
 ```
 
-Installing these requirements is dependent on your operating system, you should be able to find out how to install them quickly with a simple google search, example: "How to intall python 3.7 on centos 7", "how to install python 3.7 on MacOS catalina"
+Installing these requirements is dependent on your operating system, you should be able to find out how to install them quickly with a simple google search, example: "How to install python 3.14 on MacOS"
 
 ## Configuring the bot
 
@@ -65,7 +78,7 @@ BOT_TOKEN=1234
 ```
 
 2) **Command Line Arguments**
-These are all required options, but they have typical defaults already specified. Use **`python3.7 bot.py --help`** to see the full list of options.
+These are all required options, but they have typical defaults already specified. Use **`python3.14 bot.py --help`** to see the full list of options. The `-p/--prefix` flag is vestigial: all commands are Discord slash commands as of 5.0.
 
 3) **YAML Configuration File**
 A file fulled of optional settings, everything in the file is optional - typically these settings tweak the bot's behavior and various thresholds. You need to create the file **`config.yaml`** with the options you want, you can see all of the available options in **`config.yaml.example`**
@@ -134,8 +147,7 @@ We're going to use a `virtualenv` as the environment our bot will run in.
 
 ```
 # Create virtualenv
-$ python3.7 -m pip install virtualenv
-$ python3.7 -m virtualenv venv
+$ python3.14 -m venv venv
 $ source venv/bin/activate
 # Install requirements
 $ pip install -U -r requirements.txt

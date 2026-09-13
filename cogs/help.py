@@ -1,13 +1,15 @@
-from cogs import tips, account, stats, rain, admin, useroptions, favorites, giveaway
-from discord.ext import commands
-from discord.ext.commands import Bot, Context
-from util.env import Env
-from util.discord.messages import Messages
-from util.discord.paginator import Paginator, Page, CannotPaginate, Entry
-from version import __version__
-
-import config
 import logging
+
+import discord
+from discord import app_commands
+from discord.ext import commands
+
+from cogs import account, admin, favorites, giveaway, rain, spy, stats, tips, useroptions
+from util.discord.messages import Messages
+from util.discord.paginator import CannotPaginate, Entry, Page, Paginator
+from util.discord.resolver import resolve
+from util.env import Env
+from version import __version__
 
 COMMANDS = {
     'ACCOUNT': {
@@ -63,7 +65,7 @@ COMMANDS = {
             favorites.REMOVE_FAVORITE_INFO,
             favorites.FAVORITES_INFO
         ]
-    },    
+    },
 }
 
 ADMIN_COMMANDS = {
@@ -83,65 +85,38 @@ ADMIN_COMMANDS = {
             admin.STATSUNBAN_INFO,
             admin.STATSBANNED_INFO,
             admin.DECREASETIPS_INFO,
-            admin.INCREASETIPS_INFO
+            admin.INCREASETIPS_INFO,
+            spy.WFU_INFO,
+            spy.UFW_INFO
         ]
     }
 }
 
 class HelpCog(commands.Cog):
-    def __init__(self, bot: Bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.logger = logging.getLogger()
 
-    async def cog_before_invoke(self, ctx: Context):
-        ctx.error = False
-        # Only allow tip commands in public channels
-        msg = ctx.message
-        # Determine if user is admin
-        ctx.god = msg.author.id in config.Config.instance().get_admin_ids()
-        if not ctx.god:
-            ctx.admin = False
-            for g in self.bot.guilds:
-                member = g.get_member(msg.author.id)
-                if member is not None:
-                    for role in member.roles:
-                        if role.id in config.Config.instance().get_admin_roles():
-                            ctx.admin = True
-                            break
-                if ctx.admin:
-                    break
-        else:
-            ctx.admin = True
+    def get_entries(self, cmd_list: list) -> list:
+        return [Entry(f"/{cmd.triggers[0]}", cmd.details) for cmd in cmd_list]
 
-    def get_entries(self, commands: list) -> list:
-        entries = []
-        for cmd in commands:
-            entries.append(Entry(f"{config.Config.instance().command_prefix}{cmd.triggers[0]}", cmd.details))
-        return entries
-
-    def get_help_pages(self, cmd_dict: dict, adminhelp: bool = False) -> list:
+    def get_help_pages(self, cmd_dict: dict) -> list:
         """Builds paginated help menu"""
         pages = []
         # Overview
         author=f"Graham v{__version__} ({'BANANO' if Env.banano() else 'Nano'}) edition"
         title="Command Overview"
-        description=("Use `{0}help command` for more information about a specific command " +
-                " or go to the next page").format(config.Config.instance().command_prefix)
+        description="Use `/help command:<name>` for more information about a specific command, or go to the next page"
         entries = []
-        for k, cmd_list in cmd_dict.items():
+        for k in cmd_dict:
             for cmd in cmd_dict[k]['cmd_list']:
-                entries.append(Entry(f"{config.Config.instance().command_prefix}{cmd.triggers[0]}", cmd.overview))
-        if adminhelp:
-            entries.append(Entry(f"{config.Config.instance().command_prefix}adminhelp", "View the full list of admin commands"))
-        pages.append(Page(entries=entries, title=title,author=author, description=description))
+                entries.append(Entry(f"/{cmd.triggers[0]}", cmd.overview))
+        pages.append(Page(entries=entries, title=title, author=author, description=description))
         # Build detail pages
         for group, details in cmd_dict.items():
-            author=cmd_dict[group]['header']
-            description=cmd_dict[group]['info']
-            entries = self.get_entries(cmd_dict[group]['cmd_list'])
-            pages.append(Page(entries=entries, author=author,description=description))
+            pages.append(Page(entries=self.get_entries(details['cmd_list']), author=details['header'], description=details['info']))
         # Info
-        entries = [Entry(f"{config.Config.instance().command_prefix}{tips.TIPAUTHOR_INFO.triggers[0]}", tips.TIPAUTHOR_INFO.details)]
+        entries = [Entry(f"/{tips.TIPAUTHOR_INFO.triggers[0]}", tips.TIPAUTHOR_INFO.details)]
         author=f"Graham v{__version__} for {Env.currency_name()}"
         heart = '\U0001F49B' if Env.banano() else '\U0001F499'
         description = "This bot is completely free, open source, and MIT licensed"
@@ -151,53 +126,33 @@ class HelpCog(commands.Cog):
         description+= f"\nMy Reddit: **/u/bbedward**"
         description+= f"\nMy Twitter: **@theRealBbedward**"
         description+= f"\n\nGraham GitHub: https://github.com/bbedward/graham_discord_bot"
-        pages.append(Page(entries=entries, author=author,description=description))
+        pages.append(Page(entries=entries, author=author, description=description))
         return pages
 
-    @commands.command()
-    async def help(self, ctx: Context):
-        """Show help menu or show info about a specific command"""
-        msg = ctx.message
-        # If they spplied an argument post usage for a specific command if applicable
-        content = msg.content.split(' ')
-        if len(content) > 1:
-            arg = content[1].strip().lower()
-            found = False
-            for key, cmd in COMMANDS.items():
-                for c in cmd['cmd_list']:
-                    if arg in c.triggers:
-                        found = True
-                        await Messages.send_usage_dm(msg.author, c)
-            if not found:
-                await Messages.send_error_dm(msg.author, f'No such command: "**{arg}**"')
-        else:
-            try:
-                pages = Paginator(self.bot, message=msg, page_list=self.get_help_pages(COMMANDS, adminhelp=ctx.admin),as_dm=True)
-                await pages.paginate(start_page=1)
-            except CannotPaginate as e:
-                self.logger.exception('Exception in paginator')
+    @app_commands.command(name="help", description="Show the help menu or info about a specific command")
+    @app_commands.describe(command="The command to show detailed help for")
+    async def help_cmd(self, interaction: discord.Interaction, command: str = None):
+        inv = await resolve(interaction, check_paused=False, require_registered=False)
+        cmd_dicts = [COMMANDS, ADMIN_COMMANDS] if inv.admin else [COMMANDS]
 
-    @commands.command()
-    async def adminhelp(self, ctx: Context):
-        """Show help menu or show info about a specific command"""
-        if not ctx.admin:
+        if command is not None:
+            arg = command.strip().lower().lstrip('/')
+            for cmd_dict in cmd_dicts:
+                for key, cmd in cmd_dict.items():
+                    for c in cmd['cmd_list']:
+                        if arg in c.triggers:
+                            embed = discord.Embed(colour=discord.Colour.purple())
+                            embed.title = "Usage"
+                            embed.add_field(name=f"/{c.triggers[0]}", value=c.details, inline=False)
+                            await interaction.response.send_message(embed=embed, ephemeral=True)
+                            return
+            await Messages.respond_error(interaction, f'No such command: "**{arg}**"')
             return
-        msg = ctx.message
-        # If they spplied an argument post usage for a specific command if applicable
-        content = msg.content.split(' ')
-        if len(content) > 1:
-            arg = content[1].strip().lower()
-            found = False
-            for key, cmd in ADMIN_COMMANDS.items():
-                for c in cmd['cmd_list']:
-                    if arg in c.triggers:
-                        found = True
-                        await Messages.send_usage_dm(msg.author, c)
-            if not found:
-                await Messages.send_error_dm(msg.author, f'No such command: "**{arg}**"')
-        else:
-            try:
-                pages = Paginator(self.bot, message=msg, page_list=self.get_help_pages(ADMIN_COMMANDS),as_dm=True)
-                await pages.paginate(start_page=1)
-            except CannotPaginate as e:
-                self.logger.exception('Exception in paginator')
+
+        pages = self.get_help_pages(COMMANDS)
+        if inv.admin:
+            pages += self.get_help_pages(ADMIN_COMMANDS)
+        try:
+            await Paginator.send_as_response(interaction, pages, ephemeral=True)
+        except CannotPaginate:
+            self.logger.exception('Exception in paginator')

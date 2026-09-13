@@ -73,7 +73,7 @@ class GrahamServer(object):
 
         # Get all activity stats from DB
         users_list = []
-        async for key in redis.iscan(match=f"*activity:{server_id}*"):
+        async for key in redis.scan_iter(match=f"*activity:{server_id}*"):
             u = await redis.get(key)
             if u is not None:
                 users_list.append(json.loads(u))
@@ -254,10 +254,10 @@ class GrahamServer(object):
                     self.logger.debug(f'Deposit received: {request_json["amount"]} for {account.user.id}')
                     amount_string = f"{Env.raw_to_amount(int(request_json['amount']))} {Env.currency_symbol()}"
                     redis = await RedisDB.instance().get_redis()
-                    await redis.publish_json(self.subID, {
+                    await redis.publish(self.subID, json.dumps({
                         "id": account.user.id,
                         "message": f"Your deposit of **{amount_string}** has been received. It will be in your available balance shortly!",
-                    })
+                    }))
         return web.HTTPOk()
 
     def start(self):

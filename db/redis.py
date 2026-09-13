@@ -1,6 +1,6 @@
-import aioredis
-import asyncio
 import os
+
+import redis.asyncio as aredis
 
 from util.env import Env
 
@@ -20,62 +20,61 @@ class RedisDB(object):
     @classmethod
     async def close(cls):
         if hasattr(cls, 'redis') and cls.redis is not None:
-            cls.redis.close()
-            await cls.redis.wait_closed()
+            await cls.redis.aclose()
         if cls._instance is not None:
             cls._instance = None
 
     @classmethod
-    async def get_redis(cls) -> aioredis.Redis:
+    async def get_redis(cls) -> aredis.Redis:
         if cls.redis is not None:
             return cls.redis
-        # TODO - we should let them override redis host/port in configuration
-        cls.redis = await aioredis.create_redis_pool((os.getenv('REDIS_HOST', 'localhost'), 6379), db=int(os.getenv('REDIS_DB', '1')), encoding='utf-8', minsize=1, maxsize=5)
+        cls.redis = aredis.Redis(
+            host=os.getenv('REDIS_HOST', 'localhost'),
+            port=6379,
+            db=int(os.getenv('REDIS_DB', '1')),
+            decode_responses=True,
+            max_connections=5
+        )
         return cls.redis
 
+    async def pubsub(self) -> aredis.client.PubSub:
+        redis = await self.get_redis()
+        return redis.pubsub()
+
     async def set(self, key: str, value: str, expires: int = 0):
-        """Basic redis SET"""
-        # Add a prefix to allow our bot to be friendly with other bots within the same redis DB
+        # Key prefix keeps this bot friendly with other bots in the same redis DB
         key = f"{Env.currency_name().lower()}{key}"
         redis = await self.get_redis()
-        await redis.set(key, value, expire=expires)
+        await redis.set(key, value, ex=expires if expires else None)
 
     async def get(self, key: str):
-        """Redis GET"""
-        # Add a prefix to allow our bot to be friendly with other bots within the same redis DB
         key = f"{Env.currency_name().lower()}{key}"
         redis = await self.get_redis()
         return await redis.get(key)
 
     async def delete(self, key: str):
-        """Redis DELETE"""
         key = f"{Env.currency_name().lower()}{key}"
         await self._delete(key)
 
     async def _delete(self, key: str):
-        """Redis DELETE"""
         redis = await self.get_redis()
         await redis.delete(key)
 
     async def exists(self, key: str):
-        """See if a key exists"""
         key = f"{Env.currency_name().lower()}{key}"
         redis = await self.get_redis()
         return (await redis.get(key)) is not None
 
     async def pause(self):
-        """Pause tipbot activity"""
         key = f"{Env.currency_name().lower()}:botpaused"
         redis = await self.get_redis()
         await redis.set(key, "paused")
 
     async def resume(self):
-        """Resume tipbot activity"""
         key = f"{Env.currency_name().lower()}:botpaused"
         await self._delete(key)
 
     async def is_paused(self) -> bool:
-        """Return True if the bot is paused or not"""
         key = f"{Env.currency_name().lower()}:botpaused"
         redis = await self.get_redis()
         return (await redis.get(key)) is not None

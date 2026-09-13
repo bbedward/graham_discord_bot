@@ -1,22 +1,23 @@
+import asyncio
+import re
+import secrets
+
+import discord
+from discord import app_commands
 from discord.ext import commands
-from discord.ext.commands import Bot, Context
-from models.command import CommandInfo
-from models.constants import Constants
-from util.discord.channel import ChannelUtil
-from util.discord.messages import Messages
-from util.env import Env
-from util.regex import RegexUtil, AmountMissingException
-from util.validators import Validators
+
+import cogs.rain as rain
+import config
 from db.models.stats import Stats
 from db.models.transaction import Transaction
-from db.models.user import User
 from db.redis import RedisDB
+from models.command import CommandInfo
+from models.constants import Constants
 from tasks.transaction_queue import TransactionQueue
-
-import asyncio
-import config
-import cogs.rain as rain
-import secrets
+from util.discord.messages import Messages
+from util.discord.resolver import require_user, validate_amount
+from util.discord.users import resolve_member, resolve_user
+from util.env import Env
 from util.util import Utils
 
 ## Command documentation
@@ -26,7 +27,7 @@ TIP_INFO = CommandInfo(
     details = f"Tip specified amount to mentioned user(s) (**minimum tip is {Constants.TIP_MINIMUM} {Constants.TIP_UNIT}**)" +
         "\nThe recipient(s) will be notified of your tip via private message" +
         "\nSuccessful tips will be deducted from your available balance immediately.\n" +
-     f"Example: `{config.Config.instance().command_prefix}{'ban' if Env.banano() else 'ntip'} 2 @user1 @user2` would send 2 to user1 and 2 to user2"
+     f"Example: `/{'ban' if Env.banano() else 'ntip'} 2 @user1 @user2` would send 2 to user1 and 2 to user2"
 )
 TIPSPLIT_INFO = CommandInfo(
     triggers = ["bansplit", "bs"] if Env.banano() else ["ntipsplit", "ns"],
@@ -34,7 +35,7 @@ TIPSPLIT_INFO = CommandInfo(
     details = f"Divide the specified amount between mentioned user(s) (**minimum tip is {Constants.TIP_MINIMUM} {Constants.TIP_UNIT}**)" +
         "\nThe recipient(s) will be notified of your tip via private message" +
         "\nSuccessful tips will be deducted from your available balance immediately.\n" +
-     f"Example: `{config.Config.instance().command_prefix}{'bansplit' if Env.banano() else 'ntipsplit'} 2 @user1 @user2` would send 1 to user1 and 2 to user2"
+     f"Example: `/{'bansplit' if Env.banano() else 'ntipsplit'} 2 @user1 @user2` would send 1 to user1 and 1 to user2"
 )
 TIPRANDOM_INFO = CommandInfo(
     triggers = ["banrandom", "br"] if Env.banano() else ["ntiprandom", "ntr"],
@@ -45,213 +46,50 @@ TIPRANDOM_INFO = CommandInfo(
 TIPAUTHOR_INFO = CommandInfo(
     triggers = ["banauthor", "tipauthor"] if Env.banano() else ["tipauthor"],
     overview = "Donate to support my creator",
-    details = f"Support the author of this bot (bbedward)"
+    details = "Support the author of this bot (bbedward)"
 )
 
+MENTION_PATTERN = re.compile(r'<@!?(\d+)>')
+
+def tip_notification(amount: float, sender: discord.abc.User) -> str:
+    return f"You were tipped **{amount} {Env.currency_symbol()}** by {sender.name.replace('`', '')}.\nUse `/mute` to disable notifications for this user."
+
 class TipsCog(commands.Cog):
-    def __init__(self, bot: Bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    async def cog_before_invoke(self, ctx: Context):
-        ctx.error = False
-        # Remove duplicate mentions
-        ctx.message.mentions = set(ctx.message.mentions)
-        # Only allow tip commands in public channels
-        msg = ctx.message
-        if ChannelUtil.is_private(msg.channel):
-            ctx.error = True
-            return
-        else:
-            # Check admins
-            ctx.god = msg.author.id in config.Config.instance().get_admin_ids()
-            ctx.admin = False
-            author: discord.Member = msg.author
-            for role in author.roles:
-                if role.id in config.Config.instance().get_admin_roles():
-                    ctx.admin = True
-                    break
-        # Check paused
-        if await RedisDB.instance().is_paused():
-            ctx.error = True
-            await Messages.send_error_dm(msg.author, f"Transaction activity is currently suspended. I'll be back online soon!")
-            return
-        # See if user exists in DB
-        user = await User.get_user(msg.author)
-        if user is None:
-            ctx.error = True
-            await Messages.send_error_dm(msg.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
-            return
-        elif user.frozen:
-            ctx.error = True
-            await Messages.send_error_dm(msg.author, f"Your account is frozen. Contact an admin if you need further assistance.")
-            return
-        # Update name, if applicable
-        await user.update_name(msg.author.name)
-        ctx.user = user
-        # See if amount meets tip_minimum requirement
-        try:
-            send_amount = RegexUtil.find_float(msg.content)
-            if ctx.command.name == 'tiprandom_cmd' and send_amount < Constants.TIPRANDOM_MINIMUM:
-                raise AmountMissingException(f"Tip random amount is too low, minimum is {Constants.TIPRANDOM_MINIMUM}")
-            elif ctx.command.name != 'tiprandom_cmd' and ctx.command.name != 'burn' and send_amount < Constants.TIP_MINIMUM:
-                raise AmountMissingException(f"Tip amount is too low, minimum is {Constants.TIP_MINIMUM}")
-            elif ctx.command.name == 'burn' and send_amount < 1.0:
-                raise AmountMissingException(f"Come on, burn at least 1 BAN")
-            elif Validators.too_many_decimals(send_amount):
-                await Messages.send_error_dm(ctx.message.author, f"You are only allowed to use {Env.precision_digits()} digits after the decimal.")
-                ctx.error = True
-                return
-        except AmountMissingException:
-            ctx.error = True
-            if ctx.command.name == 'tip_cmd':
-                await Messages.send_usage_dm(msg.author, TIP_INFO)
-            elif ctx.command.name == 'tipsplit_cmd':
-                await Messages.send_usage_dm(msg.author, TIPSPLIT_INFO)
-            elif ctx.command.name == 'tiprandom_cmd':
-                await Messages.send_usage_dm(msg.author, TIPRANDOM_INFO)
-            elif ctx.command.name == 'burn':
-                await Messages.send_basic_dm(msg.author, 'Come on, burn at least 1 ya cheap skate')
-            return
-        ctx.send_amount = send_amount
+    async def collect_recipients(self, interaction: discord.Interaction, users: list, more: str) -> list:
+        recipients = []
+        seen = set()
+        candidates = [u for u in users if u is not None]
+        if more is not None and interaction.guild is not None:
+            for match in MENTION_PATTERN.finditer(more):
+                member = await resolve_member(interaction.guild, int(match.group(1)))
+                if member is not None:
+                    candidates.append(member)
+        for u in candidates:
+            if u.bot or u.id == interaction.user.id or u.id in seen:
+                continue
+            seen.add(u.id)
+            recipients.append(u)
+        return recipients
 
-    @commands.command()
-    async def burn(self, ctx: Context):
-        return
-        msg = ctx.message
-        user = ctx.user
-        send_amount = ctx.send_amount
+    async def process_tip(self, interaction: discord.Interaction, individual_amount: float, recipients: list):
+        inv = await require_user(interaction)
+        user = inv.user
 
-        # See how much they need to make this tip.
-        available_balance = Env.raw_to_amount(await user.get_available_balance())
-        if send_amount > available_balance:
-            await Messages.add_x_reaction(ctx.message)
-            await Messages.send_error_dm(msg.author, f"Your balance isn't high enough to complete this burn. You have **{available_balance} {Env.currency_symbol()}**, but you need **{send_amount} {Env.currency_symbol()}**")
-            return
-
-        # Make the transactions in the database
-        tx = await Transaction.create_transaction_external(
-            sending_user=user,
-            amount=send_amount,
-            destination='ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w'
-        )
-        # Add reactions
-        await Messages.add_burn_reaction(msg)
-        # Queue the actual sends
-        await TransactionQueue.instance().put(tx)
-
-    @commands.command(aliases=TIP_INFO.triggers)
-    async def tip_cmd(self, ctx: Context):
-        if ctx.error:
-            await Messages.add_x_reaction(ctx.message)
-            return
-
-        msg = ctx.message
-        user = ctx.user
-        send_amount = ctx.send_amount
-
-        # Get all eligible users to tip in their message
-        users_to_tip = []
-        for m in msg.mentions:
-            if not m.bot and m.id != msg.author.id:
-                users_to_tip.append(m)
-        if len(users_to_tip) < 1:
-            await Messages.add_x_reaction(msg)
-            await Messages.send_error_dm(msg.author, f"No users you mentioned are eligible to receive tips.")
-            return
-
-        # See how much they need to make this tip.
-        amount_needed = send_amount * len(users_to_tip)
-        available_balance = Env.raw_to_amount(await user.get_available_balance())
-        if Env.currency_name() == 'Nano' and (amount_needed == 10000 or amount_needed == 3000 or amount_needed == 5000) and msg.author.id == 303599885800964097:
-            for u in users_to_tip:
-                await Messages.send_basic_dm(
-                    member=u,
-                    message=f"You were tipped **{send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
-                    skip_dnd=True
-                )
-            await Messages.add_tip_reaction(msg, amount_needed)
-            return
-        elif amount_needed > available_balance:
-            await Messages.add_x_reaction(ctx.message)
-            await Messages.send_error_dm(msg.author, f"Your balance isn't high enough to complete this tip. You have **{available_balance} {Env.currency_symbol()}**, but this tip would cost you **{amount_needed} {Env.currency_symbol()}**")
-            return
-
-        # Make the transactions in the database
-        tx_list = []
-        task_list = []
-        for u in users_to_tip:
-            tx = await Transaction.create_transaction_internal(
-                sending_user=user,
-                amount=send_amount,
-                receiving_user=u
-            )
-            if tx is not None:
-                tx_list.append(tx)
-                if not await user.is_muted_by(u.id):
-                    task_list.append(
-                        Messages.send_basic_dm(
-                            member=u,
-                            message=f"You were tipped **{send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
-                            skip_dnd=True
-                        )
-                    )
-        if len(tx_list) < 1:
-            await Messages.add_x_reaction(msg)
-            await Messages.send_error_dm(msg.author, f"No users you mentioned are eligible to receive tips.")
-            return
-        # Send DMs in background, this is an attempt to avoid discord throttling us for sending too many at once
-        asyncio.ensure_future(Utils.run_task_list(task_list))
-        # Add reactions
-        await Messages.add_tip_reaction(msg, send_amount * len(tx_list))
-        # Queue the actual sends
-        for tx in tx_list:
-            await TransactionQueue.instance().put(tx)
-        # Update stats
-        stats: Stats = await user.get_stats(server_id=msg.guild.id)
-        if msg.channel.id not in config.Config.instance().get_no_stats_channels():
-            await stats.update_tip_stats(send_amount * len(tx_list))
-
-    @commands.command(aliases=TIPSPLIT_INFO.triggers)
-    async def tipsplit_cmd(self, ctx: Context):
-        if ctx.error:
-            await Messages.add_x_reaction(ctx.message)
-            return
-
-        msg = ctx.message
-        user = ctx.user
-        send_amount = ctx.send_amount
-
-        # Get all eligible users to tip in their message
-        users_to_tip = []
-        for m in msg.mentions:
-            if not m.bot and m.id != msg.author.id:
-                users_to_tip.append(m)
-        if len(users_to_tip) < 1:
-            await Messages.add_x_reaction(msg)
-            await Messages.send_error_dm(msg.author, f"No users you mentioned are eligible to receive tips.")
-            return
-
-        individual_send_amount = Env.truncate_digits(send_amount / len(users_to_tip), max_digits=Env.precision_digits())
-        if individual_send_amount < Constants.TIP_MINIMUM:
-            await Messages.add_x_reaction(msg)
-            await Messages.send_error_dm(msg.author, f"Tip amount too small, each user needs to receive at least {Constants.TIP_MINIMUM}. With your tip they'd only be getting {individual_send_amount}")
-            return
-
-        # See how much they need to make this tip.
-        amount_needed = individual_send_amount * len(users_to_tip)
+        amount_needed = individual_amount * len(recipients)
         available_balance = Env.raw_to_amount(await user.get_available_balance())
         if amount_needed > available_balance:
-            await Messages.add_x_reaction(msg)
-            await Messages.send_error_dm(msg.author, f"Your balance isn't high enough to complete this tip. You have **{available_balance} {Env.currency_symbol()}**, but this tip would cost you **{amount_needed} {Env.currency_symbol()}**")
+            await Messages.respond_error(interaction, f"Your balance isn't high enough to complete this tip. You have **{available_balance} {Env.currency_symbol()}**, but this tip would cost you **{amount_needed} {Env.currency_symbol()}**")
             return
 
-        # Make the transactions in the database
         tx_list = []
         task_list = []
-        for u in users_to_tip:
+        for u in recipients:
             tx = await Transaction.create_transaction_internal(
                 sending_user=user,
-                amount=individual_send_amount,
+                amount=individual_amount,
                 receiving_user=u
             )
             if tx is not None:
@@ -260,124 +98,143 @@ class TipsCog(commands.Cog):
                     task_list.append(
                         Messages.send_basic_dm(
                             member=u,
-                            message=f"You were tipped **{individual_send_amount} {Env.currency_symbol()}** by {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
+                            message=tip_notification(individual_amount, interaction.user),
                             skip_dnd=True
                         )
                     )
         if len(tx_list) < 1:
-            await Messages.add_x_reaction(msg)
-            await Messages.send_error_dm(msg.author, f"No users you mentioned are eligible to receive tips.")
+            await Messages.respond_error(interaction, "No users you mentioned are eligible to receive tips.")
             return
-        # Send DMs
-        asyncio.ensure_future(Utils.run_task_list(task_list))
-        # Add reactions
-        await Messages.add_tip_reaction(msg, amount_needed)
         # Queue the actual sends
         for tx in tx_list:
             await TransactionQueue.instance().put(tx)
+        # Send DMs in background, this is an attempt to avoid discord throttling us for sending too many at once
+        asyncio.ensure_future(Utils.run_task_list(task_list))
+        targets = ', '.join(u.mention for u in recipients)
+        await Messages.send_tip_line(interaction, individual_amount * len(tx_list), interaction.user, targets)
         # Update stats
-        stats: Stats = await user.get_stats(server_id=msg.guild.id)
-        if msg.channel.id not in config.Config.instance().get_no_stats_channels():
-            await stats.update_tip_stats(amount_needed)
+        stats: Stats = await user.get_stats(server_id=interaction.guild_id)
+        if interaction.channel_id not in config.Config.instance().get_no_stats_channels():
+            await stats.update_tip_stats(individual_amount * len(tx_list))
 
-    @commands.command(aliases=TIPRANDOM_INFO.triggers)
-    async def tiprandom_cmd(self, ctx: Context):
-        if ctx.error:
-            await Messages.add_x_reaction(ctx.message)
+    @app_commands.command(name="ban" if Env.banano() else "ntip", description=TIP_INFO.overview)
+    @app_commands.describe(amount="Amount to send to each user", to="The user to tip", more="Additional @mentions to tip the same amount")
+    @app_commands.guild_only()
+    async def tip_cmd(self, interaction: discord.Interaction, amount: float, to: discord.User,
+                      to2: discord.User = None, to3: discord.User = None, to4: discord.User = None,
+                      to5: discord.User = None, to6: discord.User = None, to7: discord.User = None,
+                      to8: discord.User = None, to9: discord.User = None, more: str = None):
+        await interaction.response.defer()
+        validate_amount(amount, minimum=Constants.TIP_MINIMUM)
+        recipients = await self.collect_recipients(interaction, [to, to2, to3, to4, to5, to6, to7, to8, to9], more)
+        if len(recipients) < 1:
+            await Messages.respond_error(interaction, "No users you mentioned are eligible to receive tips.")
             return
+        await self.process_tip(interaction, amount, recipients)
 
-        msg = ctx.message
-        user = ctx.user
-        send_amount = ctx.send_amount
+    @app_commands.command(name="bansplit" if Env.banano() else "ntipsplit", description=TIPSPLIT_INFO.overview)
+    @app_commands.describe(amount="Amount to divide between all mentioned users", to="The user to tip", more="Additional @mentions to split the amount with")
+    @app_commands.guild_only()
+    async def tipsplit_cmd(self, interaction: discord.Interaction, amount: float, to: discord.User,
+                           to2: discord.User = None, to3: discord.User = None, to4: discord.User = None,
+                           to5: discord.User = None, to6: discord.User = None, to7: discord.User = None,
+                           to8: discord.User = None, to9: discord.User = None, more: str = None):
+        await interaction.response.defer()
+        validate_amount(amount, minimum=Constants.TIP_MINIMUM)
+        recipients = await self.collect_recipients(interaction, [to, to2, to3, to4, to5, to6, to7, to8, to9], more)
+        if len(recipients) < 1:
+            await Messages.respond_error(interaction, "No users you mentioned are eligible to receive tips.")
+            return
+        individual_send_amount = Env.truncate_digits(amount / len(recipients), max_digits=Env.precision_digits())
+        if individual_send_amount < Constants.TIP_MINIMUM:
+            await Messages.respond_error(interaction, f"Tip amount too small, each user needs to receive at least {Constants.TIP_MINIMUM}. With your tip they'd only be getting {individual_send_amount}")
+            return
+        await self.process_tip(interaction, individual_send_amount, recipients)
+
+    @app_commands.command(name="banrandom" if Env.banano() else "ntiprandom", description=TIPRANDOM_INFO.overview)
+    @app_commands.describe(amount="Amount to tip a random active user")
+    @app_commands.guild_only()
+    async def tiprandom_cmd(self, interaction: discord.Interaction, amount: float):
+        await interaction.response.defer()
+        inv = await require_user(interaction)
+        validate_amount(amount, minimum=Constants.TIPRANDOM_MINIMUM)
+        user = inv.user
 
         # Check anti-spam
-        if not ctx.god and await RedisDB.instance().exists(f"tiprandomspam{msg.guild.id}{msg.author.id}"):
-            await Messages.add_timer_reaction(msg)
-            await Messages.send_basic_dm(msg.author, "You can only tiprandom once every minute")
+        if not inv.god and await RedisDB.instance().exists(f"tiprandomspam{interaction.guild_id}{interaction.user.id}"):
+            await Messages.respond_error(interaction, "You can only tiprandom once every minute")
             return
 
-        active_users = await rain.RainCog.get_active(ctx, excluding=msg.author.id)
-
+        active_users = await rain.RainCog.get_active(interaction.guild_id, excluding=interaction.user.id)
         if len(active_users) < Constants.RAIN_MIN_ACTIVE_COUNT:
-            await Messages.send_error_dm(msg.author, f"There aren't enough active people to do a random tip. Only **{len(active_users)}** are active, but I'd like to see at least **{Constants.RAIN_MIN_ACTIVE_COUNT}**")
+            await Messages.respond_error(interaction, f"There aren't enough active people to do a random tip. Only **{len(active_users)}** are active, but I'd like to see at least **{Constants.RAIN_MIN_ACTIVE_COUNT}**")
             return
 
         target_user = secrets.choice(active_users)
 
-        # See how much they need to make this tip.
         available_balance = Env.raw_to_amount(await user.get_available_balance())
-        if send_amount > available_balance:
-            await Messages.add_x_reaction(ctx.message)
-            await Messages.send_error_dm(msg.author, f"Your balance isn't high enough to complete this tip. You have **{available_balance} {Env.currency_symbol()}**, but this tip would cost you **{send_amount} {Env.currency_symbol()}**")
+        if amount > available_balance:
+            await Messages.respond_error(interaction, f"Your balance isn't high enough to complete this tip. You have **{available_balance} {Env.currency_symbol()}**, but this tip would cost you **{amount} {Env.currency_symbol()}**")
             return
 
-        # Make the transactions in the database
         tx = await Transaction.create_transaction_internal_dbuser(
             sending_user=user,
-            amount=send_amount,
+            amount=amount,
             receiving_user=target_user
         )
+        await TransactionQueue.instance().put(tx)
         task_list = []
         if not await user.is_muted_by(target_user.id):
+            target_member = await resolve_member(interaction.guild, target_user.id)
+            if target_member is None:
+                target_member = await resolve_user(self.bot, target_user.id)
             task_list.append(
                 Messages.send_basic_dm(
-                    member=msg.guild.get_member(target_user.id),
-                    message=f"You were randomly selected and received **{send_amount} {Env.currency_symbol()}** from {msg.author.name.replace('`', '')}.\nUse `{config.Config.instance().command_prefix}mute {msg.author.id}` to disable notifications for this user.",
+                    member=target_member,
+                    message=f"You were randomly selected and received **{amount} {Env.currency_symbol()}** from {interaction.user.name.replace('`', '')}.\nUse `/mute` to disable notifications for this user.",
                     skip_dnd=True
                 )
             )
         task_list.append(
             Messages.send_basic_dm(
-                member=msg.author,
-                message=f'"{target_user.name}" was the recipient of your random tip of {send_amount} {Env.currency_symbol()}'
+                member=interaction.user,
+                message=f'"{target_user.name}" was the recipient of your random tip of {amount} {Env.currency_symbol()}'
             )
         )
         asyncio.ensure_future(Utils.run_task_list(task_list))
-        # Add reactions
-        await Messages.add_tip_reaction(msg, send_amount)
-        # Queue the actual send
-        await TransactionQueue.instance().put(tx)
+        await Messages.send_tip_line(interaction, amount, interaction.user, "a random active user \U0001F3B2")
         # anti spam
-        await RedisDB.instance().set(f"tiprandomspam{msg.guild.id}{msg.author.id}", "as", expires=60)
+        await RedisDB.instance().set(f"tiprandomspam{interaction.guild_id}{interaction.user.id}", "as", expires=60)
         # Update stats
-        stats: Stats = await user.get_stats(server_id=msg.guild.id)
-        if msg.channel.id not in config.Config.instance().get_no_stats_channels():
-            await stats.update_tip_stats(send_amount)
+        stats: Stats = await user.get_stats(server_id=interaction.guild_id)
+        if interaction.channel_id not in config.Config.instance().get_no_stats_channels():
+            await stats.update_tip_stats(amount)
 
-    @commands.command(aliases=TIPAUTHOR_INFO.triggers)
-    async def tipauthor_cmd(self, ctx: Context):
-        if ctx.error:
-            await Messages.add_x_reaction(ctx.message)
-            return
+    @app_commands.command(name="banauthor" if Env.banano() else "tipauthor", description=TIPAUTHOR_INFO.overview)
+    @app_commands.describe(amount="Amount to donate to the bot author")
+    @app_commands.guild_only()
+    async def tipauthor_cmd(self, interaction: discord.Interaction, amount: float):
+        await interaction.response.defer()
+        inv = await require_user(interaction)
+        validate_amount(amount, minimum=Constants.TIP_MINIMUM)
+        user = inv.user
 
-        msg = ctx.message
-        user = ctx.user
-        send_amount = ctx.send_amount
-
-        # See how much they need to make this tip.
         available_balance = Env.raw_to_amount(await user.get_available_balance())
-        if send_amount > available_balance:
-            await Messages.add_x_reaction(ctx.message)
-            await Messages.send_error_dm(msg.author, f"Your balance isn't high enough to complete this tip. You have **{available_balance} {Env.currency_symbol()}**, but this tip would cost you **{send_amount} {Env.currency_symbol()}**")
+        if amount > available_balance:
+            await Messages.respond_error(interaction, f"Your balance isn't high enough to complete this tip. You have **{available_balance} {Env.currency_symbol()}**, but this tip would cost you **{amount} {Env.currency_symbol()}**")
             return
 
-        # Make the transactions in the database
-        tx_list = []
-        task_list = []
         tx = await Transaction.create_transaction_external(
             sending_user=user,
-            amount=send_amount,
+            amount=amount,
             destination=Env.donation_address()
         )
-        # Add reactions
-        await msg.add_reaction('\U00002611')
-        await msg.add_reaction('\U0001F618')
-        await msg.add_reaction('\u2764')
-        await msg.add_reaction('\U0001F499')
-        await msg.add_reaction('\U0001F49B')
-        # Queue the actual send
         await TransactionQueue.instance().put(tx)
+        try:
+            await interaction.followup.send(f"\U00002611\U0001F618❤ **{interaction.user.display_name}** donated to the bot author. Thank you!")
+        except Exception:
+            pass
         # Update stats
-        stats: Stats = await user.get_stats(server_id=msg.guild.id)
-        if msg.channel.id not in config.Config.instance().get_no_stats_channels():
-            await stats.update_tip_stats(send_amount)
+        stats: Stats = await user.get_stats(server_id=interaction.guild_id)
+        if interaction.channel_id not in config.Config.instance().get_no_stats_channels():
+            await stats.update_tip_stats(amount)

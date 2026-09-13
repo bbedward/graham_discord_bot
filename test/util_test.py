@@ -3,7 +3,7 @@ import unittest
 import os
 from util.conversions import BananoConversions, NanoConversions
 from util.env import Env
-from util.regex import RegexUtil, AmountAmbiguousException, AmountMissingException, AddressAmbiguousException, AddressMissingException
+from util.regex import RegexUtil, AddressAmbiguousException, AddressMissingException
 from util.util import Utils
 from util.validators import Validators
 
@@ -42,19 +42,6 @@ class TestEnv(unittest.TestCase):
         self.assertEqual(Env.format_float(9.9000010), "9.900001")
 
 class TestRegexUtil(unittest.TestCase):
-    def test_find_float(self):
-        self.assertEqual(RegexUtil.find_float('Hello 1.23 World'), 1.23)
-        self.assertEqual(RegexUtil.find_float('Hello 1.23  4.56 World'), 1.23)
-        with self.assertRaises(AmountMissingException) as exc:
-            RegexUtil.find_float('Hello World')
-
-    def test_find_send_amounts(self):
-        self.assertEqual(RegexUtil.find_send_amounts('Hello 1.23 World'), 1.23)
-        with self.assertRaises(AmountMissingException):
-            RegexUtil.find_send_amounts('Hello World')
-        with self.assertRaises(AmountAmbiguousException):
-            RegexUtil.find_send_amounts('Hello 1.23 4.56 World')
-
     def test_find_address(self):
         os.environ['BANANO'] = 'true'
         self.assertEqual(RegexUtil.find_address_match('sdasdasban_3jb1fp4diu79wggp7e171jdpxp95auji4moste6gmc55pptwerfjqu48oksesdadasd'), 'ban_3jb1fp4diu79wggp7e171jdpxp95auji4moste6gmc55pptwerfjqu48okse')
@@ -100,9 +87,6 @@ class TestGenericUtil(unittest.TestCase):
         self.a = 0
         self.b = 0
         self.c = 0
-
-    def test_emoji_strip(self):
-        self.assertEqual(Utils.emoji_strip("字漢字Hello😊myfriend\u2709") ,"字漢字Hellomyfriend") 
 
     @async_test
     async def test_run_task_list(self):

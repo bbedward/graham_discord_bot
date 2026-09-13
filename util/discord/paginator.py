@@ -1,260 +1,126 @@
-# Based on: https://github.com/Phxntxm/Bonfire/blob/master/cogs/utils/paginator.py
-# This version is modified by http://github.com/bbedward in following ways:
-# 1) Work with discord.py rewrite
-# 2) Detect reaction_remove, so pages move on 1 click
-# 3) Have rainbow colors
-# 4) Take an array of Page objects instead of functions
-
-import asyncio
 import discord
 
 class CannotPaginate(Exception):
-	pass
+    pass
 
 class Page:
-	def __init__(self, entries=[], title=discord.Embed.Empty, description=discord.Embed.Empty, author=discord.Embed.Empty):
-		self.entries = entries
-		self.title = title
-		self.description = description
-		self.author = author
+    def __init__(self, entries=None, title=None, description=None, author=None):
+        self.entries = entries if entries is not None else []
+        self.title = title
+        self.description = description
+        self.author = author
 
 class Entry:
-	def __init__(self, name, value):
-		self.name = name
-		self.value = value
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+
+COLORS = [
+    discord.Colour.teal(),
+    discord.Colour.blue(),
+    discord.Colour.orange(),
+    discord.Colour.green(),
+    discord.Colour.red(),
+    discord.Colour.magenta()
+]
+
+def render_page(pages: list, index: int) -> discord.Embed:
+    page = pages[index]
+    embed = discord.Embed(colour=COLORS[index % len(COLORS)])
+    if page.title is not None:
+        embed.title = page.title
+    if page.author is not None:
+        embed.set_author(name=page.author)
+    if page.description is not None:
+        embed.description = page.description
+    for entry in page.entries:
+        embed.add_field(name=entry.name, value=entry.value, inline=False)
+    embed.set_footer(text=f"Page {index + 1}/{len(pages)}")
+    return embed
+
+class PaginatorView(discord.ui.View):
+    def __init__(self, pages: list, invoker_id: int):
+        super().__init__(timeout=120)
+        self.pages = pages
+        self.index = 0
+        self.invoker_id = invoker_id
+        self.message = None
+        self._sync_buttons()
+
+    def _sync_buttons(self):
+        at_first = self.index == 0
+        at_last = self.index == len(self.pages) - 1
+        self.first.disabled = at_first
+        self.previous.disabled = at_first
+        self.next.disabled = at_last
+        self.last.disabled = at_last
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.invoker_id:
+            return True
+        await interaction.response.send_message("This isn't your pagination session.", ephemeral=True)
+        return False
+
+    async def _show(self, interaction: discord.Interaction, index: int):
+        self.index = max(0, min(index, len(self.pages) - 1))
+        self._sync_buttons()
+        await interaction.response.edit_message(embed=render_page(self.pages, self.index), view=self)
+
+    @discord.ui.button(emoji='\N{BLACK LEFT-POINTING DOUBLE TRIANGLE WITH VERTICAL BAR}', style=discord.ButtonStyle.secondary)
+    async def first(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._show(interaction, 0)
+
+    @discord.ui.button(emoji='\N{BLACK LEFT-POINTING TRIANGLE}', style=discord.ButtonStyle.secondary)
+    async def previous(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._show(interaction, self.index - 1)
+
+    @discord.ui.button(emoji='\N{BLACK RIGHT-POINTING TRIANGLE}', style=discord.ButtonStyle.secondary)
+    async def next(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._show(interaction, self.index + 1)
+
+    @discord.ui.button(emoji='\N{BLACK RIGHT-POINTING DOUBLE TRIANGLE WITH VERTICAL BAR}', style=discord.ButtonStyle.secondary)
+    async def last(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._show(interaction, len(self.pages) - 1)
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message is None:
+            return
+        try:
+            await self.message.edit(view=self)
+        except Exception:
+            pass
 
 class Paginator:
-	"""Implements a paginator that queries the user for the
-	pagination interface.
+    @staticmethod
+    async def send_as_response(interaction: discord.Interaction, pages: list, ephemeral: bool = True):
+        if len(pages) == 0:
+            raise CannotPaginate('No pages to display')
+        embed = render_page(pages, 0)
+        if len(pages) == 1:
+            if interaction.response.is_done():
+                await interaction.followup.send(embed=embed, ephemeral=ephemeral)
+            else:
+                await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+            return
+        view = PaginatorView(pages, interaction.user.id)
+        if interaction.response.is_done():
+            view.message = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral, wait=True)
+        else:
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
+            view.message = await interaction.original_response()
 
-	Pages are 1-index based, not 0-index based.
-
-	If the user does not reply within 2 minutes, the pagination
-	interface exits automatically.
-	"""
-	def __init__(self, bot, *, message, page_list, as_dm = False):
-		self.bot = bot
-		self.page_list = page_list
-		self.message = message
-		self.author = message.author
-		self.maximum_pages = len(page_list)
-		self.colors = [discord.Colour.teal(), discord.Colour.blue(), discord.Colour.orange(), discord.Colour.green(), discord.Colour.red(), discord.Colour.magenta()]
-		self.embed = discord.Embed(colour=self.colors[0])
-		self.paginating = len(page_list) > 0
-		self.as_dm = as_dm
-		self.reaction_emojis = [
-			('\N{BLACK LEFT-POINTING DOUBLE TRIANGLE WITH VERTICAL BAR}', self.first_page),
-			('\N{BLACK LEFT-POINTING TRIANGLE}', self.previous_page),
-			('\N{BLACK RIGHT-POINTING TRIANGLE}', self.next_page),
-			('\N{BLACK RIGHT-POINTING DOUBLE TRIANGLE WITH VERTICAL BAR}', self.last_page),
-			('\N{BLACK SQUARE FOR STOP}', self.stop_pages),
-			('\N{INFORMATION SOURCE}', self.show_help),
-		]
-
-		server = self.message.guild
-		if server is not None:
-			self.permissions = self.message.channel.permissions_for(server.me)
-		else:
-			self.permissions = self.message.channel.permissions_for(self.bot.user)
-
-		if not self.permissions.embed_links:
-			raise CannotPaginate('Bot does not have embed links permission.')
-
-
-	def get_page(self, page):
-		return self.page_list[page - 1]
-
-	async def show_page(self, page, *, first=False):
-		self.current_page = page
-		content = self.get_page(page)
-
-		# Cycle through page colors
-		if page > len(self.colors):
-			# We want colors to repeat for page # bigger than length(colors)
-			quotient,remainder = divmod(page, len(self.colors))
-			if remainder == 0:
-				quotient = quotient - 1
-			color_idx = (page - quotient * len(self.colors)) - 1
-		else:
-			color_idx = page - 1
-		self.embed.colour = self.colors[color_idx]
-
-		self.embed.set_footer(text='Page %s/%s' % (page, self.maximum_pages))
-
-		if not self.paginating:
-			if content.title != discord.Embed.Empty:
-				self.embed.title = content.title
-			else:
-				self.embed.title = discord.Embed.Empty
-			if content.author != discord.Embed.Empty:
-				self.embed.set_author(name=content.author)
-			else:
-				self.embed.set_author(name='\u200b')
-			if content.description != discord.Embed.Empty:
-				self.embed.description = content.description
-			else:
-				self.embed.description = discord.Embed.Empty
-			self.embed.clear_fields()
-			for entry in content.entries:
-				self.embed.add_field(name=entry.name, value=entry.value, inline=False)
-			return await self.message.channel.send(embed=self.embed)
-
-		if not first:
-			if content.title != discord.Embed.Empty:
-				self.embed.title = content.title
-			else:
-				self.embed.title = discord.Embed.Empty
-			if content.author != discord.Embed.Empty:
-				self.embed.set_author(name=content.author)
-			else:
-				self.embed.set_author(name='\u200b')
-			if content.description != discord.Embed.Empty:
-				self.embed.description = content.description
-			else:
-				self.embed.description = discord.Embed.Empty
-			self.embed.clear_fields()
-			for entry in content.entries:
-				self.embed.add_field(name=entry.name, value=entry.value, inline=False)
-			await self.message.edit(embed=self.embed)
-			return
-
-		# verify we can actually use the pagination session
-		if not self.permissions.add_reactions:
-			raise CannotPaginate('Bot does not have add reactions permission.')
-
-		if not self.permissions.read_message_history:
-			raise CannotPaginate('Bot does not have Read Message History permission.')
-
-		if content.title != discord.Embed.Empty:
-			self.embed.title = content.title
-		else:
-			self.embed.title = discord.Embed.Empty
-		if content.author != discord.Embed.Empty:
-			self.embed.set_author(name=content.author)
-		else:
-			self.embed.set_author(name='\u200b')
-		if content.description != discord.Embed.Empty:
-			self.embed.description = content.description
-		else:
-			self.embed.description = discord.Embed.Empty
-		self.embed.clear_fields()
-		for entry in content.entries:
-			self.embed.add_field(name=entry.name, value=entry.value, inline=False)
-
-		if self.as_dm:
-			self.message = await self.author.send(embed=self.embed)
-		else:
-			self.message = await self.message.channel.send(embed=self.embed)
-		for (reaction, _) in self.reaction_emojis:
-			if self.maximum_pages == 2 and reaction in ('\u23ed', '\u23ee'):
-				# no |<< or >>| buttons if we only have two pages
-				# we can't forbid it if someone ends up using it but remove
-				# it from the default set
-				continue
-			try:
-				await self.message.add_reaction(reaction)
-			except discord.NotFound:
-				# If the message isn't found, we don't care about clearing anything
-				return
-
-	async def checked_show_page(self, page):
-		if page != 0 and page <= self.maximum_pages:
-			await self.show_page(page)
-
-	async def first_page(self):
-		"""goes to the first page"""
-		await self.show_page(1)
-
-	async def last_page(self):
-		"""goes to the last page"""
-		await self.show_page(self.maximum_pages)
-
-	async def next_page(self):
-		"""goes to the next page"""
-		await self.checked_show_page(self.current_page + 1)
-
-	async def previous_page(self):
-		"""goes to the previous page"""
-		await self.checked_show_page(self.current_page - 1)
-
-	async def show_current_page(self):
-		if self.paginating:
-			await self.show_page(self.current_page)
-
-	async def show_help(self):
-		"""shows this message"""
-		e = discord.Embed()
-		messages = ['Welcome to the interactive paginator!\n']
-		messages.append('This interactively allows you to see pages of text by navigating with ' \
-						'reactions. They are as follows:\n')
-
-		for (emoji, func) in self.reaction_emojis:
-			messages.append('%s %s' % (emoji, func.__doc__))
-
-		e.description = '\n'.join(messages)
-		e.colour =	0x738bd7 # blurple
-		e.set_footer(text='We were on page %s before this message.' % self.current_page)
-		await self.message.edit(embed=e)
-
-		async def go_back_to_current_page():
-			await asyncio.sleep(60.0)
-			await self.show_current_page()
-
-		self.bot.loop.create_task(go_back_to_current_page())
-
-	async def stop_pages(self):
-		"""stops the interactive pagination session"""
-		await self.message.delete()
-		self.paginating = False
-
-	def react_check(self, reaction, user):
-		if user is None or user.id != self.author.id:
-			return False
-		elif reaction.message.id != self.message.id:
-			return False
-
-		for (emoji, func) in self.reaction_emojis:
-			if reaction.emoji == emoji:
-				self.match = func
-				return True
-		return False
-
-
-	async def paginate(self, start_page=1):
-		"""Actually paginate the entries and run the interactive loop if necessary."""
-		await self.show_page(start_page, first=True)
-
-		while self.paginating:
-			try:
-				react = await self.wait_first(self.wait_for_reaction_add(),self.wait_for_reaction_remove())
-			except:
-				react = None
-			if react is None:
-				self.paginating = False
-				try:
-					self.embed.set_footer(text="Session Timed Out")
-					await self.message.edit(embed=self.embed)
-					for (emoji, func) in self.reaction_emojis:
-						await self.message.remove_reaction(emoji, self.bot.user)
-				except:
-					pass
-				finally:
-					break
-
-			await self.match()
-
-	async def wait_first(self, *futures):
-		done, pending = await asyncio.wait(futures,return_when=asyncio.FIRST_COMPLETED)
-		gather = asyncio.gather(*pending)
-		gather.cancel()
-		try:
-			await gather
-		except asyncio.CancelledError:
-			pass
-		return done.pop().result()
-
-	async def wait_for_reaction_add(self):
-		return await self.bot.wait_for('reaction_add', check=self.react_check, timeout=120.0)
-
-	async def wait_for_reaction_remove(self):
-		return await self.bot.wait_for('reaction_remove', check=self.react_check, timeout=120.0)
+    @staticmethod
+    async def send_as_dm(user: discord.abc.User, pages: list):
+        if len(pages) == 0:
+            raise CannotPaginate('No pages to display')
+        embed = render_page(pages, 0)
+        try:
+            if len(pages) == 1:
+                await user.send(embed=embed)
+                return
+            view = PaginatorView(pages, user.id)
+            view.message = await user.send(embed=embed, view=view)
+        except Exception:
+            pass

@@ -1,136 +1,103 @@
 import datetime
 
 import discord
+from discord import app_commands
 from discord.ext import commands
-from discord.ext.commands import Bot, Context
-from tortoise.functions import Sum
 
 import config
 from db.models.stats import Stats
-from db.models.user import User
 from db.redis import RedisDB
 from models.command import CommandInfo
 from rpc.client import RPCClient
-from util.discord.channel import ChannelUtil
 from util.discord.messages import Messages
+from util.discord.resolver import require_user, resolve
 from util.env import Env
 
 ## Command documentation
 TIPSTATS_INFO = CommandInfo(
     triggers = ["tipstats"],
     overview = "Display your personal tipping stats for a specific server.",
-    details = f"This will display your personal tipping statistics from the server you send the command from. This command can't be used in DM"
+    details = "This will display your personal tipping statistics from the server you send the command from. This command can't be used in DM"
 )
 TOPTIPS_INFO = CommandInfo(
     triggers = ["toptips"],
     overview = "Display biggest tips for a specific server.",
-    details = f"This will display the biggest tip of all time, of the current month, and of the day for the current server. This command can't be used in DM"
+    details = "This will display the biggest tip of all time, of the current month, and of the day for the current server. This command can't be used in DM"
 )
 LEADERBOARD_INFO = CommandInfo(
     triggers = ["ballers", "leaderboard"],
     overview = "Show a list of the top 15 tippers this year.",
-    details = f"This will display a list of the top 15 tippers on the current server. This command can't be used in DM\n" +
-                f"These stats are reset once a year - for all time stats use `{config.Config.instance().command_prefix}legacyboard`"
+    details = "This will display a list of the top 15 tippers on the current server. This command can't be used in DM\n" +
+                "These stats are reset once a year - for all time stats use `/legacyboard`"
 )
 LEGACYBOARD_INFO = CommandInfo(
     triggers = ["legacyboard", "oldballs"],
     overview = "Show a list of the top 15 tippers all time.",
-    details = f"This will display a list of the top 15 tippers of all time on the current server. This command can't be used in DM"
+    details = "This will display a list of the top 15 tippers of all time on the current server. This command can't be used in DM"
+)
+BLOCKS_INFO = CommandInfo(
+    triggers = ["blocks"],
+    overview = "Show the node's block count.",
+    details = "Displays the current block count and unchecked count from the node."
 )
 
+def graham_embed(author_name: str, description: str) -> discord.Embed:
+    embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
+    embed.set_author(name=author_name, icon_url="https://github.com/bbedward/graham_discord_bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/graham_discord_bot/raw/master/assets/nano_logo.png")
+    embed.description = description
+    return embed
+
 class StatsCog(commands.Cog):
-    def __init__(self, bot: Bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    async def cog_before_invoke(self, ctx: Context):
-        ctx.error = False
-        # Only allow tip commands in public channels
-        msg = ctx.message
-        if ChannelUtil.is_private(msg.channel) and ctx.command.name != 'blocks_cmd':
-            await Messages.send_error_dm(msg.author, "You can only view statistics in a server, not via DM.")
-            ctx.error = True
-            return
-        else:
-            # Determine if user is admin
-            ctx.god = msg.author.id in config.Config.instance().get_admin_ids()
-            if not ctx.god:
-                ctx.admin = False
-                for g in self.bot.guilds:
-                    member = g.get_member(msg.author.id)
-                    if member is not None:
-                        for role in member.roles:
-                            if role.id in config.Config.instance().get_admin_roles():
-                                ctx.admin = True
-                                break
-                    if ctx.admin:
-                        break
-            else:
-                ctx.admin = True
+    async def check_channel(self, interaction: discord.Interaction) -> bool:
+        if interaction.channel_id in config.Config.instance().get_no_spam_channels():
+            await Messages.respond_error(interaction, "I can't post stats in that channel.")
+            return False
+        return True
 
-        # Can't spam stats commands
-        if msg.channel.id in config.Config.instance().get_no_spam_channels():
-            ctx.error = True
-            await Messages.send_error_dm(msg.author, "I can't post stats in that channel.")
+    @app_commands.command(name="tipstats", description=TIPSTATS_INFO.overview)
+    @app_commands.guild_only()
+    async def tipstats_cmd(self, interaction: discord.Interaction):
+        inv = await require_user(interaction)
+        if not await self.check_channel(interaction):
             return
 
-        if ctx.command.name in ['tipstats_cmd']:
-            # Make sure user exists in DB
-            user = await User.get_user(msg.author)
-            if user is None:
-                ctx.error = True
-                await Messages.send_error_dm(msg.author, f"You should create an account with me first, send me `{config.Config.instance().command_prefix}help` to get started.")
-                return
-            # Update name, if applicable
-            await user.update_name(msg.author.name)
-            ctx.user = user
-
-    @commands.command(aliases=TIPSTATS_INFO.triggers)
-    async def tipstats_cmd(self, ctx: Context):
-        if ctx.error:
-            await Messages.add_x_reaction(ctx.message)
+        if not inv.god and await RedisDB.instance().exists(f"tipstatsspam{interaction.user.id}{interaction.guild_id}"):
+            await Messages.respond_error(interaction, "Why don't you wait awhile before trying to get your tipstats again")
             return
 
-        msg = ctx.message
-        user: User = ctx.user
-
-        if not ctx.god and await RedisDB.instance().exists(f"tipstatsspam{msg.author.id}{msg.guild.id}"):
-            await Messages.add_timer_reaction(msg)
-            await Messages.send_error_dm(msg.author, "Why don't you wait awhile before trying to get your tipstats again")
-            return
-
-        stats: Stats = await user.get_stats(server_id=msg.guild.id)
+        stats: Stats = await inv.user.get_stats(server_id=interaction.guild_id)
         if stats.banned:
-            await Messages.add_x_reaction(msg)
-            await Messages.send_error_dm(msg.author, "You are stats banned, contact an admin if you want to be unbanned")
+            await Messages.respond_error(interaction, "You are stats banned, contact an admin if you want to be unbanned")
             return
-        response = ""
         if stats is None or stats.total_tips == 0:
-            response = f"<@{msg.author.id}> You haven't sent any tips in this server yet, tip some people and then check your stats later"
+            response = f"<@{interaction.user.id}> You haven't sent any tips in this server yet, tip some people and then check your stats later"
         else:
-            response = f"<@{msg.author.id}> You have sent **{stats.total_tips}** tips totaling **{Env.format_float(stats.legacy_total_tipped_amount)} {Env.currency_symbol()}**. Your biggest tip of all time is **{Env.format_float(stats.top_tip)} {Env.currency_symbol()}**"
+            response = f"<@{interaction.user.id}> You have sent **{stats.total_tips}** tips totaling **{Env.format_float(stats.legacy_total_tipped_amount)} {Env.currency_symbol()}**. Your biggest tip of all time is **{Env.format_float(stats.top_tip)} {Env.currency_symbol()}**"
 
-        await msg.channel.send(response)
-        await RedisDB.instance().set(f"tipstatsspam{msg.author.id}{msg.guild.id}", "as", expires=300)
+        await interaction.response.send_message(response)
+        await RedisDB.instance().set(f"tipstatsspam{interaction.user.id}{interaction.guild_id}", "as", expires=300)
 
-    @commands.command(aliases=TOPTIPS_INFO.triggers)
-    async def toptips_cmd(self, ctx: Context):
-        if ctx.error:
-            await Messages.add_x_reaction(ctx.message)
+    @app_commands.command(name="toptips", description=TOPTIPS_INFO.overview)
+    @app_commands.guild_only()
+    async def toptips_cmd(self, interaction: discord.Interaction):
+        inv = await resolve(interaction, check_paused=False, require_registered=False)
+        if not await self.check_channel(interaction):
             return
-
-        msg = ctx.message   
-        if not ctx.god and await RedisDB.instance().exists(f"toptipsspam{msg.channel.id}"):
-            await Messages.add_timer_reaction(msg)
+        if not inv.god and await RedisDB.instance().exists(f"toptipsspam{interaction.channel_id}"):
+            await Messages.respond_error(interaction, "Why don't you wait awhile before checking the top tips again")
             return
 
         # This would be better to be 1 query but, i'm not proficient enough with tortoise-orm
         top_tip = await Stats.filter(
-            server_id=msg.guild.id,
+            server_id=interaction.guild_id,
             banned=False
         ).order_by('-top_tip').prefetch_related('user').limit(1).first()
         if top_tip is None:
-            await RedisDB.instance().set(f"toptipsspam{msg.channel.id}", "as", expires=300)
-            await msg.channel.send("There are no stats for this server yet. Send some tips first!")
+            await RedisDB.instance().set(f"toptipsspam{interaction.channel_id}", "as", expires=300)
+            await interaction.response.send_message("There are no stats for this server yet. Send some tips first!")
             return
         # Get datetime object representing first day of this month
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -139,142 +106,92 @@ class StatsCog(commands.Cog):
         first_day_of_month = datetime.datetime.strptime(f'{month}/01/{year} 00:00:00', '%m/%d/%Y %H:%M:%S')
         # Find top tip of the month
         top_tip_month = await Stats.filter(
-            server_id=msg.guild.id,
+            server_id=interaction.guild_id,
             top_tip_month_at__gte=first_day_of_month,
             banned=False
         ).order_by('-top_tip_month').prefetch_related('user').limit(1).first()
         # Get datetime object representing 24 hours ago
         past_24h = now - datetime.timedelta(hours=24)
-        # Find top tip of the month
         top_tip_day = await Stats.filter(
-            server_id=msg.guild.id,
+            server_id=interaction.guild_id,
             top_tip_day_at__gte=past_24h,
             banned=False
         ).order_by('-top_tip_day').prefetch_related('user').limit(1).first()
 
-        embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
-        embed.set_author(name='Biggest Tips', icon_url="https://github.com/bbedward/graham_discord_bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/graham_discord_bot/raw/master/assets/nano_logo.png")
-        new_line = '\n' # Can't use this directly inside f-expression, so store it in a variable
+        description = ""
         if top_tip_day is not None:
-            embed.description = f"**Last 24 Hours**\n```{Env.format_float(top_tip_day.top_tip_day)} {Env.currency_symbol()} - by {top_tip_day.user.name}```"
+            description = f"**Last 24 Hours**\n```{Env.format_float(top_tip_day.top_tip_day)} {Env.currency_symbol()} - by {top_tip_day.user.name}```"
         if top_tip_month is not None:
-            embed.description += f"{new_line if top_tip_day is not None else ''}**In {now.strftime('%B')}**\n```{Env.format_float(top_tip_month.top_tip_month)} {Env.currency_symbol()} - by {top_tip_month.user.name}```"
-        embed.description += f"{new_line if top_tip_day is not None or top_tip_month is not None else ''}**All Time**\n```{Env.format_float(top_tip.top_tip)} {Env.currency_symbol()} - by {top_tip.user.name}```"
+            description += f"{chr(10) if top_tip_day is not None else ''}**In {now.strftime('%B')}**\n```{Env.format_float(top_tip_month.top_tip_month)} {Env.currency_symbol()} - by {top_tip_month.user.name}```"
+        description += f"{chr(10) if top_tip_day is not None or top_tip_month is not None else ''}**All Time**\n```{Env.format_float(top_tip.top_tip)} {Env.currency_symbol()} - by {top_tip.user.name}```"
 
-        # No spam
-        await RedisDB.instance().set(f"toptipsspam{msg.channel.id}", "as", expires=300)
+        await RedisDB.instance().set(f"toptipsspam{interaction.channel_id}", "as", expires=300)
+        await interaction.response.send_message(embed=graham_embed('Biggest Tips', description))
 
-        await msg.channel.send(embed=embed)
-
-    @commands.command(aliases=LEADERBOARD_INFO.triggers)
-    async def leaderboard_cmd(self, ctx: Context):
-        if ctx.error:
-            await Messages.add_x_reaction(ctx.message)
-            return
-
-        msg = ctx.message
-
-        if not ctx.god and await RedisDB.instance().exists(f"ballerspam{msg.channel.id}"):
-            await Messages.add_timer_reaction(msg)
-            await Messages.send_error_dm(msg.author, "Why don't you wait awhile before checking the ballers list again")
-            return
-
-        # Get list
-        ballers = await Stats.filter(server_id=msg.guild.id, banned=False).order_by('-total_tipped_amount').prefetch_related('user').limit(15).all()
-
-        if len(ballers) == 0:
-            await msg.channel.send(f"<@{msg.author.id}> There are no stats for this server yet, send some tips!")
-            return
-
+    def format_leaderboard(self, ballers: list, amount_of) -> str:
         response_msg = "```"
-        # Get biggest tip to adjust the padding
-        biggest_num = 0
-        for stats in ballers:
-            length = len(f"{Env.format_float(stats.total_tipped_amount)} {Env.currency_symbol()}")
-            if length > biggest_num:
-                biggest_num = length
+        biggest_num = max(len(f"{Env.format_float(amount_of(stats))} {Env.currency_symbol()}") for stats in ballers)
         for rank, stats in enumerate(ballers, start=1):
             adj_rank = str(rank) if rank >= 10 else f" {rank}"
-            user_name = stats.user.name
-            amount_str = f"{Env.format_float(stats.total_tipped_amount)} {Env.currency_symbol()}"
-            response_msg += f"{adj_rank}. {amount_str.ljust(biggest_num)} - by {user_name}\n" 
+            amount_str = f"{Env.format_float(amount_of(stats))} {Env.currency_symbol()}"
+            response_msg += f"{adj_rank}. {amount_str.ljust(biggest_num)} - by {stats.user.name}\n"
         response_msg += "```"
+        return response_msg
 
-        embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
-        embed.set_author(name=f"Here are the top {len(ballers)} tippers \U0001F44F", icon_url="https://github.com/bbedward/graham_discord_bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/graham_discord_bot/raw/master/assets/nano_logo.png")
-        embed.description = response_msg
-        embed.set_footer(text=f"Use {config.Config.instance().command_prefix}legacyboard for all-time stats")
-
-        await RedisDB.instance().set(f"ballerspam{msg.channel.id}", "as", expires=300)
-        await msg.channel.send(f"<@{msg.author.id}>", embed=embed)
-
-    @commands.command(aliases=LEGACYBOARD_INFO.triggers)
-    async def legacyboard_cmd(self, ctx: Context):
-        if ctx.error:
-            await Messages.add_x_reaction(ctx.message)
+    @app_commands.command(name="ballers", description=LEADERBOARD_INFO.overview)
+    @app_commands.guild_only()
+    async def leaderboard_cmd(self, interaction: discord.Interaction):
+        inv = await resolve(interaction, check_paused=False, require_registered=False)
+        if not await self.check_channel(interaction):
+            return
+        if not inv.god and await RedisDB.instance().exists(f"ballerspam{interaction.channel_id}"):
+            await Messages.respond_error(interaction, "Why don't you wait awhile before checking the ballers list again")
             return
 
-        msg = ctx.message
-
-        if not ctx.god and await RedisDB.instance().exists(f"ballerspam{msg.channel.id}"):
-            await Messages.add_timer_reaction(msg)
-            await Messages.send_error_dm(msg.author, "Why don't you wait awhile before checking the ballers list again")
-            return
-
-        # Get list
-        ballers = await Stats.filter(server_id=msg.guild.id, banned=False).order_by('-legacy_total_tipped_amount').prefetch_related('user').limit(15).all()
-
+        ballers = await Stats.filter(server_id=interaction.guild_id, banned=False).order_by('-total_tipped_amount').prefetch_related('user').limit(15).all()
         if len(ballers) == 0:
-            await msg.channel.send(f"<@{msg.author.id}> There are no stats for this server yet, send some tips!")
+            await interaction.response.send_message(f"<@{interaction.user.id}> There are no stats for this server yet, send some tips!")
             return
 
-        response_msg = "```"
-        # Get biggest tip to adjust the padding
-        biggest_num = 0
-        for stats in ballers:
-            # TODO change to stats.tip_sum
-            length = len(f"{Env.format_float(stats.legacy_total_tipped_amount)} {Env.currency_symbol()}")
-            if length > biggest_num:
-                biggest_num = length
-        for rank, stats in enumerate(ballers, start=1):
-            adj_rank = str(rank) if rank >= 10 else f" {rank}"
-            user_name = stats.user.name
-            amount_str = f"{Env.format_float(stats.legacy_total_tipped_amount)} {Env.currency_symbol()}"
-            response_msg += f"{adj_rank}. {amount_str.ljust(biggest_num)} - by {user_name}\n" 
-        response_msg += "```"
+        embed = graham_embed(f"Here are the top {len(ballers)} tippers \U0001F44F", self.format_leaderboard(ballers, lambda s: s.total_tipped_amount))
+        embed.set_footer(text="Use /legacyboard for all-time stats")
 
-        embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
-        embed.set_author(name=f"Here are the top {len(ballers)} tippers of all time\U0001F44F", icon_url="https://github.com/bbedward/graham_discord_bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/graham_discord_bot/raw/master/assets/nano_logo.png")
-        embed.description = response_msg
+        await RedisDB.instance().set(f"ballerspam{interaction.channel_id}", "as", expires=300)
+        await interaction.response.send_message(f"<@{interaction.user.id}>", embed=embed)
 
-        await RedisDB.instance().set(f"ballerspam{msg.channel.id}", "as", expires=300)
-        await msg.channel.send(f"<@{msg.author.id}>", embed=embed)
-
-    @commands.command(aliases=["blocks"])
-    async def blocks_cmd(self, ctx: Context):
-        if ctx.error:
-            await Messages.add_x_reaction(ctx.message)
+    @app_commands.command(name="legacyboard", description=LEGACYBOARD_INFO.overview)
+    @app_commands.guild_only()
+    async def legacyboard_cmd(self, interaction: discord.Interaction):
+        inv = await resolve(interaction, check_paused=False, require_registered=False)
+        if not await self.check_channel(interaction):
+            return
+        if not inv.god and await RedisDB.instance().exists(f"ballerspam{interaction.channel_id}"):
+            await Messages.respond_error(interaction, "Why don't you wait awhile before checking the ballers list again")
             return
 
-        msg = ctx.message
-        is_private = ChannelUtil.is_private(msg.channel)
+        ballers = await Stats.filter(server_id=interaction.guild_id, banned=False).order_by('-legacy_total_tipped_amount').prefetch_related('user').limit(15).all()
+        if len(ballers) == 0:
+            await interaction.response.send_message(f"<@{interaction.user.id}> There are no stats for this server yet, send some tips!")
+            return
 
-        if not ctx.god and await RedisDB.instance().exists(f"blocksspam{msg.channel.id if not is_private else msg.author.id}"):
-            await Messages.add_timer_reaction(msg)
-            await Messages.send_error_dm(msg.author, "Why don't you wait awhile before checking the block count again?")
+        embed = graham_embed(f"Here are the top {len(ballers)} tippers of all time\U0001F44F", self.format_leaderboard(ballers, lambda s: s.legacy_total_tipped_amount))
+
+        await RedisDB.instance().set(f"ballerspam{interaction.channel_id}", "as", expires=300)
+        await interaction.response.send_message(f"<@{interaction.user.id}>", embed=embed)
+
+    @app_commands.command(name="blocks", description=BLOCKS_INFO.overview)
+    async def blocks_cmd(self, interaction: discord.Interaction):
+        inv = await resolve(interaction, check_paused=False, require_registered=False)
+        spam_key = f"blocksspam{interaction.channel_id if interaction.guild_id is not None else interaction.user.id}"
+        if not inv.god and await RedisDB.instance().exists(spam_key):
+            await Messages.respond_error(interaction, "Why don't you wait awhile before checking the block count again?")
             return
 
         count, unchecked = await RPCClient.instance().block_count()
         if count is None or unchecked is None:
-            await Messages.send_error_dm(msg.author, "I couldn't retrieve the current block count")
+            await Messages.respond_error(interaction, "I couldn't retrieve the current block count")
             return
 
-        embed = discord.Embed(colour=0xFBDD11 if Env.banano() else discord.Colour.dark_blue())
-        embed.set_author(name=f"Here's how many blocks I have", icon_url="https://github.com/bbedward/graham_discord_bot/raw/master/assets/banano_logo.png" if Env.banano() else "https://github.com/bbedward/graham_discord_bot/raw/master/assets/nano_logo.png")
-        embed.description = f"```Count: {count:,}\nUnchecked: {unchecked:,}```"
-
-        await RedisDB.instance().set(f"blocksspam{msg.channel.id if not is_private else msg.author.id}", "as", expires=120)
-        if is_private:
-            await msg.author.send(embed=embed)
-        else:
-            await msg.channel.send(f"<@{msg.author.id}>", embed=embed)
+        embed = graham_embed("Here's how many blocks I have", f"```Count: {count:,}\nUnchecked: {unchecked:,}```")
+        await RedisDB.instance().set(spam_key, "as", expires=120)
+        await interaction.response.send_message(embed=embed, ephemeral=interaction.guild_id is None)

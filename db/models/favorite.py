@@ -5,7 +5,7 @@ from tortoise import fields
 import db.models.user as usr
 
 class Favorite(Model):
-    user = fields.ForeignKeyField('db.User', related_name='favorites', index=True)
+    user = fields.ForeignKeyField('db.User', related_name='favorites', db_index=True)
     favorited_user = fields.ForeignKeyField('db.User', related_name='favorited_by')
 
     class Meta:

@@ -1,18 +1,20 @@
+import logging
+
+import discord
+from discord import app_commands
 from discord.ext import commands
-from discord.ext.commands import Bot, Context
+from tortoise.transactions import in_transaction
+
+import config
 from db.models.stats import Stats
 from db.models.user import User
 from db.redis import RedisDB
 from models.command import CommandInfo
-from tortoise.transactions import in_transaction
-
-import config
-import logging
 from util.discord.messages import Messages
 from util.discord.paginator import Entry, Page, Paginator
-from util.discord.channel import ChannelUtil
+from util.discord.resolver import require_admin
+from util.discord.users import resolve_member
 from util.env import Env
-from util.regex import RegexUtil, AmountMissingException
 
 ## Command documentation
 PAUSE_INFO = CommandInfo(
@@ -28,7 +30,7 @@ RESUME_INFO = CommandInfo(
 FREEZE_INFO = CommandInfo(
     triggers = ["freeze"],
     overview = "Freeze the mentioned users",
-    details = "Completely freeze all mentioned users or user ID accounts"
+    details = "Completely freeze the mentioned user's account"
 )
 DEFROST_INFO = CommandInfo(
     triggers = ["defrost", "unfreeze"],
@@ -73,545 +75,179 @@ STATSBANNED_INFO = CommandInfo(
 DECREASETIPS_INFO = CommandInfo(
     triggers = ["decreasetips"],
     overview = "Decrease tip stat total",
-    details = f"`{config.Config.instance().command_prefix}decreasetips 1000 @bbedward` - Reduce users tip count by 1000 {Env.currency_name()}"
+    details = f"`/decreasetips @bbedward 1000` - Reduce users tip count by 1000 {Env.currency_name()}"
 )
 INCREASETIPS_INFO = CommandInfo(
     triggers = ["increasetips"],
     overview = "Increase tip stat total",
-    details = f"`{config.Config.instance().command_prefix}increasetips 1000 @bbedward` - Increase users tip count by 1000 {Env.currency_name()}"
+    details = f"`/increasetips @bbedward 1000` - Increase users tip count by 1000 {Env.currency_name()}"
 )
+
+async def is_protected_target(user: discord.User, guild: discord.Guild) -> bool:
+    if user.id in config.Config.instance().get_admin_ids():
+        return True
+    if guild is None:
+        return False
+    member = await resolve_member(guild, user.id)
+    if member is None:
+        return False
+    admin_roles = config.Config.instance().get_admin_roles()
+    return any(role.id in admin_roles for role in member.roles)
+
+def banned_user_pages(banned: list, title: str, undo_command: str) -> list:
+    entries = [Entry(f"{user_id}:{name}", f"Undo with `/{undo_command}` and their ID: {user_id}") for user_id, name in banned]
+    description = f"Use `/{undo_command}` to undo"
+    return [Page(entries=entries[i:i + 15], author=title, description=description) for i in range(0, len(entries), 15)]
 
 class AdminCog(commands.Cog):
     """Commands for admins only"""
-    def __init__(self, bot: Bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.logger = logging.getLogger()
 
-    async def cog_before_invoke(self, ctx: Context):
-        ctx.error = False
-        msg = ctx.message
-        # Restrict all commands to admins only
-        ctx.god = msg.author.id in config.Config.instance().get_admin_ids()
-        if not ctx.god:
-            ctx.admin = False
-            for g in self.bot.guilds:
-                member = g.get_member(msg.author.id)
-                if member is not None:
-                    for role in member.roles:
-                        if role.id in config.Config.instance().get_admin_roles():
-                            ctx.admin = True
-                            break
-                if ctx.admin:
-                    break
-        else:
-            ctx.admin = True
-
-        if not ctx.admin:
-            ctx.error = True
-
-    @commands.command(aliases=PAUSE_INFO.triggers)
-    async def pause_cmd(self, ctx: Context):
-        if ctx.error:
-            return
-
-        msg = ctx.message
-
+    @app_commands.command(name="pause", description=PAUSE_INFO.overview)
+    @app_commands.default_permissions(manage_guild=True)
+    async def pause_cmd(self, interaction: discord.Interaction):
+        await require_admin(interaction)
         await RedisDB.instance().pause()
-        await msg.add_reaction('\u23F8') # Pause
-        await msg.author.send("Transaction activity is now suspended")
+        await Messages.respond_success(interaction, "Transaction activity is now suspended ⏸")
 
-    @commands.command(aliases=RESUME_INFO.triggers)
-    async def resume_cmd(self, ctx: Context):
-        if ctx.error:
-            return
-
-        msg = ctx.message
-
+    @app_commands.command(name="resume", description=RESUME_INFO.overview)
+    @app_commands.default_permissions(manage_guild=True)
+    async def resume_cmd(self, interaction: discord.Interaction):
+        await require_admin(interaction)
         await RedisDB.instance().resume()
-        await msg.add_reaction('\u25B6') # Pause
-        await msg.author.send("Transaction activity is no longer suspended")
+        await Messages.respond_success(interaction, "Transaction activity is no longer suspended ▶")
 
-    @commands.command(aliases=FREEZE_INFO.triggers)
-    async def freeze_cmd(self, ctx: Context):
-        if ctx.error:
+    @app_commands.command(name="freeze", description=FREEZE_INFO.overview)
+    @app_commands.describe(user="The user to freeze")
+    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def freeze_cmd(self, interaction: discord.Interaction, user: discord.User):
+        await require_admin(interaction)
+        if await is_protected_target(user, interaction.guild):
+            await Messages.respond_error(interaction, "You can't freeze an admin.")
             return
+        await User.filter(id=user.id).update(frozen=True)
+        await Messages.respond_success(interaction, f"{user.name} has been frozen \U0001F9CA")
 
-        msg = ctx.message
+    @app_commands.command(name="defrost", description=DEFROST_INFO.overview)
+    @app_commands.describe(user="The user to unfreeze")
+    @app_commands.default_permissions(manage_guild=True)
+    async def unfreeze_cmd(self, interaction: discord.Interaction, user: discord.User):
+        await require_admin(interaction)
+        await User.filter(id=user.id).update(frozen=False)
+        await Messages.respond_success(interaction, f"{user.name} has been defrosted \U0001F525")
 
-        if ChannelUtil.is_private(msg.channel):
-            await Messages.add_x_reaction(msg)
-            await Messages.send_error_dm(msg.author, "You can't freeze via DM, need to do it in a server channel")
-            return
-
-        freeze_ids = []
-        # Get mentioned users
-        for m in msg.mentions:
-            freeze_ids.append(m.id)
-    
-        # Get users they are freezing by ID alone
-        for sec in msg.content.split():
-            try:
-                numeric = int(sec.strip())
-                user = await self.bot.fetch_user(numeric)
-                if user is not None:
-                    freeze_ids.append(user.id)
-            except Exception:
-                pass
-
-        # remove duplicates and admins
-        freeze_ids = set(freeze_ids)
-        freeze_ids = [x for x in freeze_ids if x not in config.Config.instance().get_admin_ids()]
-        for f in freeze_ids:
-            memba = msg.guild.get_member(f)
-            if memba is not None:
-                for r in memba.roles:
-                    if r.id in [config.Config.instance().get_admin_roles()]:
-                        freeze_ids.remove(r.id)
-
-        if len(freeze_ids) < 1:
-            await Messages.add_x_reaction(msg)
-            await msg.author.send("Your message has no users to freeze")
-            return
-
-        await User.filter(id__in=freeze_ids).update(frozen=True)
-
-        await msg.author.send(f"{len(freeze_ids)} users have been frozen")
-        await msg.add_reaction("\U0001F9CA")
-
-    @commands.command(aliases=DEFROST_INFO.triggers)
-    async def unfreeze_cmd(self, ctx: Context):
-        if ctx.error:
-            return
-
-        msg = ctx.message
-
-        freeze_ids = []
-        # Get mentioned users
-        for m in msg.mentions:
-            freeze_ids.append(m.id)
-
-        # Get users they are freezing by ID alone
-        for sec in msg.content.split():
-            try:
-                numeric = int(sec.strip())
-                user = await self.bot.fetch_user(numeric)
-                if user is not None:
-                    freeze_ids.append(user.id)
-            except Exception:
-                pass
-
-        # remove duplicates and admins
-        freeze_ids = set(freeze_ids)
-
-        if len(freeze_ids) < 1:
-            await Messages.add_x_reaction(msg)
-            await msg.author.send("Your message has no users to defrost")
-            return
-
-        # TODO - tortoise doesnt give us any feedback on update counts atm
-        # https://github.com/tortoise/tortoise-orm/issues/126
-        await User.filter(id__in=freeze_ids).update(frozen=False)
-
-        await msg.author.send(f"{len(freeze_ids)} users have been defrosted")
-        await msg.add_reaction("\U0001F525")
-
-    @commands.command(aliases=FROZEN_INFO.triggers)
-    async def frozen_cmd(self, ctx: Context):
-        if ctx.error:
-            return
-
-        msg = ctx.message
-
+    @app_commands.command(name="frozen", description=FROZEN_INFO.overview)
+    @app_commands.default_permissions(manage_guild=True)
+    async def frozen_cmd(self, interaction: discord.Interaction):
+        await require_admin(interaction)
         frozen_list = await User.filter(frozen=True).all()
-
         if len(frozen_list) < 1:
-            await msg.author.send("There aren't any frozen users")
+            await Messages.respond_success(interaction, "There aren't any frozen users", header="Frozen Users")
             return
+        pages = banned_user_pages([(u.id, u.name) for u in frozen_list], "Frozen Users", "defrost")
+        await Paginator.send_as_response(interaction, pages, ephemeral=True)
 
-        # Build user list
-        entries = []
-        for u in frozen_list:
-            entries.append(Entry(f"{u.id}:{u.name}", f"Unfreeze with `{config.Config.instance().command_prefix}defrost {u.id}`"))
-
-        # Build pages
-        pages = []
-        # Overview
-        author=f"Frozen Users"
-        description = f"Use `{config.Config.instance().command_prefix}defrost <user_id>` to unfreeze a user"
-        i = 0
-        entry_subset = []
-        for e in entries:
-            entry_subset.append(e)
-            if i == 14:
-                pages.append(Page(entries=entry_subset, author=author, description=description))
-                i = 0
-                entry_subset = []
-            else:
-                i += 1
-        if len(entry_subset) > 0:
-            pages.append(Page(entries=entry_subset, author=author, description=description))
-
-        # Start pagination
-        pages = Paginator(self.bot, message=msg, page_list=pages,as_dm=True)
-        await pages.paginate(start_page=1)
-
-    @commands.command(aliases=TIPBAN_INFO.triggers)
-    async def tipban_cmd(self, ctx: Context):
-        if ctx.error:
+    @app_commands.command(name="tipban", description=TIPBAN_INFO.overview)
+    @app_commands.describe(user="The user to tip ban")
+    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def tipban_cmd(self, interaction: discord.Interaction, user: discord.User):
+        await require_admin(interaction)
+        if await is_protected_target(user, interaction.guild):
+            await Messages.respond_error(interaction, "You can't tip ban an admin.")
             return
+        await User.filter(id=user.id).update(tip_banned=True)
+        await Messages.respond_success(interaction, f"{user.name} has been banned \U0001F528")
 
-        msg = ctx.message
+    @app_commands.command(name="tipunban", description=TIPUNBAN_INFO.overview)
+    @app_commands.describe(user="The user to tip unban")
+    @app_commands.default_permissions(manage_guild=True)
+    async def tipunban_cmd(self, interaction: discord.Interaction, user: discord.User):
+        await require_admin(interaction)
+        await User.filter(id=user.id).update(tip_banned=False)
+        await Messages.respond_success(interaction, f"{user.name} has been unbanned \U0001F5FD")
 
-        if ChannelUtil.is_private(msg.channel):
-            await Messages.add_x_reaction(msg)
-            await Messages.send_error_dm(msg.author, "You can't ban via DM, need to do it in a server channel")
-            return
-
-        ban_ids = []
-        # Get mentioned users
-        for m in msg.mentions:
-            ban_ids.append(m.id)
-    
-        # Get users they are banning by ID alone
-        for sec in msg.content.split():
-            try:
-                numeric = int(sec.strip())
-                user = await self.bot.fetch_user(numeric)
-                if user is not None:
-                    ban_ids.append(user.id)
-            except Exception:
-                pass
-
-        # remove duplicates and admins
-        ban_ids = set(ban_ids)
-        ban_ids = [x for x in ban_ids if x not in config.Config.instance().get_admin_ids()]
-        for f in ban_ids:
-            memba = msg.guild.get_member(f)
-            if memba is not None:
-                for r in memba.roles:
-                    if r.id in [config.Config.instance().get_admin_roles()]:
-                        ban_ids.remove(r.id)
-
-        if len(ban_ids) < 1:
-            await Messages.add_x_reaction(msg)
-            await msg.author.send("Your message has no users to ban")
-            return
-
-        await User.filter(id__in=ban_ids).update(tip_banned=True)
-
-        await msg.author.send(f"{len(ban_ids)} users have been banned")
-        await msg.add_reaction("\U0001F528")
-
-    @commands.command(aliases=TIPUNBAN_INFO.triggers)
-    async def tipunban_cmd(self, ctx: Context):
-        if ctx.error:
-            return
-
-        msg = ctx.message
-
-        ban_ids = []
-        # Get mentioned users
-        for m in msg.mentions:
-            ban_ids.append(m.id)
-    
-        # Get users they are banning by ID alone
-        for sec in msg.content.split():
-            try:
-                numeric = int(sec.strip())
-                user = await self.bot.fetch_user(numeric)
-                if user is not None:
-                    ban_ids.append(user.id)
-            except Exception:
-                pass
-
-        # remove duplicates and admins
-        ban_ids = set(ban_ids)
-
-        if len(ban_ids) < 1:
-            await Messages.add_x_reaction(msg)
-            await msg.author.send("Your message has no users to unban")
-            return
-
-        # TODO - tortoise doesnt give us any feedback on update counts atm
-        # https://github.com/tortoise/tortoise-orm/issues/126
-        await User.filter(id__in=ban_ids).update(tip_banned=False)
-
-        await msg.author.send(f"{len(ban_ids)} users have been unbanned")
-        await msg.add_reaction("\U0001F5FD")
-
-    @commands.command(aliases=TIPBANNED_INFO.triggers)
-    async def tipbanned_cmd(self, ctx: Context):
-        if ctx.error:
-            return
-
-        msg = ctx.message
-
+    @app_commands.command(name="tipbanned", description=TIPBANNED_INFO.overview)
+    @app_commands.default_permissions(manage_guild=True)
+    async def tipbanned_cmd(self, interaction: discord.Interaction):
+        await require_admin(interaction)
         banned_list = await User.filter(tip_banned=True).all()
-
         if len(banned_list) < 1:
-            await msg.author.send("There aren't any banned users")
+            await Messages.respond_success(interaction, "There aren't any banned users", header="Tip Banned Users")
             return
+        pages = banned_user_pages([(u.id, u.name) for u in banned_list], "Tip Banned Users", "tipunban")
+        await Paginator.send_as_response(interaction, pages, ephemeral=True)
 
-        # Build user list
-        entries = []
-        for u in banned_list:
-            entries.append(Entry(f"{u.id}:{u.name}", f"Unban with `{config.Config.instance().command_prefix}tipunban {u.id}`"))
-
-        # Build pages
-        pages = []
-        # Overview
-        author=f"Tip Banned Users"
-        description = f"Use `{config.Config.instance().command_prefix}tipunban <user_id>` to unban a user"
-        i = 0
-        entry_subset = []
-        for e in entries:
-            entry_subset.append(e)
-            if i == 14:
-                pages.append(Page(entries=entry_subset, author=author, description=description))
-                i = 0
-                entry_subset = []
-            else:
-                i += 1
-        if len(entry_subset) > 0:
-            pages.append(Page(entries=entry_subset, author=author, description=description))
-
-        # Start pagination
-        pages = Paginator(self.bot, message=msg, page_list=pages,as_dm=True)
-        await pages.paginate(start_page=1)
-
-    @commands.command(aliases=STATSBAN_INFO.triggers)
-    async def statsban_cmd(self, ctx: Context):
-        if ctx.error:
+    @app_commands.command(name="statsban", description=STATSBAN_INFO.overview)
+    @app_commands.describe(user="The user to stats ban")
+    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def statsban_cmd(self, interaction: discord.Interaction, user: discord.User):
+        await require_admin(interaction)
+        if await is_protected_target(user, interaction.guild):
+            await Messages.respond_error(interaction, "You can't stats ban an admin.")
             return
-
-        msg = ctx.message
-
-        if ChannelUtil.is_private(msg.channel):
-            await Messages.add_x_reaction(msg)
-            await Messages.send_error_dm(msg.author, "You can only stats ban in a public channel")
+        target = await User.filter(id=user.id).first()
+        if target is None:
+            await Messages.respond_error(interaction, "That user doesn't have an account with me.")
             return
-
-        ban_ids = []
-        # Get mentioned users
-        for m in msg.mentions:
-            ban_ids.append(m.id)
-    
-        # Get users they are banning by ID alone
-        for sec in msg.content.split():
-            try:
-                numeric = int(sec.strip())
-                user = await self.bot.fetch_user(numeric)
-                if user is not None:
-                    ban_ids.append(user.id)
-            except Exception:
-                pass
-
-        # remove duplicates and admins
-        ban_ids = set(ban_ids)
-        for f in ban_ids:
-            memba = msg.guild.get_member(f)
-            if memba is not None:
-                for r in memba.roles:
-                    if r.id in [config.Config.instance().get_admin_roles()]:
-                        ban_ids.remove(r.id)
-
-        if len(ban_ids) < 1:
-            await Messages.add_x_reaction(msg)
-            await msg.author.send("Your message has no users to ban")
-            return
-
-        # We need to make sure that the stats objects are created for these users before banning them
-        to_ban = await User.filter(id__in=ban_ids).all()
+        # Make sure the stats object exists before banning
         async with in_transaction() as conn:
-            for u in to_ban:
-                stats = await u.get_stats(msg.guild.id)
-                stats.banned = True
-                await stats.save(update_fields=['banned'], using_db=conn)
+            stats = await target.get_stats(interaction.guild_id)
+            stats.banned = True
+            await stats.save(update_fields=['banned'], using_db=conn)
+        await Messages.respond_success(interaction, f"{user.name} has been stats banned \U0001F528")
 
-        await msg.author.send(f"{len(ban_ids)} users have been banned")
-        await msg.add_reaction("\U0001F528")
+    @app_commands.command(name="statsunban", description=STATSUNBAN_INFO.overview)
+    @app_commands.describe(user="The user to stats unban")
+    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def statsunban_cmd(self, interaction: discord.Interaction, user: discord.User):
+        await require_admin(interaction)
+        await Stats.filter(user_id=user.id, server_id=interaction.guild_id, banned=True).update(banned=False)
+        await Messages.respond_success(interaction, f"{user.name} has been stats unbanned \U0001F5FD")
 
-    @commands.command(aliases=STATSUNBAN_INFO.triggers)
-    async def statsunban_cmd(self, ctx: Context):
-        if ctx.error:
-            return
-
-        msg = ctx.message
-
-        if ChannelUtil.is_private(msg.channel):
-            await Messages.add_x_reaction(msg)
-            await Messages.send_error_dm(msg.author, "You can only stats unban in a public channel")
-            return
-
-        ban_ids = []
-        # Get mentioned users
-        for m in msg.mentions:
-            ban_ids.append(m.id)
-    
-        # Get users they are banning by ID alone
-        for sec in msg.content.split():
-            try:
-                numeric = int(sec.strip())
-                user = await self.bot.fetch_user(numeric)
-                if user is not None:
-                    ban_ids.append(user.id)
-            except Exception:
-                pass
-
-        # remove duplicates and admins
-        ban_ids = set(ban_ids)
-
-        if len(ban_ids) < 1:
-            await Messages.add_x_reaction(msg)
-            await msg.author.send("Your message has no users to unban")
-            return
-
-        # TODO - tortoise doesnt give us any feedback on update counts atm
-        # https://github.com/tortoise/tortoise-orm/issues/126
-        await Stats.filter(user_id__in=ban_ids, server_id=msg.guild.id, banned=True).update(banned=False)
-
-        await msg.author.send(f"{len(ban_ids)} users have been unbanned")
-        await msg.add_reaction("\U0001F5FD")
-
-    @commands.command(aliases=STATSBANNED_INFO.triggers)
-    async def statsbanned_cmd(self, ctx: Context):
-        if ctx.error:
-            return
-
-        msg = ctx.message
-
-        if ChannelUtil.is_private(msg.channel):
-            await Messages.add_x_reaction(msg)
-            await Messages.send_error_dm(msg.author, "You can only view stats banned in a public channel")
-            return
-
-        banned_list = await Stats.filter(banned=True, server_id=msg.guild.id).prefetch_related('user').all()
-
+    @app_commands.command(name="statsbanned", description=STATSBANNED_INFO.overview)
+    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def statsbanned_cmd(self, interaction: discord.Interaction):
+        await require_admin(interaction)
+        banned_list = await Stats.filter(banned=True, server_id=interaction.guild_id).prefetch_related('user').all()
         if len(banned_list) < 1:
-            await msg.author.send("There aren't any banned users")
+            await Messages.respond_success(interaction, "There aren't any stats banned users", header="Stats Banned Users")
             return
+        pages = banned_user_pages([(s.user.id, s.user.name) for s in banned_list], "Stats Banned Users", "statsunban")
+        await Paginator.send_as_response(interaction, pages, ephemeral=True)
 
-        # Build user list
-        entries = []
-        for u in banned_list:
-            entries.append(Entry(f"{u.user.id}:{u.user.name}", f"Unban with `{config.Config.instance().command_prefix}statsunban {u.user.id}`"))
-
-        # Build pages
-        pages = []
-        # Overview
-        author=f"Stats Banned Users"
-        description = f"Use `{config.Config.instance().command_prefix}statsunban <user_id>` to unban a user"
-        i = 0
-        entry_subset = []
-        for e in entries:
-            entry_subset.append(e)
-            if i == 14:
-                pages.append(Page(entries=entry_subset, author=author, description=description))
-                i = 0
-                entry_subset = []
-            else:
-                i += 1
-        if len(entry_subset) > 0:
-            pages.append(Page(entries=entry_subset, author=author, description=description))
-
-        # Start pagination
-        pages = Paginator(self.bot, message=msg, page_list=pages,as_dm=True)
-        await pages.paginate(start_page=1)
-
-    @commands.command(aliases=DECREASETIPS_INFO.triggers)
-    async def decreasetips_cmd(self, ctx: Context):
-        if ctx.error:
+    async def adjust_tip_stats(self, interaction: discord.Interaction, user: discord.User, amount: float):
+        inv = await require_admin(interaction)
+        if not inv.god and await is_protected_target(user, interaction.guild):
+            await Messages.respond_error(interaction, "You can't adjust stats of an admin.")
             return
-
-        msg = ctx.message
-
-        decreasetip_ids = []
-        # Get mentioned users
-        for m in msg.mentions:
-            decreasetip_ids.append(m.id)
-
-        # remove duplicates and avoid admins
-        decreasetip_ids = set(decreasetip_ids)
-        decreasetip_ids = [x for x in decreasetip_ids if x not in config.Config.instance().get_admin_ids()]
-        if msg.author.id not in config.Config.instance().get_admin_ids():
-            for d in decreasetip_ids:
-                memba = msg.guild.get_member(d)
-                if memba is not None:
-                    for r in memba.roles:
-                        if r.id in [config.Config.instance().get_admin_roles()]:
-                            d.remove(r.id)
-
-
-        if len(decreasetip_ids) < 1:
-            await Messages.add_x_reaction(msg)
-            await msg.author.send("Your message has no users to decreasetips for")
+        stats = await Stats.filter(user_id=user.id, server_id=interaction.guild_id).first()
+        if stats is None:
+            await Messages.respond_error(interaction, "That user doesn't have any stats in this server.")
             return
+        async with in_transaction() as conn:
+            stats.total_tipped_amount = float(stats.total_tipped_amount) + amount
+            stats.legacy_total_tipped_amount = float(stats.legacy_total_tipped_amount) + amount
+            await stats.save(using_db=conn, update_fields=['total_tipped_amount', 'legacy_total_tipped_amount'])
+        direction = "Increased" if amount >= 0 else "Decreased"
+        await Messages.respond_success(interaction, f"{direction} stats of {user.name} by {abs(amount)} {Env.currency_name()}")
 
-        try:
-            amount = RegexUtil.find_float(msg.content)
-        except AmountMissingException:
-            await Messages.send_usage_dm(msg.author, DECREASETIPS_INFO)
-            return
+    @app_commands.command(name="decreasetips", description=DECREASETIPS_INFO.overview)
+    @app_commands.describe(user="The user whose stats to decrease", amount="Amount to subtract from their tip total")
+    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def decreasetips_cmd(self, interaction: discord.Interaction, user: discord.User, amount: float):
+        await self.adjust_tip_stats(interaction, user, -amount)
 
-        # TODO - tortoise doesnt give us any feedback on update counts atm
-        # https://github.com/tortoise/tortoise-orm/issues/126
-        # TODO - we also don't have atomic updates :/
-        decrease_tip_count = 0
-        for u in await Stats.filter(user_id__in=decreasetip_ids, server_id=msg.guild.id).all():
-            async with in_transaction() as conn:
-                u.total_tipped_amount = float(u.total_tipped_amount) - amount
-                u.legacy_total_tipped_amount = float(u.legacy_total_tipped_amount) - amount
-                await u.save(using_db=conn, update_fields=['total_tipped_amount', 'legacy_total_tipped_amount'])
-                decrease_tip_count += 1
-
-        await msg.author.send(f"Decreased stats of {decrease_tip_count} by {amount} {Env.currency_name()}")
-        await msg.add_reaction("\u2796")
-
-    @commands.command(aliases=INCREASETIPS_INFO.triggers)
-    async def increasetips_cmd(self, ctx: Context):
-        if ctx.error:
-            return
-
-        msg = ctx.message
-
-        increasetip_ids = []
-        # Get mentioned users
-        for m in msg.mentions:
-            increasetip_ids.append(m.id)
-
-        # remove duplicates and avoid admins
-        increasetip_ids = set(increasetip_ids)
-        increasetip_ids = [x for x in increasetip_ids if x not in config.Config.instance().get_admin_ids()]
-        if msg.author.id not in config.Config.instance().get_admin_ids():
-            for d in increasetip_ids:
-                memba = msg.guild.get_member(d)
-                if memba is not None:
-                    for r in memba.roles:
-                        if r.id in [config.Config.instance().get_admin_roles()]:
-                            d.remove(r.id)
-
-
-        if len(increasetip_ids) < 1:
-            await Messages.add_x_reaction(msg)
-            await msg.author.send("Your message has no users to increasetips for")
-            return
-
-        try:
-            amount = RegexUtil.find_float(msg.content)
-        except AmountMissingException:
-            await Messages.send_usage_dm(msg.author, INCREASETIPS_INFO)
-            return
-
-        # TODO - tortoise doesnt give us any feedback on update counts atm
-        # https://github.com/tortoise/tortoise-orm/issues/126
-        # TODO - we also don't have atomic updates :/
-        increase_tip_count = 0
-        for u in await Stats.filter(user_id__in=increasetip_ids, server_id=msg.guild.id).all():
-            async with in_transaction() as conn:
-                u.total_tipped_amount = float(u.total_tipped_amount) + amount
-                u.legacy_total_tipped_amount = float(u.legacy_total_tipped_amount) + amount
-                await u.save(using_db=conn, update_fields=['total_tipped_amount', 'legacy_total_tipped_amount'])
-                increase_tip_count += 1
-
-        await msg.author.send(f"Increased stats of {increase_tip_count} by {amount} {Env.currency_name()}")
-        await msg.add_reaction("\u2795")
+    @app_commands.command(name="increasetips", description=INCREASETIPS_INFO.overview)
+    @app_commands.describe(user="The user whose stats to increase", amount="Amount to add to their tip total")
+    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def increasetips_cmd(self, interaction: discord.Interaction, user: discord.User, amount: float):
+        await self.adjust_tip_stats(interaction, user, amount)

@@ -9,7 +9,7 @@ import datetime
 import logging
 
 class Stats(Model):
-    user = fields.ForeignKeyField('db.User', related_name='stats', unique=True, index=True) 
+    user = fields.ForeignKeyField('db.User', related_name='stats', unique=True, db_index=True) 
     banned = fields.BooleanField(default=False)
     total_tips = fields.IntField(default=0)
     total_tipped_amount = fields.DecimalField(max_digits=20, decimal_places=Env.precision_digits(), default=0)

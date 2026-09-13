@@ -1,0 +1,87 @@
+DISCORD PRIVILEGED INTENT APPLICATION -- GRAHAM (BANANO/NANO tip bot) -- v5.0
+
+Plain text, ready to paste into the form. Lines in [brackets] are notes to you, not part of the answer.
+
+[Submit for SERVER MEMBERS and PRESENCE only. Message Content must be UNTICKED in the
+Developer Portal for both applications BEFORE submitting - the whole point of the v5
+rewrite is that the bot no longer reads messages. Leave that section of the form blank
+or mark it not requested.]
+
+=====================================================================
+APPLICATION DETAILS
+=====================================================================
+
+What does your application do?
+
+Graham is an open source (MIT licensed) tip bot for the BANANO and NANO cryptocurrencies. It lets members of a server tip each other small amounts of crypto for helpful posts, run "rains" (split a tip across recently active members), and run giveaways. Every balance is backed by a real on-chain wallet, so the bot's job is translating commands into wallet transactions.
+
+As of version 5.0 the bot is fully migrated to Discord slash commands. It no longer reads message content and no longer requests the Message Content intent - every command is a typed slash command, and all argument parsing happens through Discord's own command options.
+
+The bot is not public and is not listed anywhere - it only runs in a couple of private community servers that I operate it for. Source code: https://github.com/bbedward/graham_discord_bot
+
+The only data it keeps is the Discord user ID and username of people who explicitly create an account with it (needed to map them to their wallet address), plus tip statistics like totals and top tips. No message content (the intent is not even enabled), no presence data, and no member lists are stored.
+
+Do you have a public Privacy Policy?
+
+No. The bot doesn't collect or sell user data - it stores only the Discord user ID and username of users who opt in by creating an account, so they can be matched to their crypto wallet. The full source code is public, so anyone can verify exactly what is and isn't stored.
+
+=====================================================================
+MESSAGE CONTENT INTENT
+=====================================================================
+
+[Not requested. Untick it in the portal for both applications before submitting.
+If the form still asks: "Not applicable - the bot was rewritten onto slash commands
+in v5.0 specifically so it does not need to read message content, and the intent
+has been removed from the application."]
+
+=====================================================================
+SERVER MEMBERS INTENT
+=====================================================================
+
+Why do you need the Guild Members intent?
+
+This bot moves real cryptocurrency, and tipping is entirely member-based, so it constantly needs to resolve user IDs to current members of the server:
+
+1. Rains and giveaways are role-gated: recipients must hold an opt-in "rain" role, and members with moderation roles (muted/jailed) are excluded. Before crediting anyone, the bot looks up each candidate as a guild member to check those roles and to confirm they are actually still in the server. Crediting a departed or excluded member is a financial error, not a cosmetic one.
+
+2. Privileged commands (freezing accounts, pausing the bot, adjusting balances) are authorized by admin roles configured per server, which requires reading the invoker's and target's member roles.
+
+3. Recipients of tips, rains, and giveaway wins get a DM notification, which requires resolving the member object.
+
+Without the intent the member cache is empty and none of these role or membership checks work reliably.
+
+Are you storing any API Data off-platform?
+[Select: Yes]
+
+Only for users who explicitly register with the bot: their Discord user ID and username are stored in the bot's own database so their wallet address can be linked to their Discord account. No member lists, roles, join dates, or any other member data are stored.
+
+=====================================================================
+PRESENCE INTENT
+=====================================================================
+
+Why do you need the Guild Presences intent?
+
+It's used for exactly one thing: before the bot DMs someone a "you were tipped" notification, it checks whether they're set to Do Not Disturb and skips the DM if so. It's a courtesy feature so the bot doesn't ping people who've asked not to be disturbed. Presence data is checked at that moment and never recorded anywhere.
+
+Can users opt out of having their Presence data tracked?
+[Select: Yes]
+
+There's nothing to opt out of - presence is never tracked or stored. It's read once, at the moment a DM would be sent, purely to respect the user's Do Not Disturb status.
+
+Are you storing user activity data off-platform?
+[Select: No]
+
+No presence or activity data is stored anywhere.
+
+=====================================================================
+SCREENSHOTS / VIDEO LINKS
+=====================================================================
+
+[They require a link per intent. Take these in your server after deploying v5, upload
+to imgur or grab a Discord CDN link, and paste one per section.]
+
+Server Members: screenshot of a rain - "/brain 500" - showing the public rain confirmation line ("rained to N users"), since that flow is the member/role lookup in action. A giveaway winner announcement also works ("verified the winner is still a server member before paying out").
+
+Presence: screenshot of the tip-notification DM ("You were tipped X by Y"), with a caption like "this DM is suppressed when the recipient is in Do Not Disturb - the only use of presence data." There's no visible UI for a skipped DM, so the caption carries it.
+
+Message Content: not applicable - intent removed in v5.0.
