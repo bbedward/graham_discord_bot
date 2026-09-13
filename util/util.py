@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import List
 
 import asyncio
+import datetime
 import secrets
 
 class Utils(object):
@@ -19,3 +20,10 @@ class Utils(object):
     @staticmethod
     def random_float() -> float:
         return secrets.randbelow(100) / 100
+
+    @staticmethod
+    def as_utc(dt: datetime.datetime) -> datetime.datetime:
+        # tortoise returns naive UTC with use_tz=False; in-memory assignments stay aware
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=datetime.timezone.utc)
+        return dt

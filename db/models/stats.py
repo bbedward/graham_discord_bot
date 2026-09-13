@@ -3,6 +3,7 @@ from tortoise.models import Model
 from tortoise.transactions import in_transaction
 from tortoise import fields
 from util.env import Env
+from util.util import Utils
 
 import asyncio
 import datetime
@@ -57,7 +58,7 @@ class Stats(Model):
             top_tip_month_updated = True
         # Update 24H tip if necessary
         top_tip_day_updated = False
-        delta = datetime.datetime.now(datetime.timezone.utc) - self.top_tip_day_at
+        delta = datetime.datetime.now(datetime.timezone.utc) - Utils.as_utc(self.top_tip_day_at)
         if delta.total_seconds() > 86400 or amount > self.top_tip_day:
             self.top_tip_day = amount
             self.top_tip_day_at = datetime.datetime.now(datetime.timezone.utc)

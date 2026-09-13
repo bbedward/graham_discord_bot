@@ -22,6 +22,7 @@ from util.discord.messages import Messages
 from util.discord.resolver import require_user, resolve, validate_amount
 from util.discord.users import resolve_member, resolve_user
 from util.env import Env
+from util.util import Utils
 
 TICKET_COMMAND = "/ticket"
 DONATE_COMMAND = f"/{'donate' if Env.banano() else 'ntipgiveaway'}"
@@ -127,7 +128,7 @@ class GiveawayCog(commands.Cog):
             embed.description+= f"\nThis giveaway is free to enter:"
             embed.description+= f"\n`{TICKET_COMMAND}` - To enter this giveaway"
         embed.description+= f"\n`{DONATE_COMMAND} <amount>` - To increase the pot"
-        duration = (giveaway.end_at - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
+        duration = (Utils.as_utc(giveaway.end_at) - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
         if duration < 60:
             embed.description += f"\n\nThis giveaway will end in **{int(duration)} seconds**"
         else:
@@ -142,7 +143,7 @@ class GiveawayCog(commands.Cog):
             return
         self.giveaway_ids.append(giveaway.id)
         # Sleep for <giveaway duration> seconds
-        delta = (giveaway.end_at - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
+        delta = (Utils.as_utc(giveaway.end_at) - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
         if delta > 0:
             await asyncio.sleep(delta)
         # End the giveaway
@@ -444,7 +445,7 @@ class GiveawayCog(commands.Cog):
                 embed.description+= f"\nThis giveaway is free to enter:"
                 embed.description+= f"\n`{TICKET_COMMAND}` - To enter this giveaway"
             embed.description+= f"\n`{DONATE_COMMAND} <amount>` - To increase the pot"
-            duration = (gw.end_at - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
+            duration = (Utils.as_utc(gw.end_at) - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
             if duration < 60:
                 embed.description += f"\n\nThis giveaway will end in **{int(duration)} seconds**"
             else:

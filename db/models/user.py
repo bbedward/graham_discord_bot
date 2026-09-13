@@ -10,6 +10,7 @@ import db.models.stats as stats
 from models.constants import Constants
 from rpc.client import RPCClient
 from util.env import Env
+from util.util import Utils
 
 class User(Model):
     id = fields.BigIntField(pk=True, generated=False)
@@ -128,7 +129,7 @@ class User(Model):
         if last_withdraw is None:
             return -1
         # Get how many seconds until they can withdraw again
-        delta = (datetime.datetime.now(datetime.timezone.utc) - last_withdraw.created_at).total_seconds()
+        delta = (datetime.datetime.now(datetime.timezone.utc) - Utils.as_utc(last_withdraw.created_at)).total_seconds()
         return int(Constants.WITHDRAW_COOLDOWN - delta)
 
     async def is_muted_by(self, user_id: int) -> bool:

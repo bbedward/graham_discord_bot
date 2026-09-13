@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import unittest
 import os
 from util.conversions import BananoConversions, NanoConversions
@@ -150,3 +151,13 @@ class TestValidators(unittest.TestCase):
         self.assertFalse(Validators.is_valid_address('xrb_1bananobh5rat99qfgt1ptpieie5swmoth87thi74qgbfrij7dcgjiij94xa'))
         # Bad length
         self.assertFalse(Validators.is_valid_address('xrb_1bananobh5rat99qfgt1ptpieie5swmoth87thi74qgbfrij7dcgjiij94x'))
+class TestAsUtc(unittest.TestCase):
+    def test_naive_becomes_utc_aware(self):
+        naive = datetime.datetime(2026, 1, 1, 12, 0, 0)
+        aware = Utils.as_utc(naive)
+        self.assertEqual(aware.tzinfo, datetime.timezone.utc)
+        self.assertEqual(aware.replace(tzinfo=None), naive)
+
+    def test_aware_passes_through(self):
+        aware = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        self.assertIs(Utils.as_utc(aware), aware)
