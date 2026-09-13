@@ -124,7 +124,7 @@ class TipsCog(commands.Cog):
                       to2: discord.User = None, to3: discord.User = None, to4: discord.User = None,
                       to5: discord.User = None, to6: discord.User = None, to7: discord.User = None,
                       to8: discord.User = None, to9: discord.User = None, more: str = None):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         validate_amount(amount, minimum=Constants.TIP_MINIMUM)
         recipients = await self.collect_recipients(interaction, [to, to2, to3, to4, to5, to6, to7, to8, to9], more)
         if len(recipients) < 1:
@@ -139,7 +139,7 @@ class TipsCog(commands.Cog):
                            to2: discord.User = None, to3: discord.User = None, to4: discord.User = None,
                            to5: discord.User = None, to6: discord.User = None, to7: discord.User = None,
                            to8: discord.User = None, to9: discord.User = None, more: str = None):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         validate_amount(amount, minimum=Constants.TIP_MINIMUM)
         recipients = await self.collect_recipients(interaction, [to, to2, to3, to4, to5, to6, to7, to8, to9], more)
         if len(recipients) < 1:
@@ -155,7 +155,7 @@ class TipsCog(commands.Cog):
     @app_commands.describe(amount="Amount to tip a random active user")
     @app_commands.guild_only()
     async def tiprandom_cmd(self, interaction: discord.Interaction, amount: float):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         inv = await require_user(interaction)
         validate_amount(amount, minimum=Constants.TIPRANDOM_MINIMUM)
         user = inv.user
@@ -214,7 +214,7 @@ class TipsCog(commands.Cog):
     @app_commands.describe(amount="Amount to donate to the bot author")
     @app_commands.guild_only()
     async def tipauthor_cmd(self, interaction: discord.Interaction, amount: float):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         inv = await require_user(interaction)
         validate_amount(amount, minimum=Constants.TIP_MINIMUM)
         user = inv.user
@@ -230,10 +230,7 @@ class TipsCog(commands.Cog):
             destination=Env.donation_address()
         )
         await TransactionQueue.instance().put(tx)
-        try:
-            await interaction.followup.send(f"\U00002611\U0001F618❤ **{interaction.user.display_name}** donated to the bot author. Thank you!")
-        except Exception:
-            pass
+        await Messages.send_public(interaction, f"\U00002611\U0001F618❤ **{interaction.user.display_name}** donated to the bot author. Thank you!", ack="Thank you ❤")
         # Update stats
         stats: Stats = await user.get_stats(server_id=interaction.guild_id)
         if interaction.channel_id not in config.Config.instance().get_no_stats_channels():

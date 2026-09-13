@@ -107,7 +107,7 @@ class FavoriteCog(commands.Cog):
     @app_commands.describe(amount="Amount to split between all of your favorites")
     @app_commands.guild_only()
     async def tipfavorites_cmd(self, interaction: discord.Interaction, amount: float):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         inv = await require_user(interaction)
         validate_amount(amount, minimum=Constants.TIP_MINIMUM)
         user = inv.user

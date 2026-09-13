@@ -50,7 +50,7 @@ class RainCog(commands.Cog):
     @app_commands.describe(amount="Amount to distribute between all active users", anonymous="Hide your name from the recipients' notifications")
     @app_commands.guild_only()
     async def rain_cmd(self, interaction: discord.Interaction, amount: float, anonymous: bool = False):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         inv = await require_user(interaction)
         user = inv.user
 

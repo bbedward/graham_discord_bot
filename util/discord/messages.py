@@ -56,15 +56,26 @@ class Messages():
         return f"{tier}\U0001F4A6" if rain else tier
 
     @staticmethod
-    async def send_tip_line(interaction: discord.Interaction, amount: float, sender: discord.abc.User, targets: str, rain: bool = False):
-        line = f"{Messages.tip_emoji(amount, rain=rain)} **{sender.display_name}** → {targets} ({Env.format_float(amount)} {Env.currency_symbol()})"
+    async def send_public(interaction: discord.Interaction, content: str = None, ack: str = "Done \U00002705", embed: discord.Embed = None):
+        # Commands defer ephemerally so errors stay private; public output goes straight to the channel
+        mentions = discord.AllowedMentions.none()
         try:
-            if interaction.response.is_done():
-                await interaction.followup.send(line, allowed_mentions=discord.AllowedMentions.none())
-            else:
-                await interaction.response.send_message(line, allowed_mentions=discord.AllowedMentions.none())
+            await interaction.channel.send(content, embed=embed, allowed_mentions=mentions)
+        except Exception:
+            try:
+                await interaction.followup.send(content, embed=embed, allowed_mentions=mentions)
+            except Exception:
+                pass
+            return
+        try:
+            await interaction.followup.send(ack, ephemeral=True)
         except Exception:
             pass
+
+    @staticmethod
+    async def send_tip_line(interaction: discord.Interaction, amount: float, sender: discord.abc.User, targets: str, rain: bool = False):
+        line = f"{Messages.tip_emoji(amount, rain=rain)} **{sender.display_name}** → {targets} ({Env.format_float(amount)} {Env.currency_symbol()})"
+        await Messages.send_public(interaction, line, ack="Sent \U00002705")
 
     @staticmethod
     async def send_error_dm(member: discord.abc.User, message: str, skip_dnd=False) -> discord.Message:

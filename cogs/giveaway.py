@@ -216,7 +216,7 @@ class GiveawayCog(commands.Cog):
     @app_commands.describe(amount="Amount to give away", duration="Duration in minutes", fee="Entry fee")
     @app_commands.guild_only()
     async def giveaway_cmd(self, interaction: discord.Interaction, amount: float, duration: int, fee: float = 0.0):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         inv = await require_user(interaction)
         user = inv.user
 
@@ -278,10 +278,7 @@ class GiveawayCog(commands.Cog):
                     await stats.update_tip_stats(amount)
                 # Announce giveaway
                 embed = self.format_giveaway_announcement(gw)
-                try:
-                    await interaction.followup.send(embed=embed)
-                except Exception:
-                    pass
+                await Messages.send_public(interaction, embed=embed, ack="Giveaway started \U00002705")
                 for ch in config.Config.instance().get_giveaway_announce_channels():
                     if ch != interaction.channel_id:
                         channel = interaction.guild.get_channel(ch)
