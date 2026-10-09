@@ -24,6 +24,8 @@ spec:
         command: ["/bin/bash", "-c"]
         args: ["cp /config/config.yaml .; python bot.py start_bot -p . -s \"rug pull simulator\" -u http://pippin-banano.pippin:11338"]
         env:
+          - name: GRAHAM_PRIVILEGED_INTENTS
+            value: "0"
           - name: BANANO
             value: "1"
           - name: REDIS_HOST
