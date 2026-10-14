@@ -19,10 +19,11 @@ from db.models.transaction import Transaction
 
 class GrahamServer(object):
     """An AIOHTTP server that listens for callbacks and provides various APIs"""
-    def __init__(self, subID: str, host: str, port: int):
+    def __init__(self, subID: str, host: str, port: int, callback_port: int):
         self.subID = subID
         self.app = web.Application(middlewares=[web.normalize_path_middleware()])
-        self.app.add_routes([
+        self.callback_app = web.Application()
+        self.callback_app.add_routes([
             web.post('/callback', self.callback)
         ])
         cors = aiohttp_cors.setup(self.app, defaults={
@@ -43,6 +44,7 @@ class GrahamServer(object):
         self.logger = logging.getLogger()
         self.host = host
         self.port = port
+        self.callback_port = callback_port
         self.min_amount = 10 if Env.banano() else 0.1
 
     def format_js_iso(self, date: datetime.datetime) -> str:
@@ -262,4 +264,16 @@ class GrahamServer(object):
 
     def start(self):
         """Start the server"""
-        web.run_app(self.app, host=self.host, port=self.port,  access_log = None if not config.Config.instance().debug else self.logger)
+        access_log = None if not config.Config.instance().debug else self.logger
+        callback_runner = web.AppRunner(self.callback_app, access_log=access_log)
+
+        async def start_callback_site(app: web.Application):
+            await callback_runner.setup()
+            await web.TCPSite(callback_runner, self.host, self.callback_port).start()
+
+        async def stop_callback_site(app: web.Application):
+            await callback_runner.cleanup()
+
+        self.app.on_startup.append(start_callback_site)
+        self.app.on_cleanup.append(stop_callback_site)
+        web.run_app(self.app, host=self.host, port=self.port, access_log=access_log)

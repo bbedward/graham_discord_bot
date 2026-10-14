@@ -173,12 +173,12 @@ async def start_bot():
 		await RedisDB.close()
 
 def start_server():
-		server_host, server_port = Config.instance().get_server_info()
+		server_host, server_port, callback_port = Config.instance().get_server_info()
 		if server_host is None or server_port is None:
 			logger.info("Graham server is disabled")
 			sys.exit(1)
-		server = GrahamServer(subID, server_host, server_port)
-		logger.info(f"Graham server running at {server_host}:{server_port}")
+		server = GrahamServer(subID, server_host, server_port, callback_port)
+		logger.info(f"Graham server running at {server_host}:{server_port}, callbacks at {server_host}:{callback_port}")
 		DBConfig().init_db_aiohttp(server.app)
 		server.start()
 

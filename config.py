@@ -79,14 +79,15 @@ class Config(object):
             return self.yaml['restrictions']['no_spam_channels']
         return default
 
-    def get_server_info(self) -> Tuple[str, int]:
-        """Returns a tuple with server host, port - or none if server is disabled"""
-        default = (None, None)
+    def get_server_info(self) -> Tuple[str, int, int]:
+        """Returns a tuple with server host, port, callback port - or none if server is disabled"""
+        default = (None, None, None)
         if not self.has_yaml():
             return default
         elif 'server' in self.yaml and 'host' in self.yaml['server'] and 'port' in self.yaml['server']:
-            return (self.yaml['server']['host'], self.yaml['server']['port'])
-        return (None, None)
+            server = self.yaml['server']
+            return (server['host'], server['port'], server.get('callback_port', server['port'] + 1))
+        return default
 
     def get_admin_roles(self) -> List[int]:
         """Return a list of admin role IDs"""

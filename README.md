@@ -123,11 +123,12 @@ Create a config.yaml if it doesn't already exist, ensure the following is added 
 
 ```
 server:
-  # The host/port of the bot's aiohttp server
-  # Used for callbacks and APIs
-  # Callback is at $host:$port/callback (e.g. 127.0.0.1:11337/callback)
+  # The host/port of the bot's aiohttp server, for APIs
+  # Callback is at $host:$callback_port/callback (e.g. 127.0.0.1:11338/callback)
+  # callback_port defaults to port + 1
   host: 127.0.0.1
   port: 11337
+  callback_port: 11338
 ```
 
 Then in your node configuration at `~/BananoData/config-node.toml` or `~/Nano/config-node.toml` add:
@@ -135,7 +136,7 @@ Then in your node configuration at `~/BananoData/config-node.toml` or `~/Nano/co
 ```
 [node.httpcallback]
 address = "::ffff:127.0.0.1"
-port = 11337
+port = 11338
 target = "/callback"
 ```
 

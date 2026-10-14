@@ -80,8 +80,9 @@ giveaway:
     - 431171347427622913
 
 server:
-  # The host/port of the bot's aiohttp server
-  # Used for callbacks and APIs
-  # Callback is at $host:$port/callback (e.g. 127.0.0.1:11337/callback)
+  # The host/port of the bot's aiohttp server, for APIs
+  # Callback is at $host:$callback_port/callback (e.g. 127.0.0.1:11338/callback)
+  # callback_port defaults to port + 1
   host: 127.0.0.1
   port: 11337
+  callback_port: 11338
