@@ -3,7 +3,7 @@ tortoise-orm==1.1.8
 aiosqlite==0.22.1
 asyncpg==0.31.0
 redis==8.1.0
-aiohttp==3.14.3
+aiohttp==3.14.4
 aiohttp-cors==0.8.1
 bitstring==4.4.0
 aiodns==4.0.4
